@@ -602,9 +602,10 @@ def test_tick_p95_stays_inside_16ms_frame_budget():
                 ref_offset=G.Point(config.reference.stage_px.x, config.reference.stage_px.y),
             )
         )
-    # two patterns so every tick counts as "changed" -> worst case analysis cost
+    # two clearly different patterns so every tick counts as "changed": the
+    # analyser must run on every tick, which is the worst case for the budget
     other = replace(base, array=image.copy())
-    other.array[0:8, 0:8] = 255
+    other.array[100:500, 100:500] = 255
     frames = [base, other]
     capture = PreloadedCapture(frames, clock)
     machine = StateMachine(model_from_config(config.states), clock=clock)
@@ -632,6 +633,12 @@ def test_tick_p95_stays_inside_16ms_frame_budget():
     stats = perf.stages.get("tick_total")
     assert stats is not None and stats.count >= 20
     p95 = stats.as_dict()["p95_ms"]
+    assert p95 > 0.0, "tick timing used a fake clock: the budget assertion would be vacuous"
     assert p95 <= 16.0, f"tick p95 {p95:.2f} ms exceeds the 16 ms frame budget"
     # the decision path must actually have run every tick
     assert result.iterations == 24
+    detect = perf.stages.get("detect_template")
+    assert detect is not None and detect.count >= 24 * 3, (
+        f"analyser ran only {detect.count if detect else 0} template matches; "
+        "the change-driven gate skipped the hot path"
+    )

@@ -131,6 +131,7 @@ class Executor:
         config: Any,
         perf: PerfRecorder | None = None,
         clock=time.monotonic_ns,
+        perf_clock=time.perf_counter_ns,
         sleep=time.sleep,
         tick_s: float | None = None,
         budgets: Any | None = None,
@@ -144,6 +145,9 @@ class Executor:
         self.config = config
         self.perf = perf or PerfRecorder()
         self.clock = clock
+        # duration measurements must use a monotonic *wall* clock even when the
+        # scheduler clock is faked in tests, otherwise tick p95 is meaningless.
+        self.perf_clock = perf_clock
         self.sleep = sleep
         self.budgets = budgets or config.budgets
         capture_cfg = getattr(config, "capture", None)
@@ -202,6 +206,7 @@ class Executor:
         ocr_calls = 0
         stale_streak = 0
         pending_at_ns: int | None = None
+        pending_measured_at_ns = 0
         pending_retries = 0
         sig_at_action: Any = None
         last_frame: Frame | None = None
@@ -265,6 +270,7 @@ class Executor:
                 return finish("stopped_state", "machine is STOPPED")
 
             tick_started = now
+            tick_started_perf = self.perf_clock()
             try:
                 frame, read_ns, decode_ns = self._read_frame()
                 perf.record("capture_read", max(0, read_ns - decode_ns), backend=getattr(self.capture, "name", "?"))
@@ -272,9 +278,9 @@ class Executor:
                     perf.record("capture_copy", decode_ns, what="decode")
 
                 # ---- cheap change detection (sub-millisecond) ------------- #
-                sig_started = clock()
+                sig_started = self.perf_clock()
                 signature = frame_signature(frame)
-                perf.record("detect_fingerprint", clock() - sig_started, what="frame_signature")
+                perf.record("detect_fingerprint", self.perf_clock() - sig_started, what="frame_signature")
                 delta = 1.0 if last_signature is None else signature_delta(last_signature, signature)
                 changed = last_signature is None or delta >= self.change_threshold
                 if sig_at_action is None:
@@ -362,13 +368,13 @@ class Executor:
                 # ---- confirm the previous action ------------------------- #
                 if pending_at_ns is not None:
                     if changed_since_action:
-                        perf.record("confirm", clock() - pending_at_ns, what="changed")
+                        perf.record("confirm", self.perf_clock() - pending_measured_at_ns, what="changed")
                         self._event("action_confirmed", latency_ms=round((clock() - pending_at_ns) / 1e6, 2))
                         pending_at_ns = None
                         pending_retries = 0
                     elif (now - pending_at_ns) / 1e9 >= budgets.action_confirm_timeout_s:
                         pending_retries += 1
-                        perf.record("confirm", clock() - pending_at_ns, what="unconfirmed")
+                        perf.record("confirm", self.perf_clock() - pending_measured_at_ns, what="unconfirmed")
                         perf.count("actions_unconfirmed")
                         self._event("action_unconfirmed", retries=pending_retries)
                         pending_at_ns = None
@@ -420,6 +426,7 @@ class Executor:
                         self.actions.execute(action, self.config)
                     actions_issued += 1
                     pending_at_ns = clock()
+                    pending_measured_at_ns = self.perf_clock()
                     last_action_ns = now
                     sig_at_action = signature
                     self._event("action", action=type(action).__name__, label=action.label)
@@ -430,7 +437,7 @@ class Executor:
                 errors = 0
                 iterations += 1
                 perf.next_iteration()
-                work_ns = clock() - tick_started
+                work_ns = self.perf_clock() - tick_started_perf
                 perf.record("tick_total", work_ns)
                 self._sleep_remaining(work_ns, perf)
 
@@ -454,10 +461,10 @@ class Executor:
     # -- internals --------------------------------------------------------- #
     def _read_frame(self) -> tuple[Frame, int, int]:
         """Read the newest frame; returns (frame, total_ns, decode_ns)."""
-        started = self.clock()
+        started = self.perf_clock()
         latest = getattr(self.capture, "latest", None)
         frame = latest() if callable(latest) else self.capture.grab()
-        total = self.clock() - started
+        total = self.perf_clock() - started
         return frame, total, frame.decode_ns
 
     def _should_escalate(
@@ -482,8 +489,8 @@ class Executor:
     def _sleep_remaining(self, work_ns: int, perf: PerfRecorder) -> None:
         remaining = self.tick_s - work_ns / 1e9
         if remaining > 0:
-            started = self.clock()
+            started = self.perf_clock()
             self.sleep(remaining)
-            self.perf.record("wait", self.clock() - started, what="tick")
+            self.perf.record("wait", self.perf_clock() - started, what="tick")
 
 
