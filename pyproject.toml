@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seerauto"
+version = "0.1.0"
+description = "Pure-vision automation core for the XIN计划 (SeerGame) client"
+requires-python = ">=3.10"
+# Runtime dependencies are deliberately tiny: no LLM SDK, no network client.
+dependencies = [
+    "numpy>=1.24",
+    "opencv-python-headless>=4.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+seerauto = "seerauto.cli:main"
+
+[tool.setuptools]
+packages = ["seerauto", "seerauto.tasks"]
+
+[tool.setuptools.package-data]
+seerauto = ["config/*.json", "templates/*.png"]
+
+[tool.pytest.ini_options]
+# ``PYTHONPATH=.pydeps`` supplies cv2+numpy on this host; ``.`` makes the
+# package importable without an editable install.
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning"]

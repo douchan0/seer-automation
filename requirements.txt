@@ -1,0 +1,10 @@
+# Runtime requirements for seerauto.
+# Installed into ./.pydeps on this host (user-site installs are blocked):
+#   python3 -m pip install --target .pydeps -r requirements.txt
+#   PYTHONPATH=.pydeps python3 -m seerauto doctor
+numpy>=1.24
+opencv-python-headless>=4.8
+
+# Test-only dependency (same target install):
+#   python3 -m pip install --target .pydeps pytest
+# pytest>=7.4

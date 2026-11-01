@@ -1,0 +1,651 @@
+{
+  "version": 1,
+  "notes": [
+    "Coordinates are game_px (window-local pixels of the 2298x1428 reference capture), identical to docs/state.md.",
+    "All vision ROIs are normalised (x0,y0,x1,y1) inside the letterbox-free game stage (2092x1220 canonical).",
+    "Replay-tested: IDLE, BATTLE_TURN, DIALOG(map panel), DIALOG(white panel) against artifacts/*.png.",
+    "NOT replay-tested: BATTLE_RESULT, REWARD, ERROR (no victory/defeat/reward fixture exists in artifacts/ - rules are disabled).",
+    "Never real-game tested: the game client was not running while this file was written.",
+    "battle_progress fingerprint is observed only (change-driven cadence); its expected cells are unused placeholders.",
+    "Template ROIs are intentionally tight (small search margin): matchTemplate cost scales with ROI*search area, so wide ROIs are not allowed on the poll path."
+  ],
+  "reference": {
+    "capture_px": [
+      2298,
+      1428
+    ],
+    "stage_px": [
+      102,
+      128,
+      2092,
+      1220
+    ],
+    "window_pt": [
+      1149,
+      714
+    ],
+    "scale": 2.0
+  },
+  "window": {
+    "owner_aliases": [
+      "SeerGame",
+      "xin计划",
+      "xin 计划"
+    ],
+    "scale": 2.0,
+    "expected_origin_pt": [
+      300,
+      120
+    ],
+    "expected_size_pt": [
+      1149,
+      714
+    ],
+    "tolerance_pt": 2.0,
+    "pin_on_start": false
+  },
+  "capture": {
+    "backend": "auto",
+    "daemon_binary": null,
+    "daemon_args": [],
+    "screencapture_path": "/usr/sbin/screencapture",
+    "tick_ms": 10.0,
+    "frame_age_warn_ms": 1000.0,
+    "frame_age_max_ms": 8000.0,
+    "change_threshold": 0.002,
+    "refresh_ms": 500.0,
+    "unknown_ocr_after_ms": 2000.0
+  },
+  "budgets": {
+    "max_iterations": 20000,
+    "max_duration_s": 900.0,
+    "max_consecutive_errors": 5,
+    "max_state_timeouts": 3,
+    "action_confirm_timeout_s": 1.5,
+    "action_retries": 2
+  },
+  "vision": {
+    "template_dir": "templates",
+    "ocr_min_confidence": 0.35,
+    "templates": {
+      "battle_action_grid": {
+        "file": "battle_action_grid.png"
+      },
+      "battle_turn_badge": {
+        "file": "battle_turn_badge.png"
+      },
+      "idle_action_bar": {
+        "file": "idle_action_bar.png"
+      },
+      "map_panel_corner": {
+        "file": "map_panel_corner.png"
+      }
+    },
+    "rois": {
+      "battle_action_grid": [
+        0.69,
+        0.697,
+        0.995,
+        0.978
+      ],
+      "battle_turn_badge": [
+        0.39,
+        0.14,
+        0.58,
+        0.255
+      ],
+      "idle_action_bar": [
+        0.08,
+        0.858,
+        0.315,
+        0.995
+      ],
+      "map_panel_corner": [
+        0.058,
+        0.158,
+        0.148,
+        0.248
+      ],
+      "dialog_panel": [
+        0.36,
+        0.3,
+        0.55,
+        0.55
+      ],
+      "map_interior": [
+        0.2,
+        0.3,
+        0.35,
+        0.45
+      ]
+    },
+    "fingerprints": {
+      "dialog_panel": {
+        "grid": [
+          2,
+          2
+        ],
+        "roi": [
+          0.36,
+          0.3,
+          0.55,
+          0.55
+        ],
+        "cells": [
+          223.0,
+          223.0,
+          219.0,
+          239.0,
+          242.0,
+          243.0,
+          249.0,
+          255.0,
+          255.0,
+          175.0,
+          164.0,
+          152.0
+        ],
+        "mean": [
+          221.5,
+          221.0,
+          217.25
+        ],
+        "std": 34.72,
+        "max_distance": 25.0,
+        "min_distance": 35.0
+      },
+      "map_interior": {
+        "grid": [
+          2,
+          2
+        ],
+        "roi": [
+          0.2,
+          0.3,
+          0.35,
+          0.45
+        ],
+        "cells": [
+          129.0,
+          96.0,
+          184.0,
+          37.0,
+          14.0,
+          16.0,
+          4.0,
+          1.0,
+          0.0,
+          74.0,
+          56.0,
+          24.0
+        ],
+        "mean": [
+          61.0,
+          41.75,
+          56.0
+        ],
+        "std": 55.63,
+        "max_distance": 30.0,
+        "min_distance": 40.0
+      },
+      "battle_progress": {
+        "grid": [
+          6,
+          4
+        ],
+        "roi": [
+          0.34,
+          0.04,
+          0.72,
+          0.3
+        ],
+        "cells": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "std": 0.0,
+        "max_distance": 6.0,
+        "min_distance": 6.0,
+        "note": "Observed only; used by tasks/battle.py for change-driven turn cadence. cells are not used for classification."
+      }
+    }
+  },
+  "states": {
+    "initial": "UNKNOWN",
+    "blocked_switch_after": 3,
+    "rules": [
+      {
+        "id": "error_text",
+        "state": "ERROR",
+        "priority": 95,
+        "enabled": false,
+        "detail": "error banner / connection lost",
+        "all": [
+          {
+            "kind": "text_contains",
+            "needles": [
+              "连接断开",
+              "网络异常",
+              "错误代码",
+              "重新登录"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "battle_result_victory",
+        "state": "BATTLE_RESULT",
+        "priority": 93,
+        "enabled": false,
+        "detail": "victory banner (UNVERIFIED: no fixture)",
+        "all": [
+          {
+            "kind": "template_present",
+            "name": "battle_victory_banner",
+            "min_score": 0.8
+          }
+        ]
+      },
+      {
+        "id": "battle_result_defeat",
+        "state": "BATTLE_RESULT",
+        "priority": 93,
+        "enabled": false,
+        "detail": "defeat banner (UNVERIFIED: no fixture)",
+        "all": [
+          {
+            "kind": "template_present",
+            "name": "battle_defeat_banner",
+            "min_score": 0.8
+          }
+        ]
+      },
+      {
+        "id": "battle_result_text",
+        "state": "BATTLE_RESULT",
+        "priority": 91,
+        "enabled": false,
+        "detail": "result text via OCR (UNVERIFIED: OCR required)",
+        "all": [
+          {
+            "kind": "text_contains",
+            "needles": [
+              "胜利",
+              "失败",
+              "挑战结束"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "reward_panel",
+        "state": "REWARD",
+        "priority": 90,
+        "enabled": false,
+        "detail": "reward panel (UNVERIFIED: no fixture)",
+        "all": [
+          {
+            "kind": "template_present",
+            "name": "reward_panel",
+            "min_score": 0.8
+          }
+        ]
+      },
+      {
+        "id": "battle_turn_action_grid",
+        "state": "BATTLE_TURN",
+        "priority": 60,
+        "detail": "battle action grid visible",
+        "all": [
+          {
+            "kind": "template_present",
+            "name": "battle_action_grid",
+            "roi": "battle_action_grid",
+            "min_score": 0.7
+          }
+        ]
+      },
+      {
+        "id": "battle_turn_badge_ttl",
+        "state": "BATTLE_TURN",
+        "priority": 58,
+        "detail": "turn badge seen within TTL (animation tolerant)",
+        "all": [
+          {
+            "kind": "template_seen_within",
+            "name": "battle_turn_badge",
+            "min_score": 0.75,
+            "ttl_s": 2.0
+          }
+        ]
+      },
+      {
+        "id": "battle_turn_text_ttl",
+        "state": "BATTLE_TURN",
+        "priority": 56,
+        "detail": "'当前回合' text seen within TTL (OCR fallback)",
+        "all": [
+          {
+            "kind": "text_seen_within",
+            "signal": "turn_counter",
+            "needles": [
+              "当前回合"
+            ],
+            "ttl_s": 3.0
+          }
+        ]
+      },
+      {
+        "id": "dialog_map_panel",
+        "state": "DIALOG",
+        "priority": 50,
+        "detail": "map panel open",
+        "all": [
+          {
+            "kind": "template_present",
+            "name": "map_panel_corner",
+            "roi": "map_panel_corner",
+            "min_score": 0.9
+          }
+        ]
+      },
+      {
+        "id": "dialog_white_panel",
+        "state": "DIALOG",
+        "priority": 48,
+        "detail": "large light panel open",
+        "all": [
+          {
+            "kind": "fingerprint_near",
+            "fingerprint": "dialog_panel",
+            "max_distance": 25.0
+          }
+        ]
+      },
+      {
+        "id": "idle_action_bar",
+        "state": "IDLE",
+        "priority": 20,
+        "detail": "standard bottom action bar",
+        "all": [
+          {
+            "kind": "template_present",
+            "name": "idle_action_bar",
+            "roi": "idle_action_bar",
+            "min_score": 0.8
+          }
+        ]
+      }
+    ],
+    "definitions": {
+      "UNKNOWN": {
+        "actions": [],
+        "timeout_s": 5.0,
+        "on_timeout": "ERROR",
+        "expects_motion": false,
+        "description": "no rule matched; OCR escalation path runs after unknown_ocr_after_ms"
+      },
+      "IDLE": {
+        "actions": [
+          "click_enemy"
+        ],
+        "timeout_s": 30.0,
+        "on_timeout": "UNKNOWN",
+        "expects_motion": false,
+        "description": "standing in a scene; safe to engage an enemy"
+      },
+      "BATTLE_TURN": {
+        "actions": [
+          "battle_round"
+        ],
+        "timeout_s": 90.0,
+        "on_timeout": "ERROR",
+        "expects_motion": true,
+        "description": "battle UI visible; one click per turn, wait for state change"
+      },
+      "BATTLE_RESULT": {
+        "actions": [
+          "dismiss_result"
+        ],
+        "timeout_s": 10.0,
+        "on_timeout": "IDLE",
+        "expects_motion": true,
+        "description": "victory/defeat shown (rule disabled: no fixture)"
+      },
+      "REWARD": {
+        "actions": [
+          "dismiss_reward"
+        ],
+        "timeout_s": 10.0,
+        "on_timeout": "IDLE",
+        "expects_motion": false,
+        "description": "reward panel (rule disabled: no fixture)"
+      },
+      "DIALOG": {
+        "actions": [
+          "dismiss_dialog"
+        ],
+        "timeout_s": 5.0,
+        "on_timeout": "ERROR",
+        "expects_motion": false,
+        "description": "blocking overlay: map panel, activity panel, confirm prompt"
+      },
+      "ERROR": {
+        "actions": [],
+        "timeout_s": null,
+        "on_timeout": "ERROR",
+        "expects_motion": false,
+        "description": "terminal for this run; the runner stops and reports"
+      },
+      "PAUSED": {
+        "actions": [],
+        "timeout_s": null,
+        "on_timeout": "PAUSED",
+        "expects_motion": false,
+        "description": "manual pause; detections ignored"
+      },
+      "STOPPED": {
+        "actions": [],
+        "timeout_s": null,
+        "on_timeout": "STOPPED",
+        "expects_motion": false,
+        "description": "terminal"
+      }
+    },
+    "transitions": {
+      "UNKNOWN": [
+        "IDLE",
+        "BATTLE_TURN",
+        "BATTLE_RESULT",
+        "REWARD",
+        "DIALOG",
+        "ERROR",
+        "PAUSED",
+        "STOPPED"
+      ],
+      "IDLE": [
+        "BATTLE_TURN",
+        "BATTLE_RESULT",
+        "REWARD",
+        "DIALOG",
+        "ERROR",
+        "UNKNOWN",
+        "PAUSED",
+        "STOPPED"
+      ],
+      "BATTLE_TURN": [
+        "BATTLE_TURN",
+        "BATTLE_RESULT",
+        "REWARD",
+        "DIALOG",
+        "ERROR",
+        "UNKNOWN",
+        "PAUSED",
+        "STOPPED"
+      ],
+      "BATTLE_RESULT": [
+        "IDLE",
+        "BATTLE_TURN",
+        "REWARD",
+        "DIALOG",
+        "ERROR",
+        "UNKNOWN",
+        "PAUSED",
+        "STOPPED"
+      ],
+      "REWARD": [
+        "IDLE",
+        "BATTLE_TURN",
+        "DIALOG",
+        "ERROR",
+        "UNKNOWN",
+        "PAUSED",
+        "STOPPED"
+      ],
+      "DIALOG": [
+        "IDLE",
+        "BATTLE_TURN",
+        "BATTLE_RESULT",
+        "REWARD",
+        "ERROR",
+        "UNKNOWN",
+        "PAUSED",
+        "STOPPED"
+      ],
+      "ERROR": [
+        "UNKNOWN",
+        "PAUSED",
+        "STOPPED"
+      ],
+      "PAUSED": [
+        "UNKNOWN",
+        "IDLE",
+        "BATTLE_TURN",
+        "ERROR",
+        "STOPPED"
+      ],
+      "STOPPED": [
+        "STOPPED"
+      ]
+    }
+  },
+  "tasks": {
+    "battle": {
+      "enabled": true,
+      "max_iterations": 20000,
+      "max_enemies": 20,
+      "max_turns_per_battle": 400,
+      "max_battles": 20,
+      "on_loss": "stop",
+      "skill_sequence": [
+        "fight",
+        "skill"
+      ],
+      "coordinates": {
+        "fight": [
+          1789,
+          1103
+        ],
+        "skill": [
+          1151,
+          1281
+        ],
+        "enemy": [
+          1178,
+          730
+        ],
+        "confirm": [
+          1150,
+          1000
+        ],
+        "dialog_close": [
+          1986,
+          383
+        ]
+      },
+      "thresholds": {
+        "enemy_click_retries": 3,
+        "turn_settle_s": 1.2,
+        "turn_progress_distance": 6.0,
+        "engage_cooldown_s": 0.8,
+        "result_dismiss_limit": 6
+      },
+      "dialog_dismiss_limit": 5
+    }
+  }
+}
