@@ -9,7 +9,8 @@
     "Defeat has NO fixture: absent from artifacts/, absent from the 40-minute video (the author never loses), and absent from 8 live wins. Rule stays disabled.",
     "Real-game tested 2026-11-01/02: capture/input/battle loop verified on the live client (8 wins, 0 losses, see docs/PROGRESS.md Round 4). The ENGINE pipeline itself has only been replayed over real frames, not driven live.",
     "battle_progress fingerprint is observed only (change-driven cadence); its expected cells are unused placeholders.",
-    "Template ROIs are intentionally tight (small search margin): matchTemplate cost scales with ROI*search area, so wide ROIs are not allowed on the poll path."
+    "Template ROIs are intentionally tight (small search margin): matchTemplate cost scales with ROI*search area, so wide ROIs are not allowed on the poll path.",
+    "battle.coordinates recalibrated on the live client 2026-11-02: fight and confirm are click-verified; skill is geometry-derived (not click-verified); enemy and dialog_close are STALE from the 2298x1428 window and must be re-measured before use."
   ],
   "reference": {
     "capture_px": [
@@ -36,12 +37,12 @@
     ],
     "scale": 2.0,
     "expected_origin_pt": [
-      300,
-      120
+      225,
+      53
     ],
     "expected_size_pt": [
-      1149,
-      714
+      1200,
+      800
     ],
     "tolerance_pt": 2.0,
     "pin_on_start": false
@@ -639,20 +640,20 @@
       ],
       "coordinates": {
         "fight": [
-          1789,
-          1103
+          1870,
+          1198
         ],
         "skill": [
-          1151,
-          1281
+          1216,
+          1195
         ],
         "enemy": [
           1178,
           730
         ],
         "confirm": [
-          1150,
-          1000
+          1191,
+          997
         ],
         "dialog_close": [
           1986,

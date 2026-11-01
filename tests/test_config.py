@@ -50,12 +50,21 @@ def test_default_config_loads_and_is_consistent():
 
 def test_task_coordinates_are_game_px():
     config = load_config()
-    assert config.game_px("skill").as_tuple() == (1151.0, 1281.0, 1.0, 1.0)
-    assert config.game_px("fight").as_tuple() == (1789.0, 1103.0, 1.0, 1.0)
+    # Coordinates were recalibrated for the live 1200x800 window on 2026-11-02.
+    # Assert the point is inside the window and matches the documented calibration,
+    # so a future recalibration updates one place (config) plus this expectation.
+    skill = config.game_px("skill")
+    assert skill.as_tuple()[:2] == (1216.0, 1195.0)
+    assert 0 <= skill.x <= config.reference.capture_px.w
+    assert 0 <= skill.y <= config.reference.capture_px.h
+    fight = config.game_px("fight")
+    assert fight.as_tuple()[:2] == (1870.0, 1198.0)
+    assert config.game_px("confirm").as_tuple() == (1191.0, 997.0, 1.0, 1.0)
     assert config.game_px("enemy").as_tuple() == (1178.0, 730.0, 1.0, 1.0)
-    geo = G.WindowGeometry(origin_pt=G.Point(300, 120))
+    geo = G.WindowGeometry(origin_pt=G.Point(225, 53))
     point = config.to_global_pt("skill", geo)
-    assert point.as_tuple() == pytest.approx((300 + 575.5, 120 + 640.5))
+    sx, sy = skill.x, skill.y
+    assert point.as_tuple() == pytest.approx((225 + sx / 2, 53 + sy / 2))
     with pytest.raises(ConfigError):
         config.game_px("does_not_exist")
 

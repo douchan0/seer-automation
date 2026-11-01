@@ -134,10 +134,16 @@ def test_execute_click_action_uses_config_coordinates():
     )
     records = actions.execute(ClickAction(targets=("fight", "skill"), label="round"), config)
     assert len(records) == 2
-    # 战斗按钮 (1789,1103) then 技能 (1151,1281), config -> game_px -> global pt
-    assert records[0].game_px == (1789.0, 1103.0)
-    assert records[1].game_px == (1151.0, 1281.0)
-    assert records[0].global_pt == (300 + 1789 / 2, 120 + 1103 / 2)
+    # fight then skill, straight from config (recalibrated 2026-11-02)
+    fx, fy = config.game_px("fight").x, config.game_px("fight").y
+    sx, sy = config.game_px("skill").x, config.game_px("skill").y
+    assert records[0].game_px == (float(fx), float(fy))
+    assert records[1].game_px == (float(sx), float(sy))
+    # derive the expected point from config instead of hard-coding the window
+    # origin: the live client's window moved from (300,120) to (225,53) and this
+    # assertion caught it (which is the point) but should follow the config.
+    ox, oy = config.window.expected_origin_pt
+    assert records[0].global_pt == (ox + float(fx) / 2, oy + float(fy) / 2)
 
 
 def test_execute_click_point_and_stop_guard():
