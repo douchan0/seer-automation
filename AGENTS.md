@@ -1,0 +1,188 @@
+# AGENTS.md — 工程入口（任何 Agent 从这里开始）
+
+> 这是一个 **macOS 优先的游戏视觉自动化**项目，目标游戏：《赛尔号 Xin 计划》（Xin 服，客户端 `/Applications/SeerGame.app`，Electron + PepperFlash）。
+> 本文档是唯一的"工程入口"。**不要靠聊天上下文理解本项目** —— 聊天会丢，文件不会。
+
+---
+
+## 0. 30 秒读懂本项目
+
+**要做什么**：一套共享内核的双模式自动化系统。
+- **模式 A（主）**：纯视觉、**不依赖任何大模型**的独立自动化软件（BetterGI 风格）。
+- **模式 B（后）**：在同一内核上暴露高层语义接口（CLI / 本地服务 / MCP / DSH 插件），让 AI 做规划与异常分析。
+
+**核心铁律**：**绝不让大模型参与每一次常规战斗点击的决策。** 高频、确定性、可重复的操作必须由本地状态机完成。
+
+**当前阶段**：Round 0（审计）与 Round 1（性能）已完成；内核在 Round 3 建设；真机闭环要等 Round 4。
+
+---
+
+## 1. 必读顺序（新 Agent 请严格按序）
+
+| 顺序 | 文件 | 为什么读 |
+|---|---|---|
+| 1 | `AGENTS.md`（本文） | 规则、目录、命令 |
+| 2 | `docs/PROJECT_AUDIT.md` | 环境事实、资产清单、**macOS 15 截图 API 已被移除**这一硬约束、阻塞项 |
+| 3 | `docs/EXISTING_IMPLEMENTATION.md` | 上一轮到底建成了什么、哪些能复用、哪些从没验证过 |
+| 4 | `docs/KNOWN_PROBLEMS.md` | 按代价排序的问题清单，决定你下一步改什么 |
+| 5 | `docs/PERFORMANCE_BASELINE.md` | 实测延迟数据与瓶颈排序 |
+| 6 | `docs/PROGRESS.md` | 已完成到哪一轮 |
+| 7 | `docs/NEXT_ACTIONS.md` | 下一轮该做什么（具体到文件） |
+| 8 | `docs/state.md` | 已验证的 UI 坐标（真金白银的现场标定） |
+
+---
+
+## 2. 目录结构
+
+```
+seer-puni-quest/
+├── AGENTS.md                  ← 你在这里
+├── docs/
+│   ├── PROJECT_AUDIT.md           Round 0 审计（必读）
+│   ├── EXISTING_IMPLEMENTATION.md Round 0 现状说明（必读）
+│   ├── KNOWN_PROBLEMS.md          Round 0 问题清单（必读）
+│   ├── PERFORMANCE_BASELINE.md    Round 1 实测基准
+│   ├── PERFORMANCE_LOG.md         每次测量的追加日志
+│   ├── PROGRESS.md                轮次进度
+│   ├── NEXT_ACTIONS.md            下一轮任务
+│   ├── state.md                   ⭐ 已验证坐标/账号状态（最贵资产）
+│   ├── action-log.md              ⭐ 真实操作日志（含失败）
+│   ├── plan-from-video.md         视频拆解原始记录（勿改）
+│   ├── checklist.md               行动清单（勿改）
+│   ├── PUNI_VIDEO_ANALYSIS.md     Round 2
+│   ├── PUNI_TASK_GRAPH.md         Round 2
+│   ├── PUNI_UNKNOWN_MECHANICS.md  Round 2
+│   └── _RESEARCH_DIGEST.md        研究报告交叉核对
+├── seerauto/                  ← 新内核（纯视觉，无 LLM 依赖）
+├── tests/                     ← pytest
+├── bench/                     ← 性能基准
+├── native/                    ← Swift 源（截图/输入）
+├── scripts/                   ← 上一轮工具链（保留，勿随意改）
+│   ├── seerd.swift / seerd    常驻守护进程（JSON-line）
+│   ├── seerctl.swift / seerctl 一次性 CLI（调试用）
+│   ├── fast.py                Driver 兼容层
+│   ├── play.py                旧的最慢方案（性能对标基线）
+│   └── tower.py / farm_tower.py  旧战斗循环（反面教材）
+├── artifacts/                 ← 真实截图（Replay 测试集，勿删）
+│   ├── game.png               2298×1428 主参考帧
+│   ├── battle.png / scene_*.png
+│   ├── scene_index.json       地图 12 格 OCR 索引
+│   ├── video/BV1Fu8h6YEAz.mp4 196MB《三天获取普尼》
+│   └── unpacked/              客户端 Electron dist 逆向
+└── frames/                    ← 417 帧视频抽帧
+```
+
+---
+
+## 3. 环境事实（别猜，已实测）
+
+| 项 | 值 |
+|---|---|
+| macOS | 15.7.7 (24G720) |
+| 芯片 | Apple M2 / arm64 |
+| 屏幕 | 2940×1912 px（逻辑 1470×956），**2 个显示器** |
+| 游戏窗口 | 逻辑 1149×714，抓取 2298×1428（scale=2.0），固定于 (300,120) |
+| Python | 3.10.13（pyenv） |
+| Swift | 6.2.3（Xcode CLT） |
+| Node | v25.6.1 |
+
+### 3.1 三个必然踩到的坑（已解决，照抄即可）
+
+```bash
+# 坑 1：swiftc 默认 ModuleCache 被沙箱拒绝
+swiftc -O -module-cache-path /tmp/mc -o out src.swift    # mkdir -p /tmp/mc 先生效
+
+# 坑 2：单文件 + @main 报 "cannot be used in a module that contains top-level code"
+swiftc -parse-as-library ...
+
+# 坑 3：SCContentFilter(desktopIndependentWindow:) 触发
+#      Assertion failed: (did_initialize), function CGS_REQUIRE_INIT
+#      → main() 第一行加：_ = NSApplication.shared
+```
+
+### 3.2 Python 依赖
+
+全局只有 numpy / Pillow。其余必须装进工作区本地目录：
+
+```bash
+python3 -m pip install --target .pydeps <pkg>   # 用户级 pip install 会被沙箱拒绝
+PYTHONPATH=.pydeps python3 ...                  # 运行时必须带
+```
+
+---
+
+## 4. 关键命令
+
+```bash
+# —— 现有工具链（上一轮）——
+printf '{"op":"win"}\n{"op":"quit"}\n' | ./scripts/seerd     # 查窗口（游戏没开会返回 no window）
+./scripts/seerctl ocr artifacts/game.png 0.3                  # OCR 调试
+
+# —— 内核（Round 3）——
+PYTHONPATH=.pydeps python3 -m seerauto doctor                 # 环境自检
+PYTHONPATH=.pydeps python3 -m seerauto replay artifacts/      # 离线回放，不需要游戏
+PYTHONPATH=.pydeps pytest -q                                  # 单元测试
+
+# —— 基准（Round 1）——
+python3 bench/bench_all.py
+```
+
+---
+
+## 5. 工作纪律（硬性）
+
+### 5.1 性能
+1. **不许凭感觉说"更快"**。任何"优化"必须有 before/after 实测（mean/p50/p95，n≥6，写明命令）。
+2. **不许让 AI 模型进入高频环路**。常规战斗、日常点击由本地状态机完成。
+3. **不许用固定 `sleep` 当主控**。等待"状态变化"，不是等待"时间"。
+4. 截图优先走 **常驻 SCStream + 最新帧读取**；`screencapture` 子进程只作兜底。
+
+### 5.2 安全
+5. 只做**正常截图 + GUI 输入**。禁止内存注入、服务端篡改、反作弊规避。
+6. **输入前必须校验窗口身份与几何**；窗口移动超容差即拒绝点击。
+7. 未知状态**不许持续盲点**；必须有超时升级路径。
+8. 任务必须有**次数预算 + 时间预算 + 紧急停止**。
+9. 截图**未经授权不得上传外部模型**。
+10. AI 层不可用时，纯视觉模式必须照常工作。
+
+### 5.3 诚实
+11. **区分三种状态**：模拟测试 / 真机测试 / 未执行。文档里必须分别标注。
+12. **不许编造**性能数据、测试通过、游戏成功。
+13. 找不到的东西写 **NOT FOUND**，不许假定存在。
+
+### 5.4 工程
+14. 优先**扩展现有工程**，不许未读代码就新建项目。
+15. 不许为架构整洁做早期大重构；要重构先说明理由、小步迁移、保留回滚。
+16. 每轮结束更新 `docs/PROGRESS.md`、`docs/PERFORMANCE_LOG.md`、`docs/NEXT_ACTIONS.md`。
+17. 关键改动打 git checkpoint。
+
+---
+
+## 6. 当前阻塞项（不是工程缺陷，是用户侧动作）
+
+| # | 阻塞 | 影响 | 解除方式 |
+|---|---|---|---|
+| B1 | **游戏客户端未运行** | 所有真机测试无法执行 | 启动 `/Applications/SeerGame.app` 并登录（账号 hello / 188365991） |
+| B2 | 无实时画面 | 模板库只能用昨日截图 | 同 B1 |
+| B3 | 辅助功能授权未复核 | 自动点击能否生效未知 | 同 B1 后立即验证 |
+| B4 | 交易行未开通、赛尔豆 0 | 视频路线第一前提不成立 | 需真实游戏内长期推进 |
+
+**在 B1 解除前**：只做 Replay 测试、非侵入式性能测量、离线视觉算法验证。**绝不把模拟结果写成真机结果。**
+
+---
+
+## 7. 双模式的边界（架构强制）
+
+```
+截图层（SCStream 常驻）→ 视觉层（模板/ROI/OCR兜底）→ 状态机 → 执行器 → 游戏
+                                                              │
+                                        ┌─────────────────────┴──────────────┐
+                                        ▼                                    ▼
+                                 模式 A：本地 GUI/CLI              模式 B：Agent 接口
+                                 （无 LLM，默认路径）              （CLI / MCP / DSH 插件）
+```
+
+- 内核 (`seerauto/`) **禁止** import 任何 LLM/Agent SDK。
+- 模式 B **只能**通过语义接口调用已验证能力，例如：
+  `game.get_status` / `game.list_tasks` / `game.start_task` / `game.pause_task` / `game.stop_task` / `game.get_progress`
+- Agent **不得绕过**内核安全检查去任意点击未知区域。
