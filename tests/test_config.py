@@ -26,9 +26,22 @@ def test_default_config_loads_and_is_consistent():
         assert (config.vision.template_dir / config.vision.templates[name].file).exists()
     # the battle_progress fingerprint is observed only (change-driven cadence)
     assert "battle_progress" in config.vision.fingerprints
-    # result/reward rules exist but are disabled: no fixtures were available
+    # The victory rule is now ENABLED: a real victory frame was captured from the
+    # live client on 2026-11-02 and the template separates cleanly (real victory
+    # frame 0.99 vs real battle frame 0.334 vs world frame 0.588, threshold 0.85).
+    # See docs/PROGRESS.md Round 4 and seerauto/templates/battle_victory_banner.png.
+    enabled = {r.rule_id for r in config.states.rules if r.enabled}
+    assert "battle_result_victory" in enabled
+    assert "battle_victory_banner" in config.vision.templates
+    # Defeat still has NO fixture anywhere: not in artifacts/, not in the 40-minute
+    # video (the author never loses), and not on the live client (8 wins, 0 losses).
+    # reward_panel and error_text likewise remain unverified.
     disabled = {r.rule_id for r in config.states.rules if not r.enabled}
-    assert {"battle_result_victory", "battle_result_defeat", "reward_panel", "error_text"} <= disabled
+    assert {"battle_result_defeat", "battle_result_text", "reward_panel", "error_text"} <= disabled
+    # battle_result_text must stay disabled: the string 失败 is permanently on
+    # screen in the seal areas as the static note 战斗失败后可继续进行挑战！, so a
+    # bare 失败 needle would latch BATTLE_RESULT forever (found by the video sweep).
+    assert "battle_result_text" in disabled
     # nine states, config-driven durations
     assert len(config.states.definitions) == 9
     assert config.budgets.max_iterations > 0

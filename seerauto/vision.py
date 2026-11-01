@@ -330,6 +330,14 @@ class TemplateDetector:
         if ds != 1.0:
             gray = downsample(gray, (max(4, int(round(gray.shape[1] / ds))), max(4, int(round(gray.shape[0] / ds)))))
         template = self.cache.scaled_gray(spec.name, (target_w, target_h))
+        # The pre-check above works in *un-downsampled* pixels. When the stage's
+        # x/y scales are not equal (which happens if stage detection picks a
+        # region whose aspect differs from the reference), the template can still
+        # end up larger than the downsampled ROI and cv2 raises instead of
+        # returning a low score. A geometry mismatch is "not visible", not a
+        # crash: a live window can legitimately have a different stage shape.
+        if template.shape[0] > gray.shape[0] or template.shape[1] > gray.shape[1]:
+            return None
         # TM_CCOEFF_NORMED = zero-mean normalised correlation: illumination
         # robust, and it is what the project's measurements are based on.
         result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)

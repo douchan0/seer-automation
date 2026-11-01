@@ -229,3 +229,90 @@ python3 bench/bench_all.py          # exactly the documented entry point, defaul
   1.4 % across both runs and both capture paths (144.7 / 146.5 / 146.0 / 148.1 ms),
   which is the strongest evidence in this log that the stage split is real and
   not an artefact of one run.
+
+---
+
+## 2026-11-02 — Round 4: REAL GAME loop (live client, first time)
+
+Everything above this line was measured **without the game running**: generic
+windows, synthetic windows showing `artifacts/game.png`, or PNG fixtures. This
+entry is the first one measured against the **actual game client**.
+
+* Environment: `xin计划 1.0.8.9`, window **1200×800 pt @ (225,53) → 2400×1600 px**,
+  scale 2.0, server 1号啦公星, character `hello`.
+* Machine: Apple M2, 8 cores, macOS 15.7.7. Load during these runs ~2.9–4.1
+  (`vm.loadavg` sampled around each run; recorded in the JSON where relevant).
+* Command: `PYTHONPATH=.pydeps python3 tools/battle_run.py --battles 3`
+* Raw data: `bench/results/round4_3battles_*.json`, `round4_turnfix_*.json`,
+  `daemon_*.json`.
+
+### Capture, on the real game window (read-only probe)
+
+| path | mean | p50 | p95 | n |
+|---|---|---|---|---|
+| `SubprocessScreencapture.grab()` (old) | **164.44 ms** | 160.04 | 246.70 | 20 |
+| engine `latest()` (warm stream, all polls) | **4.33 ms** | 2.32 | 30.34 | 40 |
+| └ static screen, decode cache hit | **2.27 ms** | 2.31 | 2.42 | 37 |
+| └ a frame that actually changed (real decode) | 29.75 ms | 30.34 | 31.06 | 3 |
+| `grab(ROI 400×300)` (daemon crops natively) | 2.32 ms | 2.35 | 2.40 | 40 |
+| warm session start (one-off) | 122.9 ms | — | — | 1 |
+
+**Engine-level "what is on screen": 164.44 ms → 4.33 ms = 38×.**
+
+### The battle loop, 3 consecutive battles (all won)
+
+Per-stage, n = number of occurrences across 3 battles:
+
+| stage | n | mean | p50 | p95 |
+|---|---|---|---|---|
+| `capture` (warm `latest()`) | 184 | 18.95 ms | 26.62 | 40.91 |
+| `detect` (4 tight-ROI template matches) | 184 | 8.21 ms | 7.78 | 9.88 |
+| `action` (CGEvent click submit) | 172 | 34.65 ms | 34.52 | 36.19 |
+| `wait` (game's own turn animation) | 157 | **362.73 ms** | 364.91 | 382.48 |
+| `ocr` (escalation path only) | 4 | 1177.97 ms | 1147.41 | 1335.89 |
+
+**Per-poll "look and decide" = 27.2 ms** (capture + detect).
+
+### After the turn-pacing fix (one click per turn)
+
+The first run clicked ~57× per battle because it re-evaluated 0.35 s after each
+click while the game was still animating. Replaced with a two-phase wait
+(combat-log pixel change → screen settle):
+
+| metric | before | after |
+|---|---|---|
+| clicks per battle | ~57 | **~7–17** |
+| `wait` mean | 362.73 ms | **2961 ms** |
+| per-poll look | 27.2 ms | **35.2 ms** (capture 27.1 + detect 8.2) |
+| battle duration | ~46 s | ~45 s |
+
+**The `wait` growing is the fix working.** A turn genuinely takes ~3 s (the
+game's animation) and a battle is ~13 turns. The engine's own cost is 35 ms out
+of ~3000 ms per turn — **about 1.2 %**. The vision loop is no longer the
+bottleneck; the game's animation is, and we now follow it instead of racing it.
+
+### Pause / resume / stop (real client)
+
+* Pause via control file `/tmp/seerauto.pause`: **21.3 s with zero clicks**.
+* Resume: re-synchronised state and finished the battle correctly.
+* SIGINT: `stopped: interrupted`, timing summary printed from the `finally`
+  block, process exited cleanly, game kept running.
+
+### Two measurement traps found on the real client
+
+1. **`shot` returns a near-blank ~6 KB PNG while a warm stream is active.**
+   OCR of it silently returned zero items. The escalation path must export the
+   warm frame to PNG instead of calling `shot`.
+2. **Two capture daemons against the same window do not coexist.** A second
+   `seerdx` trying to take a screenshot while another holds the stream failed
+   outright. Reuse one session when measuring.
+
+### What this entry does NOT cover
+
+* Nothing was measured on a **second** display, a moved/resized window, or after
+  a client restart (the stage offset moves between sessions — see
+  `docs/TEMPLATE_CANDIDATES.md`).
+* `wait` is a 3 s settle timeout, not a detected "it is my turn" event; roughly
+  1 s/turn may still be recoverable there.
+* No loss was ever observed (8 wins, 0 losses), so nothing here describes a
+  losing battle.

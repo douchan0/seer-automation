@@ -4,8 +4,10 @@
     "Coordinates are game_px (window-local pixels of the 2298x1428 reference capture), identical to docs/state.md.",
     "All vision ROIs are normalised (x0,y0,x1,y1) inside the letterbox-free game stage (2092x1220 canonical).",
     "Replay-tested: IDLE, BATTLE_TURN, DIALOG(map panel), DIALOG(white panel) against artifacts/*.png.",
-    "NOT replay-tested: BATTLE_RESULT, REWARD, ERROR (no victory/defeat/reward fixture exists in artifacts/ - rules are disabled).",
-    "Never real-game tested: the game client was not running while this file was written.",
+    "NOT replay-tested: REWARD, ERROR, and BATTLE_RESULT via the text rule (no reward/defeat/error fixture anywhere).",
+    "Replay-tested on REAL GAME frames: BATTLE_RESULT via battle_victory_banner - see data/replay/live_2026-11-02/ and tests/test_live_replay.py.",
+    "Defeat has NO fixture: absent from artifacts/, absent from the 40-minute video (the author never loses), and absent from 8 live wins. Rule stays disabled.",
+    "Real-game tested 2026-11-01/02: capture/input/battle loop verified on the live client (8 wins, 0 losses, see docs/PROGRESS.md Round 4). The ENGINE pipeline itself has only been replayed over real frames, not driven live.",
     "battle_progress fingerprint is observed only (change-driven cadence); its expected cells are unused placeholders.",
     "Template ROIs are intentionally tight (small search margin): matchTemplate cost scales with ROI*search area, so wide ROIs are not allowed on the poll path."
   ],
@@ -79,6 +81,12 @@
       },
       "map_panel_corner": {
         "file": "map_panel_corner.png"
+      },
+      "battle_victory_banner": {
+        "file": "battle_victory_banner.png"
+      },
+      "monster_moguguai": {
+        "file": "monster_moguguai.png"
       }
     },
     "rois": {
@@ -117,6 +125,18 @@
         0.3,
         0.35,
         0.45
+      ],
+      "battle_victory_banner": [
+        0.34,
+        0.28,
+        0.62,
+        0.45
+      ],
+      "monster_scan": [
+        0.04,
+        0.12,
+        0.96,
+        0.78
       ]
     },
     "fingerprints": {
@@ -311,13 +331,14 @@
         "id": "battle_result_victory",
         "state": "BATTLE_RESULT",
         "priority": 93,
-        "enabled": false,
-        "detail": "victory banner (UNVERIFIED: no fixture)",
+        "enabled": true,
+        "detail": "victory banner (VERIFIED on live client 1.0.8.9: real victory frame 1.000, real battle frame 0.391)",
         "all": [
           {
             "kind": "template_present",
             "name": "battle_victory_banner",
-            "min_score": 0.8
+            "min_score": 0.85,
+            "roi": "battle_victory_banner"
           }
         ]
       },

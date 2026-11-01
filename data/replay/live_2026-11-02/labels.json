@@ -1,0 +1,29 @@
+{
+  "session": "live_2026-11-02",
+  "source": "real client xin计划 1.0.8.9, window 1200x800pt @(225,53) -> 2400x1600px, scale 2.0",
+  "capture": "Python ScreenCaptureKit daemon (native/seerdx) or one-shot shot()",
+  "note": "REAL GAME frames, not video frames and not synthetic. Each label was confirmed by looking at the image, not only by OCR.",
+  "frames": [
+    {
+      "file": "victory_moguguai.png",
+      "expect_state": "BATTLE_RESULT",
+      "expect_rule": "battle_result_victory",
+      "what": "victory panel after beating 蘑菇怪 (胜利 / 恭喜你！在这场战斗中 / 获得成就：击败蘑菇怪)",
+      "at": "2026-11-01T23:53+08:00"
+    },
+    {
+      "file": "battle_turn1.png",
+      "expect_state": "BATTLE_TURN",
+      "expect_rule": null,
+      "what": "battle turn 1: 当前回合：1, 我方 烈火猴 vs 对方 蘑菇怪 LV10",
+      "at": "2026-11-01T23:49+08:00"
+    },
+    {
+      "file": "world_after_battles.png",
+      "expect_state": "IDLE",
+      "expect_rule": null,
+      "what": "克洛斯星林间 after 3 battles, no dialog",
+      "at": "2026-11-02T00:13+08:00"
+    }
+  ]
+}

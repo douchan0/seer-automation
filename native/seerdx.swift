@@ -195,19 +195,29 @@ func listWindows() -> [[String: Any]] {
 }
 
 func findGameWindow() -> (id: Int, x: Double, y: Double, w: Double, h: Double)? {
+    // Never take "the first window whose owner matches": the game app also owns
+    // small helper windows (observed: a 52x20 window titled "Window" that came to
+    // the front and made `pin` resize the wrong thing). Pick the LARGEST match
+    // instead, which is the actual game canvas.
+    var best: (id: Int, x: Double, y: Double, w: Double, h: Double)? = nil
+    var bestArea = 0.0
     for w in listWindows() {
         let owner = (w[kCGWindowOwnerName as String] as? String ?? "").lowercased()
         let layer = w[kCGWindowLayer as String] as? Int ?? 0
         guard layer == 0 else { continue }
         guard TARGET_HINTS.contains(where: { owner.contains($0) }) else { continue }
         let num = w[kCGWindowNumber as String] as? Int ?? -1
-        if let bd = w[kCGWindowBounds as String] as? [String: Any],
-           let x = bd["X"] as? Double, let y = bd["Y"] as? Double,
-           let ww = bd["Width"] as? Double, let hh = bd["Height"] as? Double {
-            return (num, x, y, ww, hh)
+        guard let bd = w[kCGWindowBounds as String] as? [String: Any],
+              let x = bd["X"] as? Double, let y = bd["Y"] as? Double,
+              let ww = bd["Width"] as? Double, let hh = bd["Height"] as? Double else { continue }
+        guard ww >= 200, hh >= 200 else { continue }   // ignore helper/HUD windows
+        let area = ww * hh
+        if area > bestArea {
+            bestArea = area
+            best = (num, x, y, ww, hh)
         }
     }
-    return nil
+    return best
 }
 
 func gameApp() -> NSRunningApplication? {
@@ -217,13 +227,26 @@ func gameApp() -> NSRunningApplication? {
     }
 }
 
+/// The AX window that corresponds to the game canvas (largest), not `arr.first`.
 func axWindow() -> AXUIElement? {
     guard let app = gameApp() else { return nil }
     let ax = AXUIElementCreateApplication(app.processIdentifier)
     var wins: CFTypeRef?
     guard AXUIElementCopyAttributeValue(ax, kAXWindowsAttribute as CFString, &wins) == .success,
-          let arr = wins as? [AXUIElement], let first = arr.first else { return nil }
-    return first
+          let arr = wins as? [AXUIElement] else { return nil }
+    var best: AXUIElement? = nil
+    var bestArea = 0.0
+    for w in arr {
+        var szRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(w, kAXSizeAttribute as CFString, &szRef) == .success,
+              let v = szRef, CFGetTypeID(v) == AXValueGetTypeID() else { continue }
+        var sz = CGSize.zero
+        AXValueGetValue(v as! AXValue, .cgSize, &sz)
+        guard sz.width >= 200, sz.height >= 200 else { continue }
+        let area = Double(sz.width * sz.height)
+        if area > bestArea { bestArea = area; best = w }
+    }
+    return best ?? arr.first
 }
 
 func pinWindow(_ x: Double, _ y: Double, _ w: Double, _ h: Double) -> [String: Any] {
