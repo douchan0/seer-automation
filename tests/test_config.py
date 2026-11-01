@@ -1,0 +1,160 @@
+"""Config loading/validation tests."""
+
+from __future__ import annotations
+
+import copy
+import json
+
+import pytest
+
+from seerauto import geometry as G
+from seerauto.config import DEFAULT_CONFIG_PATH, load_config
+from seerauto.errors import ConfigError
+
+
+def test_default_config_loads_and_is_consistent():
+    config = load_config()
+    assert config.path == DEFAULT_CONFIG_PATH
+    # reference layout measured from artifacts/game.png
+    assert config.reference.capture_px == G.Size(2298, 1428)
+    assert config.reference.stage_px.as_tuple() == (102.0, 128.0, 2092.0, 1220.0)
+    assert config.reference.window_pt == G.Size(1149, 714)
+    assert config.reference.scale == 2.0
+    # only the four replay-verified templates are declared
+    for name in ("battle_action_grid", "battle_turn_badge", "idle_action_bar", "map_panel_corner"):
+        assert name in config.vision.templates
+        assert (config.vision.template_dir / config.vision.templates[name].file).exists()
+    # the battle_progress fingerprint is observed only (change-driven cadence)
+    assert "battle_progress" in config.vision.fingerprints
+    # result/reward rules exist but are disabled: no fixtures were available
+    disabled = {r.rule_id for r in config.states.rules if not r.enabled}
+    assert {"battle_result_victory", "battle_result_defeat", "reward_panel", "error_text"} <= disabled
+    # nine states, config-driven durations
+    assert len(config.states.definitions) == 9
+    assert config.budgets.max_iterations > 0
+    assert config.battle.max_turns_per_battle >= 200  # 真身 measured 165 turns
+
+
+def test_task_coordinates_are_game_px():
+    config = load_config()
+    assert config.game_px("skill").as_tuple() == (1151.0, 1281.0, 1.0, 1.0)
+    assert config.game_px("fight").as_tuple() == (1789.0, 1103.0, 1.0, 1.0)
+    assert config.game_px("enemy").as_tuple() == (1178.0, 730.0, 1.0, 1.0)
+    geo = G.WindowGeometry(origin_pt=G.Point(300, 120))
+    point = config.to_global_pt("skill", geo)
+    assert point.as_tuple() == pytest.approx((300 + 575.5, 120 + 640.5))
+    with pytest.raises(ConfigError):
+        config.game_px("does_not_exist")
+
+
+def test_vision_roi_lookup():
+    config = load_config()
+    roi = config.roi("battle_action_grid")
+    assert len(roi) == 4
+    assert 0.0 <= roi[0] < roi[2] <= 1.0
+    with pytest.raises(ConfigError):
+        config.roi("missing_roi")
+
+
+def test_missing_config_file():
+    with pytest.raises(ConfigError, match="not found"):
+        load_config("/nonexistent/seerauto-config.json")
+
+
+def test_malformed_json(tmp_path):
+    path = tmp_path / "bad.json"
+    path.write_text("{not json")
+    with pytest.raises(ConfigError, match="not valid JSON"):
+        load_config(path)
+
+
+def _mutated_config(**patch) -> dict:
+    raw = json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+    for dotted, value in patch.items():
+        node = raw
+        keys = dotted.split(".")
+        for key in keys[:-1]:
+            node = node[key]
+        node[keys[-1]] = value
+    return raw
+
+
+def test_unknown_template_in_enabled_rule_is_rejected(tmp_path):
+    raw = _mutated_config()
+    # make the first enabled battle rule point at a template that does not exist
+    for rule in raw["states"]["rules"]:
+        if rule["id"] == "battle_turn_action_grid":
+            rule["all"][0]["name"] = "ghost_template"
+            break
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ConfigError, match="unknown template"):
+        load_config(path)
+
+
+def test_unknown_state_in_rule_is_rejected(tmp_path):
+    raw = _mutated_config()
+    # must be an *enabled* rule: disabled ones are documentation and are not
+    # compiled or validated against the state set
+    for rule in raw["states"]["rules"]:
+        if rule["id"] == "battle_turn_action_grid":
+            rule["state"] = "NOT_A_STATE"
+            break
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ConfigError, match="unknown state"):
+        load_config(path)
+
+
+def test_bad_roi_values_are_rejected(tmp_path):
+    raw = _mutated_config()
+    raw["vision"]["rois"]["battle_action_grid"] = [0.9, 0.9, 0.1, 0.1]
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ConfigError, match="empty"):
+        load_config(path)
+
+
+def test_fingerprint_cells_length_validated(tmp_path):
+    raw = _mutated_config()
+    raw["vision"]["fingerprints"]["dialog_panel"]["cells"] = [1.0, 2.0]
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ConfigError, match="grid_w\\*grid_h\\*3"):
+        load_config(path)
+
+
+def test_duplicate_rule_ids_rejected(tmp_path):
+    raw = _mutated_config()
+    raw["states"]["rules"].append(copy.deepcopy(raw["states"]["rules"][0]))
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ConfigError, match="duplicate"):
+        load_config(path)
+
+
+def test_yaml_config_supported_when_pyyaml_present(tmp_path):
+    yaml = pytest.importorskip("yaml")
+    raw = json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+    path = tmp_path / "cfg.yaml"
+    path.write_text(yaml.safe_dump(raw, allow_unicode=True))
+    config = load_config(path)
+    assert config.reference.capture_px == G.Size(2298, 1428)
+
+
+def test_yaml_without_pyyaml_is_a_clear_error(tmp_path, monkeypatch):
+    import builtins
+
+    raw = json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+    path = tmp_path / "cfg.yaml"
+    path.write_text(json.dumps(raw))
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "yaml":
+            raise ImportError("no yaml")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    with pytest.raises(ConfigError, match="PyYAML"):
+        load_config(path)
