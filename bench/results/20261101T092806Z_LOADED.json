@@ -1,0 +1,4604 @@
+{
+  "schema": 1,
+  "label": "LOADED",
+  "started_utc": "2026-11-01T09:28:06Z",
+  "env": {
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "machine": "arm64",
+    "python_version": "3.10.13",
+    "python_executable": "/Users/ceontou/.pyenv/versions/3.10.13/bin/python3",
+    "cwd": "/Users/ceontou/Documents/code/seer-puni-quest",
+    "timestamp_utc": "2026-11-01T09:28:06+00:00",
+    "timestamp_local": "2026-11-01T17:28:06+08:00"
+  },
+  "args": {
+    "label": "LOADED",
+    "quick": false,
+    "skip_cv": false,
+    "skip_ocr": false,
+    "skip_vision": false,
+    "rebuild": false,
+    "capture_iters": 20,
+    "loop_iters": 8,
+    "ocr_iters": 8,
+    "cli_iters": 6,
+    "cv_iters": 12,
+    "vision_iters": 15
+  },
+  "build": {
+    "built": false,
+    "reason": "up to date",
+    "bin": "/Users/ceontou/Documents/code/seer-puni-quest/native/bin/bench_capture"
+  },
+  "load_log": [
+    {
+      "at": "start",
+      "loadavg_1m": 5.05322265625,
+      "loadavg_5m": 6.2734375,
+      "loadavg_15m": 10.75634765625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.63165283203125,
+      "contended": false
+    },
+    {
+      "at": "capture_start",
+      "loadavg_1m": 5.05322265625,
+      "loadavg_5m": 6.2734375,
+      "loadavg_15m": 10.75634765625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.63165283203125,
+      "contended": false
+    },
+    {
+      "at": "capture_end",
+      "loadavg_1m": 4.55517578125,
+      "loadavg_5m": 5.896484375,
+      "loadavg_15m": 10.33203125,
+      "ncpu": 8,
+      "load_per_core_1m": 0.56939697265625,
+      "contended": false
+    },
+    {
+      "at": "capture_game_content_start",
+      "loadavg_1m": 4.55517578125,
+      "loadavg_5m": 5.896484375,
+      "loadavg_15m": 10.33203125,
+      "ncpu": 8,
+      "load_per_core_1m": 0.56939697265625,
+      "contended": false
+    },
+    {
+      "at": "capture_game_content_end",
+      "loadavg_1m": 4.548828125,
+      "loadavg_5m": 5.8056640625,
+      "loadavg_15m": 10.19580078125,
+      "ncpu": 8,
+      "load_per_core_1m": 0.568603515625,
+      "contended": false
+    },
+    {
+      "at": "ocr_start",
+      "loadavg_1m": 4.548828125,
+      "loadavg_5m": 5.8056640625,
+      "loadavg_15m": 10.19580078125,
+      "ncpu": 8,
+      "load_per_core_1m": 0.568603515625,
+      "contended": false
+    },
+    {
+      "at": "ocr_end",
+      "loadavg_1m": 5.0537109375,
+      "loadavg_5m": 5.8486328125,
+      "loadavg_15m": 10.1337890625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.6317138671875,
+      "contended": false
+    },
+    {
+      "at": "cv_start",
+      "loadavg_1m": 5.0537109375,
+      "loadavg_5m": 5.8486328125,
+      "loadavg_15m": 10.1337890625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.6317138671875,
+      "contended": false
+    },
+    {
+      "at": "cv_end",
+      "loadavg_1m": 4.96923828125,
+      "loadavg_5m": 5.81787109375,
+      "loadavg_15m": 10.09765625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.62115478515625,
+      "contended": false
+    },
+    {
+      "at": "vision_start",
+      "loadavg_1m": 4.96923828125,
+      "loadavg_5m": 5.81787109375,
+      "loadavg_15m": 10.09765625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.62115478515625,
+      "contended": false
+    },
+    {
+      "at": "vision_end",
+      "loadavg_1m": 4.96923828125,
+      "loadavg_5m": 5.81787109375,
+      "loadavg_15m": 10.09765625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.62115478515625,
+      "contended": false
+    },
+    {
+      "at": "end",
+      "loadavg_1m": 4.96923828125,
+      "loadavg_5m": 5.81787109375,
+      "loadavg_15m": 10.09765625,
+      "ncpu": 8,
+      "load_per_core_1m": 0.62115478515625,
+      "contended": false
+    }
+  ],
+  "load_summary": {
+    "max_loadavg_1m": 5.0537109375,
+    "max_load_per_core": 0.6317138671875,
+    "contended": false
+  },
+  "headline": {
+    "rows": [
+      {
+        "key": "baseline_shot",
+        "label": "screencapture subprocess (window region, PNG to disk)",
+        "kind": "baseline",
+        "n": 20,
+        "mean": 142.89430620074273,
+        "p50": 142.70258349180222,
+        "p95": 144.6693770468235,
+        "min": 140.9508330821991,
+        "max": 144.8237910270691,
+        "note": "process spawn + capture + PNG encode to disk; decode not included"
+      },
+      {
+        "key": "baseline_shot_full",
+        "label": "screencapture subprocess (full screen, PNG to disk)",
+        "kind": "baseline",
+        "n": 20,
+        "mean": 215.09921451210977,
+        "p50": 214.37447953224182,
+        "p95": 217.27434030175212,
+        "min": 211.83116602897644,
+        "max": 228.23745906352997,
+        "note": ""
+      },
+      {
+        "key": "prod_shot",
+        "label": "PROD shot() = subprocess + PNG decode (current seerd path)",
+        "kind": "baseline",
+        "n": 20,
+        "mean": 143.5420521080494,
+        "p50": 143.43716698884964,
+        "p95": 144.4189121544361,
+        "min": 142.0214160680771,
+        "max": 145.71716690063477,
+        "note": "byte-for-byte scripts/seerd.swift shot()"
+      },
+      {
+        "key": "sck_percall",
+        "label": "SCK SCScreenshotManager per call (cached filter, .best)",
+        "kind": "sck_percall",
+        "n": 20,
+        "mean": 44.251237463951114,
+        "p50": 44.1202290058136,
+        "p95": 47.02079375386238,
+        "min": 41.26462495326996,
+        "max": 47.19737505912781,
+        "note": ""
+      },
+      {
+        "key": "sck_percall_roi",
+        "label": "SCK SCScreenshotManager per call (ROI 300x200pt)",
+        "kind": "sck_percall",
+        "n": 20,
+        "mean": 42.84944798350334,
+        "p50": 42.70714545249939,
+        "p95": 44.674970728158954,
+        "min": 40.56904196739197,
+        "max": 45.44866597652435,
+        "note": ""
+      },
+      {
+        "key": "sck_stream_read",
+        "label": "SCK persistent stream: read latest frame (640x480)",
+        "kind": "sck_stream",
+        "n": 100,
+        "mean": 0.08003377914428711,
+        "p50": 0.05449944734573364,
+        "p95": 0.15791603326797482,
+        "min": 0.027415990829467773,
+        "max": 1.4165840148925781,
+        "note": "preallocated buffer + memcpy, non-blocking"
+      },
+      {
+        "key": "memcpy_game",
+        "label": "memcpy one 2298x1428 BGRA frame (13.1 MB)",
+        "kind": "sck_stream",
+        "n": 20,
+        "mean": 0.35696659088134763,
+        "p50": 0.30229151248931885,
+        "p95": 0.5692598938941957,
+        "min": 0.2913750410079956,
+        "max": 0.7990419864654541,
+        "note": "the handoff cost at real game resolution"
+      }
+    ],
+    "ratios": {
+      "per-call SCK vs prod shot()": 3.2437974695054503,
+      "stream read-latest vs prod shot()": 1793.5183574084115,
+      "game-res memcpy vs prod shot()": 402.11620856070937
+    },
+    "notes": [],
+    "stream_meta": {
+      "achieved_fps": 57.60010856225771,
+      "inter_frame_mean": 17.361078389620378,
+      "inter_frame_p50": 17.189208984375,
+      "inter_frame_p95": 18.727250027656556,
+      "start_capture_ms": 44.16816592216492,
+      "frames_delivered": 60,
+      "static_screen_inter_frame_mean": 352.52316665649414,
+      "static_screen_frames": 4,
+      "read_latest_staleness": {
+        "max": 17.23070800304413,
+        "mean": 9.334617501497268,
+        "min": 0.10645902156829834,
+        "n": 100,
+        "p50": 9.949187517166138,
+        "p95": 16.488741421699526
+      },
+      "read_latest_frame_bytes": 1228800,
+      "read_latest_rss_delta_mb": 2.59375
+    },
+    "loops": [
+      {
+        "key": "loop_prod_accurate",
+        "label": "PROD loop: subprocess + Vision .accurate",
+        "n": 8,
+        "mean": 715.492213472724,
+        "p50": 717.7031875252724,
+        "p95": 729.4507255136966,
+        "ocr_items_mean": 55.44444444444444
+      },
+      {
+        "key": "loop_prod_fast",
+        "label": "subprocess + Vision .fast",
+        "n": 8,
+        "mean": 236.41308327019215,
+        "p50": 235.72677052021027,
+        "p95": 245.97017722725866,
+        "ocr_items_mean": 33.22222222222222
+      },
+      {
+        "key": "loop_inproc_accurate",
+        "label": "in-process SCK + Vision .accurate",
+        "n": 8,
+        "mean": 343.349765509367,
+        "p50": 342.1072494983673,
+        "p95": 351.92340807914735,
+        "ocr_items_mean": 34
+      },
+      {
+        "key": "loop_inproc_fast",
+        "label": "in-process SCK + Vision .fast",
+        "n": 8,
+        "mean": 105.03428137302399,
+        "p50": 104.97227048873901,
+        "p95": 106.46035240888595,
+        "ocr_items_mean": 16
+      },
+      {
+        "key": "loop_inproc_accurate_roi",
+        "label": "in-process SCK ROI + Vision .accurate",
+        "n": 8,
+        "mean": 145.1811303794384,
+        "p50": 144.57150000333786,
+        "p95": 148.504937595129,
+        "ocr_items_mean": 12
+      },
+      {
+        "key": "loop_inproc_fast_roi",
+        "label": "in-process SCK ROI + Vision .fast",
+        "n": 8,
+        "mean": 87.18902589380741,
+        "p50": 86.50456249713898,
+        "p95": 89.39407916665077,
+        "ocr_items_mean": 1
+      }
+    ],
+    "bottleneck_ranking_derived": [
+      {
+        "stage": "Vision OCR .accurate (full window)",
+        "mean_ms": 149.1388175845146,
+        "source": "derived: loop_inproc_accurate - capture",
+        "share_pct": 46.74287258032961
+      },
+      {
+        "stage": "screencapture subprocess (spawn + capture + PNG write)",
+        "mean_ms": 143.31129584312438,
+        "source": "measured",
+        "share_pct": 44.91641914165633
+      },
+      {
+        "stage": "PNG decode (real pixel decode, lazy handle excluded)",
+        "mean_ms": 25.544037419557576,
+        "source": "derived: (loop_prod_fast - capture) - ocr_fast",
+        "share_pct": 8.00597527610764
+      },
+      {
+        "stage": "window enumeration (CGWindowListCopyWindowInfo, seerd.findWin)",
+        "mean_ms": 1.0680063366889954,
+        "source": "measured",
+        "share_pct": 0.3347330019064184
+      }
+    ],
+    "bottleneck_source_leg_derived": "game-content leg (real screenshot, real geometry)",
+    "bottleneck_components_derived": {
+      "capture_subprocess_ms": 143.31129584312438,
+      "capture_sck_percall_ms": 43.8522812962532,
+      "ocr_fast_ms": 61.32001045942307,
+      "ocr_accurate_ms": 149.1388175845146,
+      "png_decode_ms": 25.544037419557576,
+      "window_enum_ms": 1.0680063366889954,
+      "ocr_accurate_over_fast": 2.4321394674778043,
+      "capture_share_of_prod_loop_pct": 45.06727418140113,
+      "check_prod_loop_reconstructed_ms": 317.9941508471966,
+      "check_loop_prod_accurate_ms": 312.4320989996195,
+      "note": "all terms from the same leg; reconstruction should approximate loop_prod_accurate"
+    },
+    "bottleneck_ranking": [
+      {
+        "stage": "Vision OCR .accurate (full window)",
+        "mean_ms": 149.1388175845146,
+        "source": "derived: loop_inproc_accurate - capture",
+        "share_pct": 46.74287258032961
+      },
+      {
+        "stage": "screencapture subprocess (spawn + capture + PNG write)",
+        "mean_ms": 143.31129584312438,
+        "source": "measured",
+        "share_pct": 44.91641914165633
+      },
+      {
+        "stage": "PNG decode (real pixel decode, lazy handle excluded)",
+        "mean_ms": 25.544037419557576,
+        "source": "derived: (loop_prod_fast - capture) - ocr_fast",
+        "share_pct": 8.00597527610764
+      },
+      {
+        "stage": "window enumeration (CGWindowListCopyWindowInfo, seerd.findWin)",
+        "mean_ms": 1.0680063366889954,
+        "source": "measured",
+        "share_pct": 0.3347330019064184
+      }
+    ],
+    "bottleneck_total_ms": 319.0621571838856,
+    "bottleneck_source_leg": "game-content leg (real screenshot, real geometry) (DERIVED \u2014 cross-check only)",
+    "bottleneck_note": "derived by subtraction; may disagree with measured rows",
+    "game_content_loops": [
+      {
+        "key": "loop_prod_accurate",
+        "label": "PROD loop (subprocess+decode+Vision .accurate) on game content",
+        "n": 8,
+        "mean": 312.4320989996195,
+        "p50": 310.2959374785423,
+        "p95": 327.1016129732132,
+        "ocr_items_mean": 12
+      },
+      {
+        "key": "loop_prod_fast",
+        "label": "subprocess+decode+Vision .fast on game content",
+        "n": 8,
+        "mean": 230.17534372210503,
+        "p50": 231.02985399961472,
+        "p95": 231.7887920618057,
+        "ocr_items_mean": 10
+      },
+      {
+        "key": "loop_inproc_accurate",
+        "label": "in-process SCK + Vision .accurate on game content",
+        "n": 8,
+        "mean": 192.99109888076782,
+        "p50": 187.84887498617172,
+        "p95": 213.67117505073546,
+        "ocr_items_mean": 12
+      },
+      {
+        "key": "loop_inproc_fast",
+        "label": "in-process SCK + Vision .fast on game content",
+        "n": 8,
+        "mean": 105.17229175567627,
+        "p50": 105.92193746566772,
+        "p95": 106.20310205817222,
+        "ocr_items_mean": 9
+      },
+      {
+        "key": "loop_inproc_accurate_roi",
+        "label": "in-process SCK ROI + Vision .accurate on game content",
+        "n": 8,
+        "mean": 59.8229528516531,
+        "p50": 59.7039999961853,
+        "p95": 62.34568694829941,
+        "ocr_items_mean": 0
+      },
+      {
+        "key": "loop_inproc_fast_roi",
+        "label": "in-process SCK ROI + Vision .fast on game content",
+        "n": 8,
+        "mean": 83.3307083696127,
+        "p50": 83.28333348035812,
+        "p95": 84.01736654043198,
+        "ocr_items_mean": 0
+      }
+    ],
+    "game_content_target": {
+      "content": "real game screenshot",
+      "live_game": false,
+      "window_h": 714,
+      "window_id": 71218,
+      "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+      "window_layer": 3,
+      "window_owner": "bench_capture",
+      "window_title": "",
+      "window_w": 1149,
+      "window_x": 300,
+      "window_y": 120
+    },
+    "instrumented_prod": {
+      "total_ms": 336.0702343583107,
+      "n": 8,
+      "ocr_items_mean": 12,
+      "stages": [
+        {
+          "stage": "capture_subprocess",
+          "mean_ms": 152.58514574170113,
+          "p50_ms": 144.3174369931221,
+          "p95_ms": 190.61148799657818,
+          "share_pct": 45.40275518093584
+        },
+        {
+          "stage": "vision_ocr_accurate",
+          "mean_ms": 145.95974998176098,
+          "p50_ms": 145.6617915034294,
+          "p95_ms": 149.95656469464302,
+          "share_pct": 43.43132329480328
+        },
+        {
+          "stage": "png_decode_forced",
+          "mean_ms": 37.525338634848595,
+          "p50_ms": 37.17364603281021,
+          "p95_ms": 39.3784772336483,
+          "share_pct": 11.16592152426088
+        }
+      ],
+      "note": "capture / forced PNG decode / Vision OCR timed inside each iteration of the production path"
+    },
+    "instrumented_inproc": {
+      "total_ms": 191.9451458901167,
+      "n": 8,
+      "ocr_items_mean": 12,
+      "stages": [
+        {
+          "stage": "vision_ocr_accurate",
+          "mean_ms": 148.14013001322746,
+          "p50_ms": 145.8165830373764,
+          "p95_ms": 161.4612081170082,
+          "share_pct": 77.17836745818704
+        },
+        {
+          "stage": "sck_capture",
+          "mean_ms": 43.80501587688923,
+          "p50_ms": 43.92502099275589,
+          "p95_ms": 44.79917901158333,
+          "share_pct": 22.82163254181296
+        }
+      ],
+      "note": "SCK capture / Vision OCR timed inside each iteration of the in-process path"
+    },
+    "instrumented_speedup": {
+      "prod_ms": 336.0702343583107,
+      "inproc_ms": 191.9451458901167,
+      "speedup": 1.7508660237269122
+    },
+    "game_content_comparability": {
+      "pair": "game content: prod vs inproc (.accurate)",
+      "ocr_items_prod": 12,
+      "ocr_items_inproc": 12,
+      "relative_item_drift": 0.0,
+      "comparable": true,
+      "reason": "same content"
+    },
+    "generic_comparability": {
+      "pair": "generic window: prod vs inproc (.accurate)",
+      "ocr_items_prod": 55.44444444444444,
+      "ocr_items_inproc": 34,
+      "relative_item_drift": 0.3867735470941884,
+      "comparable": false,
+      "reason": "DIFFERENT PIXELS CAPTURED \u2014 subprocess grabs the composited screen region (occluded), SCK grabs the window's own content. Loop totals for these two paths are NOT comparable."
+    },
+    "game_content_speedup": {
+      "prod_ms": 312.4320989996195,
+      "inproc_ms": 192.99109888076782,
+      "speedup": 1.618893828842561,
+      "note": "same OCR (.accurate), same content, same geometry - only the capture path differs"
+    }
+  },
+  "vision_summary": {
+    "vision_fits_60hz": [
+      "handoff_frombuffer_view_only",
+      "handoff_frombuffer_plus_copy",
+      "A_fingerprint_1patch",
+      "A_fingerprint_3patches",
+      "A_fingerprint_3patches_cv2absdiff",
+      "B_downsample_diff_precomputed",
+      "C_roi_template_300x200",
+      "C_roi_template_900x400",
+      "E_conditional_fingerprint_then_roi_template"
+    ],
+    "vision_too_slow_for_60hz": [
+      "B_downsample_only",
+      "B_downsample_diff_composed",
+      "B_downsample_gray_changed_pixels",
+      "D_fullframe_template_gray"
+    ],
+    "cv_cheap_ops": [
+      {
+        "name": "absdiff_downsampled_229x142",
+        "mean": 0.004239666666666667,
+        "p95": 0.006360599999999996
+      },
+      {
+        "name": "cvtColor_BGR2GRAY_roi300x200",
+        "mean": 0.009993083333333331,
+        "p95": 0.010181250000000001
+      },
+      {
+        "name": "fingerprint_patch_40x100x3",
+        "mean": 0.011298666666666665,
+        "p95": 0.013104649999999999
+      },
+      {
+        "name": "fingerprint_3patches_40x100x3",
+        "mean": 0.04189224999999999,
+        "p95": 0.04572514999999999
+      },
+      {
+        "name": "countNonZero_roi_mask",
+        "mean": 0.061642416666666665,
+        "p95": 0.0733311
+      },
+      {
+        "name": "battle_cvtColor_gray",
+        "mean": 0.06196533333333334,
+        "p95": 0.07640815
+      },
+      {
+        "name": "cvtColor_BGR2GRAY_roi900x400",
+        "mean": 0.07685408333333334,
+        "p95": 0.13774169999999997
+      },
+      {
+        "name": "threshold_gray_full",
+        "mean": 0.145066,
+        "p95": 0.16596875
+      }
+    ],
+    "cv_expensive_ops": [
+      {
+        "name": "matchTemplate_color_full_2298x1428",
+        "mean": 185.21745833333333,
+        "p95": 207.1296355
+      },
+      {
+        "name": "matchTemplate_gray_full_2298x1428",
+        "mean": 65.29361100000001,
+        "p95": 66.29136425
+      },
+      {
+        "name": "change_detect_downsample_composed",
+        "mean": 36.03705908333334,
+        "p95": 36.232702200000006
+      },
+      {
+        "name": "matchTemplate_color_roi900x400",
+        "mean": 21.481548500000002,
+        "p95": 21.7059585
+      },
+      {
+        "name": "resize_full_to_229x142",
+        "mean": 18.05869775,
+        "p95": 18.17705205
+      }
+    ],
+    "hotloop_primitives": [
+      {
+        "name": "handoff_frombuffer_view_only",
+        "mean": 0.0007305333333333333,
+        "p50": 0.000667,
+        "p95": 0.0010872999999999998,
+        "fits_60hz": true
+      },
+      {
+        "name": "handoff_frombuffer_plus_copy",
+        "mean": 14.06977226666667,
+        "p50": 14.06625,
+        "p95": 14.3606205,
+        "fits_60hz": true
+      },
+      {
+        "name": "A_fingerprint_1patch",
+        "mean": 0.013275000000000004,
+        "p50": 0.013,
+        "p95": 0.014275,
+        "fits_60hz": true
+      },
+      {
+        "name": "A_fingerprint_3patches",
+        "mean": 0.03836666666666666,
+        "p50": 0.038333,
+        "p95": 0.038633799999999996,
+        "fits_60hz": true
+      },
+      {
+        "name": "A_fingerprint_3patches_cv2absdiff",
+        "mean": 0.03149166666666666,
+        "p50": 0.031459,
+        "p95": 0.031791,
+        "fits_60hz": true
+      },
+      {
+        "name": "B_downsample_only",
+        "mean": 17.8536112,
+        "p50": 17.826291,
+        "p95": 17.992517,
+        "fits_60hz": false
+      },
+      {
+        "name": "B_downsample_diff_precomputed",
+        "mean": 0.051419533333333343,
+        "p50": 0.051083,
+        "p95": 0.0527831,
+        "fits_60hz": true
+      },
+      {
+        "name": "B_downsample_diff_composed",
+        "mean": 35.729702733333326,
+        "p50": 35.70475,
+        "p95": 35.926987600000004,
+        "fits_60hz": false
+      },
+      {
+        "name": "B_downsample_gray_changed_pixels",
+        "mean": 35.89940839999999,
+        "p50": 35.88675,
+        "p95": 36.199275,
+        "fits_60hz": false
+      },
+      {
+        "name": "C_roi_template_300x200",
+        "mean": 0.8924002,
+        "p50": 0.8865,
+        "p95": 0.9192336000000001,
+        "fits_60hz": true
+      },
+      {
+        "name": "C_roi_template_900x400",
+        "mean": 7.982699800000001,
+        "p50": 8.048416,
+        "p95": 8.1269666,
+        "fits_60hz": true
+      },
+      {
+        "name": "D_fullframe_template_gray",
+        "mean": 67.52004980000001,
+        "p50": 68.326208,
+        "p95": 70.1409494,
+        "fits_60hz": false
+      },
+      {
+        "name": "E_conditional_fingerprint_then_roi_template",
+        "mean": 7.972369533333334,
+        "p50": 7.986917,
+        "p95": 8.354133599999999,
+        "fits_60hz": true
+      }
+    ]
+  },
+  "legs": {
+    "capture": {
+      "env": {
+        "candidate_windows": [
+          {
+            "h": 837,
+            "id": 66410,
+            "isSelf": false,
+            "owner": "Safari\u6d4f\u89c8\u5668",
+            "pid": 69594,
+            "title": "Usage | Activity",
+            "w": 1325,
+            "x": -57,
+            "y": -801
+          },
+          {
+            "h": 600,
+            "id": 64477,
+            "isSelf": false,
+            "owner": "DeepSeek Harness",
+            "pid": 8108,
+            "title": "# SeerAutomation \u591a\u8f6e\u5de5\u7a0b\u63a5\u7ba1\u3001 \u2014 DeepSeek Harness",
+            "w": 1280,
+            "x": 272,
+            "y": 200
+          },
+          {
+            "h": 677,
+            "id": 49420,
+            "isSelf": false,
+            "owner": "\u97f3\u4e50",
+            "pid": 37236,
+            "title": "\u97f3\u4e50",
+            "w": 1029,
+            "x": 321,
+            "y": 115
+          },
+          {
+            "h": 701,
+            "id": 50982,
+            "isSelf": false,
+            "owner": "Clash Verge",
+            "pid": 52648,
+            "title": "Clash Verge",
+            "w": 940,
+            "x": 285,
+            "y": 89
+          },
+          {
+            "h": 436,
+            "id": 67989,
+            "isSelf": false,
+            "owner": "\u8bbf\u8fbe",
+            "pid": 705,
+            "title": "paper",
+            "w": 920,
+            "x": 19,
+            "y": 105
+          },
+          {
+            "h": 436,
+            "id": 66864,
+            "isSelf": false,
+            "owner": "\u8bbf\u8fbe",
+            "pid": 705,
+            "title": "\u6210\u7a3f",
+            "w": 920,
+            "x": 214,
+            "y": 125
+          }
+        ],
+        "capture_api_note": "CGWindowListCreateImage/CGDisplayCreateImage are obsoleted in macOS 15.0 and fail to compile; ScreenCaptureKit is the only in-process option",
+        "cgdisplaycreateimage_available": false,
+        "cgwindowlistcreateimage_available": false,
+        "cpu_brand": "Apple M2",
+        "displays": [
+          {
+            "bounds_h": 956,
+            "bounds_w": 1470,
+            "bounds_x": 0,
+            "bounds_y": 0,
+            "id": 1,
+            "isMain": true,
+            "pixels_h": 956,
+            "pixels_w": 1470
+          },
+          {
+            "bounds_h": 864,
+            "bounds_w": 1536,
+            "bounds_x": -205,
+            "bounds_y": -864,
+            "id": 2,
+            "isMain": false,
+            "pixels_h": 864,
+            "pixels_w": 1536
+          }
+        ],
+        "hw_model": "Mac14,2",
+        "logical_cpus": 8,
+        "machine_arch": "arm64",
+        "main_display_id": 1,
+        "on_screen_window_count": 37,
+        "os_version": "Version 15.7.7 (Build 24G720)",
+        "physical_memory_bytes": 25769803776,
+        "process_id": 80778,
+        "process_name": "bench_capture",
+        "screen_recording_granted": true,
+        "screencapture_exists": true,
+        "screens": [
+          {
+            "backingScaleFactor": 2,
+            "frame_h": 956,
+            "frame_w": 1470,
+            "frame_x": 0,
+            "frame_y": 0,
+            "localizedName": "Built-in Retina Display"
+          },
+          {
+            "backingScaleFactor": 2,
+            "frame_h": 864,
+            "frame_w": 1536,
+            "frame_x": -205,
+            "frame_y": 956,
+            "localizedName": "P24A2G"
+          }
+        ],
+        "seer_game_window_count": 0
+      },
+      "iters": 20,
+      "loop_iters": 8,
+      "mode": "capture",
+      "results": [
+        {
+          "backend": "windowlist_enum",
+          "max": 0.41945791244506836,
+          "mean": 0.3573999583721161,
+          "meta": {
+            "note": "CGWindowListCopyWindowInfo(.optionOnScreenOnly, .excludeDesktopElements) \u2014 paid by scripts/seerd.swift findWin() on every shot"
+          },
+          "min": 0.3322089910507202,
+          "n": 20,
+          "p50": 0.34308308362960815,
+          "p95": 0.4039416909217835,
+          "samples_ms": [
+            0.37537503242492676,
+            0.41945791244506836,
+            0.36912500858306885,
+            0.4031250476837158,
+            0.3788750171661377,
+            0.3695420026779175,
+            0.399541974067688,
+            0.36383306980133057,
+            0.3500410318374634,
+            0.34470808506011963,
+            0.33799993991851807,
+            0.34020793437957764,
+            0.3340420722961426,
+            0.3377089500427246,
+            0.33329105377197266,
+            0.340999960899353,
+            0.3414580821990967,
+            0.3377079963684082,
+            0.3322089910507202,
+            0.3387500047683716
+          ]
+        },
+        {
+          "backend": "sck_shareable_enum",
+          "max": 24.993124961853027,
+          "mean": 23.775727099180223,
+          "meta": {
+            "note": "SCShareableContent.getExcludingDesktopWindows(onScreenWindowsOnly: true) alone \u2014 the setup tax inside a naive per-shot SCK loop"
+          },
+          "min": 22.437292098999023,
+          "n": 20,
+          "p50": 23.858582973480225,
+          "p95": 24.887318736314775,
+          "samples_ms": [
+            24.87625002861023,
+            24.881749987602234,
+            23.109375,
+            24.112457990646362,
+            23.794249892234802,
+            24.993124961853027,
+            24.381875038146973,
+            24.461292028427124,
+            23.208541989326477,
+            23.005915999412537,
+            23.688416957855225,
+            22.437292098999023,
+            24.26133394241333,
+            22.455416083335876,
+            23.409124970436096,
+            23.30662488937378,
+            24.215792059898376,
+            23.922916054725647,
+            22.633916974067688,
+            24.358875036239624
+          ]
+        },
+        {
+          "backend": "sck_screenshot_warm_2x",
+          "max": 47.19737505912781,
+          "mean": 44.251237463951114,
+          "meta": {
+            "configured_h": 1354,
+            "configured_w": 2058,
+            "content": "unrelated application content",
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 8320,
+              "h": 1354,
+              "ok": true,
+              "w": 2058
+            },
+            "live_game": false,
+            "note": "SCScreenshotManager.captureImage, pre-built SCContentFilter + SCStreamConfiguration, captureResolution=.best (retina px). Per-call setup excluded.",
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 41.26462495326996,
+          "n": 20,
+          "p50": 44.1202290058136,
+          "p95": 47.02079375386238,
+          "samples_ms": [
+            42.589625000953674,
+            45.44866704940796,
+            44.21395802497864,
+            43.67300009727478,
+            44.387624979019165,
+            41.91141700744629,
+            44.02649998664856,
+            43.309499979019165,
+            44.54199993610382,
+            44.270042061805725,
+            43.558249950408936,
+            41.26462495326996,
+            42.48445808887482,
+            43.56216597557068,
+            47.011500000953674,
+            44.46820795536041,
+            43.81625008583069,
+            46.543583035469055,
+            47.19737505912781,
+            46.74600005149841
+          ]
+        },
+        {
+          "backend": "sck_screenshot_warm_1x",
+          "max": 45.44625008106232,
+          "mean": 43.111129242181775,
+          "meta": {
+            "configured_h": 677,
+            "configured_w": 1029,
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 4224,
+              "h": 677,
+              "ok": true,
+              "w": 1029
+            },
+            "note": "SCScreenshotManager.captureImage, captureResolution=.nominal (1x point px) \u2014 size-matched to what screencapture -R produced in artifacts"
+          },
+          "min": 41.036792039871216,
+          "n": 20,
+          "p50": 43.4930624961853,
+          "p95": 44.39634128808975,
+          "samples_ms": [
+            41.35041689872742,
+            44.103832960128784,
+            41.804291009902954,
+            43.81879198551178,
+            44.07045805454254,
+            44.24233293533325,
+            43.68533396720886,
+            42.3787499666214,
+            42.45912504196167,
+            42.38929200172424,
+            43.83675003051758,
+            43.92554199695587,
+            42.521417021751404,
+            45.44625008106232,
+            42.47633397579193,
+            41.34966695308685,
+            43.513875007629395,
+            43.47224998474121,
+            44.34108293056488,
+            41.036792039871216
+          ]
+        },
+        {
+          "backend": "sck_screenshot_cold_2x",
+          "max": 93.98954200744629,
+          "mean": 70.10623973608017,
+          "meta": {
+            "note": "SCScreenshotManager.captureImage WITH a fresh SCShareableContent enumeration every iteration \u2014 what a naive one-shot SCK implementation pays"
+          },
+          "min": 65.24991691112518,
+          "n": 8,
+          "p50": 66.46731251478195,
+          "p95": 85.48932542800902,
+          "samples_ms": [
+            66.94612503051758,
+            67.31079196929932,
+            93.98954200744629,
+            65.8556250333786,
+            65.80620801448822,
+            65.24991691112518,
+            69.70320892333984,
+            65.98849999904633
+          ]
+        },
+        {
+          "backend": "sck_screenshot_roi_2x",
+          "max": 45.44866597652435,
+          "mean": 42.84944798350334,
+          "meta": {
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 2432,
+              "h": 400,
+              "ok": true,
+              "w": 600
+            },
+            "note": "SCScreenshotManager.captureImage with sourceRect ROI (300x200 pts) \u2014 SCK-native ROI, no full frame captured",
+            "sourceRect": [
+              40,
+              120,
+              300,
+              200
+            ]
+          },
+          "min": 40.56904196739197,
+          "n": 20,
+          "p50": 42.70714545249939,
+          "p95": 44.674970728158954,
+          "samples_ms": [
+            42.42808294296265,
+            42.58608293533325,
+            41.71879196166992,
+            44.064708948135376,
+            41.042917013168335,
+            42.17774999141693,
+            42.82820796966553,
+            45.44866597652435,
+            40.56904196739197,
+            43.290249943733215,
+            44.6342499256134,
+            43.5775420665741,
+            43.351333022117615,
+            41.83008408546448,
+            43.95758295059204,
+            44.29962503910065,
+            43.643499970436096,
+            42.33820903301239,
+            41.50133395195007,
+            41.70099997520447
+          ]
+        },
+        {
+          "backend": "sck_display_screenshot_2x",
+          "max": 50.61550009250641,
+          "mean": 47.9202519595623,
+          "meta": {
+            "configured_h": 1912,
+            "configured_w": 2940,
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 11776,
+              "h": 1912,
+              "ok": true,
+              "w": 2940
+            },
+            "note": "SCScreenshotManager.captureImage on the whole main display (.best) \u2014 full-screen alternative to screencapture -x"
+          },
+          "min": 46.3148330450058,
+          "n": 20,
+          "p50": 48.04920846223831,
+          "p95": 49.724162530899044,
+          "samples_ms": [
+            47.87624990940094,
+            47.082208037376404,
+            48.507583022117615,
+            48.434332966804504,
+            48.47191596031189,
+            48.52649998664856,
+            48.43683302402496,
+            47.379417061805725,
+            46.3148330450058,
+            50.61550009250641,
+            48.222167015075684,
+            46.91866600513458,
+            47.31174993515015,
+            49.677250027656555,
+            48.4727920293808,
+            47.45145797729492,
+            46.44329106807709,
+            46.780917048454285,
+            47.17433297634125,
+            48.30704200267792
+          ]
+        },
+        {
+          "backend": "sck_stream_warm_setup_first_frame",
+          "max": 60.603874921798706,
+          "mean": 55.747505098581314,
+          "meta": {
+            "note": "SCStream per-call: build stream + addStreamOutput + startCapture + wait for first COMPLETE frame (cached filter/config). Measures stream setup + first-frame latency."
+          },
+          "min": 50.78137493133545,
+          "n": 8,
+          "p50": 55.373874962329865,
+          "p95": 59.96531428694725,
+          "samples_ms": [
+            54.79837501049042,
+            58.77941596508026,
+            50.78137493133545,
+            55.27441692352295,
+            60.603874921798706,
+            51.92716705799103,
+            55.47333300113678,
+            58.34208297729492
+          ]
+        },
+        {
+          "backend": "sck_stream_cold_setup_first_frame",
+          "max": 83.22258293628693,
+          "mean": 80.60823434591293,
+          "meta": {
+            "note": "SCStream per-call INCLUDING a fresh SCShareableContent enumeration + fresh filter/config each iteration"
+          },
+          "min": 78.53108406066895,
+          "n": 8,
+          "p50": 80.64289599657059,
+          "p95": 83.12751417160034,
+          "samples_ms": [
+            81.21283292770386,
+            78.78775000572205,
+            78.87487494945526,
+            80.85279202461243,
+            78.53108406066895,
+            82.95095789432526,
+            83.22258293628693,
+            80.43299996852875
+          ]
+        },
+        {
+          "backend": "sck_stream_steady_state_animated",
+          "max": 27.333417057991028,
+          "mean": 17.361078389620378,
+          "meta": {
+            "achieved_fps": 57.60010856225771,
+            "budget_s": 6,
+            "configured_h": 480,
+            "configured_w": 640,
+            "first_frame_ms": 39.165125012397766,
+            "frame_bytes_theoretical": 1228800,
+            "frames_delivered": 60,
+            "frames_requested": 60,
+            "min_frame_interval": "1/60 s",
+            "note": "PRE-WARMED SCStream steady state: startCapture then timestamps of consecutive COMPLETE frames. Content is a self-rendered 320x240 borderless non-activating window with a Core Animation slide (synthetic content, NOT the game window). Intervals below are frame PACING, not capture latency.",
+            "rss_mb_after_stream": 44.375,
+            "start_capture_ms": 44.16816592216492
+          },
+          "min": 8.48045802116394,
+          "n": 59,
+          "p50": 17.189208984375,
+          "p95": 18.727250027656556,
+          "samples_ms": [
+            18.270915985107422,
+            15.182458996772766,
+            16.861832976341248,
+            16.842875003814697,
+            20.11995804309845,
+            17.03379189968109,
+            17.443125009536743,
+            16.97345805168152,
+            17.451666951179504,
+            16.841583013534546,
+            17.700042009353638,
+            17.254832983016968,
+            17.189208984375,
+            17.688374996185303,
+            17.88333308696747,
+            16.79337501525879,
+            16.717999935150146,
+            16.913457989692688,
+            16.888499975204468,
+            17.46541702747345,
+            17.281625032424927,
+            17.181416988372803,
+            16.88824999332428,
+            17.431915998458862,
+            17.463541984558105,
+            16.597874999046326,
+            17.367125034332275,
+            16.966125011444092,
+            17.40516698360443,
+            18.692875027656555,
+            17.154374957084656,
+            17.56124997138977,
+            17.57504105567932,
+            16.98537504673004,
+            18.01799988746643,
+            16.934625029563904,
+            17.83916699886322,
+            17.13716697692871,
+            17.076125025749207,
+            17.581833004951477,
+            17.231791973114014,
+            16.64004099369049,
+            27.333417057991028,
+            8.48045802116394,
+            16.813416957855225,
+            17.91820800304413,
+            17.059499979019165,
+            17.74083399772644,
+            17.748499989509583,
+            16.779332995414734,
+            17.119333028793335,
+            19.036625027656555,
+            18.026208996772766,
+            17.737125039100647,
+            17.08383297920227,
+            17.101249933242798,
+            17.095499992370605,
+            17.031458020210266,
+            17.671709060668945
+          ]
+        },
+        {
+          "backend": "sck_stream_steady_state_static",
+          "max": 1004.0235830545425,
+          "mean": 352.52316665649414,
+          "meta": {
+            "budget_s": 6,
+            "frames_delivered": 4,
+            "note": "PRE-WARMED SCStream on the STATIC generic window: documents that SCK is change-driven. Few frames here is expected and is itself the finding (a static window does not stream)."
+          },
+          "min": 17.466041922569275,
+          "n": 3,
+          "p50": 36.079874992370605,
+          "p95": 907.2292122483253,
+          "samples_ms": [
+            36.079874992370605,
+            1004.0235830545425,
+            17.466041922569275
+          ]
+        },
+        {
+          "backend": "sck_stream_read_latest",
+          "max": 1.4165840148925781,
+          "mean": 0.08003377914428711,
+          "meta": {
+            "empty_reads": 0,
+            "frame_bytes": 1228800,
+            "frame_h": 480,
+            "frame_w": 640,
+            "frames_delivered_during_run": 52,
+            "memory_note": "queueDepth 5 x frame_bytes is the theoretical in-flight buffer cost; rss delta is the measured process footprint change",
+            "note": "PRE-WARMED SCStream, consumer reads the newest frame into its own buffer (memcpy). This is the per-iteration cost of 'give me current pixels' in a stream-based loop. Content is a self-rendered 320x240 animating window (synthetic, NOT the game window).",
+            "queue_depth": 5,
+            "reads_attempted": 100,
+            "rss_mb_after": 47.203125,
+            "rss_mb_before": 44.609375,
+            "staleness_ms": {
+              "max": 17.23070800304413,
+              "mean": 9.334617501497268,
+              "min": 0.10645902156829834,
+              "n": 100,
+              "p50": 9.949187517166138,
+              "p95": 16.488741421699526
+            },
+            "start_capture_ms": 44.2352089881897
+          },
+          "min": 0.027415990829467773,
+          "n": 100,
+          "p50": 0.05449944734573364,
+          "p95": 0.15791603326797482,
+          "samples_ms": [
+            0.28566694259643555,
+            0.050958991050720215,
+            0.049832940101623535,
+            0.08991706371307373,
+            0.056416988372802734,
+            0.05279099941253662,
+            0.1574159860610962,
+            0.11516702175140381,
+            0.03862500190734863,
+            0.12920796871185303,
+            0.027415990829467773,
+            0.0280839204788208,
+            0.05033302307128906,
+            0.06795907020568848,
+            0.06287491321563721,
+            1.4165840148925781,
+            0.03874993324279785,
+            0.060791969299316406,
+            0.10562503337860107,
+            0.0317080020904541,
+            0.06650006771087646,
+            0.04291701316833496,
+            0.032792091369628906,
+            0.07674992084503174,
+            0.14800000190734863,
+            0.03262495994567871,
+            0.0668330192565918,
+            0.0377500057220459,
+            0.08379197120666504,
+            0.06675004959106445,
+            0.06691598892211914,
+            0.035209059715270996,
+            0.07099997997283936,
+            0.04770803451538086,
+            0.08924996852874756,
+            0.07662498950958252,
+            0.36183297634124756,
+            0.05212509632110596,
+            0.0394589900970459,
+            0.041625022888183594,
+            0.054708003997802734,
+            0.05045902729034424,
+            0.05429089069366455,
+            0.1755000352859497,
+            0.08704197406768799,
+            0.059541940689086914,
+            0.042208075523376465,
+            0.08554196357727051,
+            0.11545896530151367,
+            0.06083405017852783,
+            0.16741693019866943,
+            0.05212509632110596,
+            0.06400001049041748,
+            0.06929206848144531,
+            0.05924999713897705,
+            0.047500014305114746,
+            0.06062495708465576,
+            0.033499956130981445,
+            0.06066703796386719,
+            0.06445801258087158,
+            0.048207998275756836,
+            0.07249999046325684,
+            0.06737494468688965,
+            0.08395898342132568,
+            0.06583404541015625,
+            0.06425011157989502,
+            0.033165931701660156,
+            0.06749999523162842,
+            0.04779195785522461,
+            0.03841698169708252,
+            0.07833302021026611,
+            0.06137490272521973,
+            0.08704197406768799,
+            0.08066701889038086,
+            0.0517500638961792,
+            0.04379105567932129,
+            0.03162503242492676,
+            0.03791701793670654,
+            0.1262500286102295,
+            0.0377500057220459,
+            0.036041975021362305,
+            0.03104090690612793,
+            0.04100000858306885,
+            0.03312492370605469,
+            0.032457947731018066,
+            0.031875014305114746,
+            0.04237508773803711,
+            0.03699994087219238,
+            0.040583014488220215,
+            0.044291019439697266,
+            0.04083406925201416,
+            0.04649996757507324,
+            0.03591597080230713,
+            0.03345906734466553,
+            0.03308296203613281,
+            0.0394589900970459,
+            0.07745802402496338,
+            0.07629096508026123,
+            0.03487503528594971,
+            0.07320797443389893
+          ]
+        },
+        {
+          "backend": "memcpy_game_frame_bgra",
+          "max": 0.7990419864654541,
+          "mean": 0.35696659088134763,
+          "meta": {
+            "frame_bytes": 13126176,
+            "frame_h": 1428,
+            "frame_w": 2298,
+            "note": "single memcpy of one 2298x1428 BGRA frame (12 MB) \u2014 the irreducible per-frame handoff cost at real game resolution"
+          },
+          "min": 0.2913750410079956,
+          "n": 20,
+          "p50": 0.30229151248931885,
+          "p95": 0.5692598938941957,
+          "samples_ms": [
+            0.31508398056030273,
+            0.3221249580383301,
+            0.3075000047683716,
+            0.3028329610824585,
+            0.3017500638961792,
+            0.29841601848602295,
+            0.2982919216156006,
+            0.29470789432525635,
+            0.29420793056488037,
+            0.2925839424133301,
+            0.29291605949401855,
+            0.29729199409484863,
+            0.29225003719329834,
+            0.2913750410079956,
+            0.38133299350738525,
+            0.7990419864654541,
+            0.5571660995483398,
+            0.48079097270965576,
+            0.35199999809265137,
+            0.36766695976257324
+          ]
+        },
+        {
+          "backend": "subprocess_screencapture_window_png",
+          "max": 144.8237910270691,
+          "mean": 142.89430620074273,
+          "meta": {
+            "content": "unrelated application content",
+            "file_bytes": 457623,
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 8232,
+              "h": 1354,
+              "ok": true,
+              "w": 2058
+            },
+            "live_game": false,
+            "note": "/usr/sbin/screencapture -x -R <window bounds> <file>.png \u2014 process spawn + PNG encode to disk. Decode NOT included.",
+            "region": [
+              321,
+              115,
+              1029,
+              677
+            ],
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 140.9508330821991,
+          "n": 20,
+          "p50": 142.70258349180222,
+          "p95": 144.6693770468235,
+          "samples_ms": [
+            141.52420794963837,
+            144.39387500286102,
+            142.08358299732208,
+            141.23849999904633,
+            142.08916699886322,
+            142.79149997234344,
+            143.8625420331955,
+            140.9508330821991,
+            144.0162080526352,
+            144.62145900726318,
+            143.70583295822144,
+            144.8237910270691,
+            143.84499990940094,
+            142.613667011261,
+            142.0813329219818,
+            141.2115000486374,
+            143.44608402252197,
+            141.40950000286102,
+            142.51629102230072,
+            144.66124999523163
+          ]
+        },
+        {
+          "backend": "subprocess_screencapture_fullscreen_png",
+          "max": 228.23745906352997,
+          "mean": 215.09921451210977,
+          "meta": {
+            "file_bytes": 3426546,
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 11760,
+              "h": 1912,
+              "ok": true,
+              "w": 2940
+            },
+            "note": "/usr/sbin/screencapture -x <file>.png \u2014 full screen, process spawn + PNG encode to disk"
+          },
+          "min": 211.83116602897644,
+          "n": 20,
+          "p50": 214.37447953224182,
+          "p95": 217.27434030175212,
+          "samples_ms": [
+            214.22525000572205,
+            215.85029101371765,
+            215.24891710281372,
+            215.6721659898758,
+            214.5237090587616,
+            216.52075004577637,
+            215.38154101371765,
+            212.28104090690613,
+            213.5967080593109,
+            213.11149990558624,
+            212.30425000190735,
+            212.36237502098083,
+            214.1909580230713,
+            216.6973340511322,
+            228.23745906352997,
+            211.83116602897644,
+            213.54483294487,
+            213.77724993228912,
+            215.97691702842712,
+            216.6498750448227
+          ]
+        },
+        {
+          "backend": "prod_shot_pipeline",
+          "max": 145.71716690063477,
+          "mean": 143.5420521080494,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "EXACT scripts/seerd.swift shot(): spawn screencapture -x -R <window> file.png, waitUntilExit, CGImageSourceCreateWithURL decode. This is the current production capture cost.",
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 142.0214160680771,
+          "n": 20,
+          "p50": 143.43716698884964,
+          "p95": 144.4189121544361,
+          "samples_ms": [
+            142.77683401107788,
+            144.29445803165436,
+            143.93766605854034,
+            144.35058295726776,
+            143.351832985878,
+            143.4027919769287,
+            144.1409159898758,
+            142.48170804977417,
+            144.1229590177536,
+            144.23137497901917,
+            144.1807919740677,
+            142.45525002479553,
+            142.8802089691162,
+            145.71716690063477,
+            143.47154200077057,
+            143.35062503814697,
+            143.14029204845428,
+            142.51816701889038,
+            142.0214160680771,
+            144.0144580602646
+          ]
+        },
+        {
+          "backend": "png_encode_memory",
+          "max": 34.68095898628235,
+          "mean": 33.058479100465775,
+          "meta": {
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 8320,
+              "h": 1354,
+              "ok": true,
+              "w": 2058
+            },
+            "note": "CGImageDestination PNG encode of the in-memory window capture (the cost you add if you insist on PNG)",
+            "png_bytes": 819229
+          },
+          "min": 32.42700004577637,
+          "n": 20,
+          "p50": 32.88237500190735,
+          "p95": 34.50972053408623,
+          "samples_ms": [
+            33.739416003227234,
+            32.87349998950958,
+            32.42700004577637,
+            34.68095898628235,
+            32.82229197025299,
+            32.70670795440674,
+            32.67287492752075,
+            32.51116704940796,
+            32.69912505149841,
+            33.02762496471405,
+            32.993375062942505,
+            32.863499999046326,
+            33.22595798969269,
+            33.015957951545715,
+            32.754250049591064,
+            32.97879099845886,
+            34.50070798397064,
+            32.98537504673004,
+            32.799749970436096,
+            32.891250014305115
+          ]
+        },
+        {
+          "backend": "png_decode_lazy_handle",
+          "max": 0.06987500190734863,
+          "mean": 0.05966666340827942,
+          "meta": {
+            "note": "CGImageSourceCreateWithData + CreateImageAtIndex ONLY \u2014 a lazy handle, pixels are NOT decoded yet. Do not report this as decode cost.",
+            "png_bytes": 819229
+          },
+          "min": 0.05637502670288086,
+          "n": 20,
+          "p50": 0.057353973388671875,
+          "p95": 0.06746008396148682,
+          "samples_ms": [
+            0.06216704845428467,
+            0.06045889854431152,
+            0.05950009822845459,
+            0.06533300876617432,
+            0.06733298301696777,
+            0.06987500190734863,
+            0.0655829906463623,
+            0.06037497520446777,
+            0.057000041007995605,
+            0.05775010585784912,
+            0.05741596221923828,
+            0.05691707134246826,
+            0.05670797824859619,
+            0.05650007724761963,
+            0.05637502670288086,
+            0.0566248893737793,
+            0.05645906925201416,
+            0.05729198455810547,
+            0.05683302879333496,
+            0.05683302879333496
+          ]
+        },
+        {
+          "backend": "png_decode_forced",
+          "max": 41.83916699886322,
+          "mean": 22.589729255437852,
+          "meta": {
+            "note": "PNG bytes -> decoded pixels (handle + forced BGRA draw). This is the cost the pipeline actually pays before it can look at pixels; subtract bgra_extract to isolate the codec.",
+            "png_bytes": 819229
+          },
+          "min": 21.275583028793335,
+          "n": 20,
+          "p50": 21.48333352804184,
+          "p95": 23.475310790538803,
+          "samples_ms": [
+            41.83916699886322,
+            21.550249934196472,
+            21.490916967391968,
+            22.50879204273224,
+            22.113500118255615,
+            21.275583028793335,
+            21.72604203224182,
+            21.29545795917511,
+            21.609749913215637,
+            21.423083066940308,
+            21.47575008869171,
+            21.32349991798401,
+            21.408249974250793,
+            21.4375,
+            21.678874969482422,
+            21.471667051315308,
+            21.690750002861023,
+            21.728333950042725,
+            21.45929205417633,
+            21.288125038146973
+          ]
+        },
+        {
+          "backend": "bgra_extract",
+          "max": 0.9815410375595093,
+          "mean": 0.8111749529838562,
+          "meta": {
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 8320,
+              "h": 1354,
+              "ok": true,
+              "w": 2058
+            },
+            "note": "CGContext draw into a freshly allocated BGRA buffer (alloc + draw). This is the raw pixel handoff to numpy."
+          },
+          "min": 0.6801249980926514,
+          "n": 20,
+          "p50": 0.7891245484352112,
+          "p95": 0.9550208806991577,
+          "samples_ms": [
+            0.890125036239624,
+            0.8812079429626465,
+            0.7789160013198853,
+            0.7575000524520874,
+            0.7455419301986694,
+            0.7295410633087158,
+            0.7485839128494263,
+            0.7993330955505371,
+            0.8104169368743896,
+            0.9815410375595093,
+            0.8129580020904541,
+            0.9129159450531006,
+            0.7518329620361328,
+            0.7382500171661377,
+            0.6962920427322388,
+            0.6801249980926514,
+            0.7200419902801514,
+            0.9536250829696655,
+            0.9520419836044312,
+            0.8827090263366699
+          ]
+        },
+        {
+          "backend": "roi_crop_inmemory",
+          "max": 0.0007920265197753906,
+          "mean": 0.0006769537925720215,
+          "meta": {
+            "crop_rect": [
+              80,
+              240,
+              600,
+              400
+            ],
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 8320,
+              "h": 400,
+              "ok": true,
+              "w": 600
+            },
+            "note": "CGImage.cropping(to:) on an already-captured full-window image \u2014 ROI with zero capture cost"
+          },
+          "min": 0.0005409717559814453,
+          "n": 20,
+          "p50": 0.0006874799728393555,
+          "p95": 0.0007920265197753906,
+          "samples_ms": [
+            0.0007920265197753906,
+            0.0007499456405639648,
+            0.0007500648498535156,
+            0.0007909536361694336,
+            0.0007079839706420898,
+            0.0007920265197753906,
+            0.0007079839706420898,
+            0.0007081031799316406,
+            0.0006660223007202148,
+            0.0007909536361694336,
+            0.0007090568542480469,
+            0.0006669759750366211,
+            0.0006660223007202148,
+            0.0006250143051147461,
+            0.0005409717559814453,
+            0.0005420446395874023,
+            0.0005409717559814453,
+            0.0006669759750366211,
+            0.0005840063095092773,
+            0.0005409717559814453
+          ]
+        },
+        {
+          "backend": "inproc_pipeline_sck_bgra",
+          "max": 48.48649990558624,
+          "mean": 44.70458324551582,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "optimized end-to-end capture: SCScreenshotManager + BGRA extract ready for numpy. Compare against prod_shot_pipeline.",
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 43.26362502574921,
+          "n": 20,
+          "p50": 44.3123744726181,
+          "p95": 47.10939611792565,
+          "samples_ms": [
+            44.06874990463257,
+            44.984833002090454,
+            44.32629096508026,
+            43.72562503814697,
+            44.212249994277954,
+            44.945541977882385,
+            44.149500012397766,
+            44.51450002193451,
+            43.26362502574921,
+            45.5304160118103,
+            45.294957995414734,
+            43.90279197692871,
+            44.1273330450058,
+            45.38062500953674,
+            43.876917004585266,
+            47.036916971206665,
+            48.48649990558624,
+            43.5929160118103,
+            44.298457980155945,
+            44.37291705608368
+          ]
+        },
+        {
+          "backend": "inproc_pipeline_sck_roi_bgra",
+          "max": 44.13766694068909,
+          "mean": 42.38811675310135,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "optimized ROI end-to-end: SCK sourceRect capture + BGRA extract for a 300x200 pt region",
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 40.784124970436096,
+          "n": 20,
+          "p50": 42.382395565509796,
+          "p95": 43.80777956843376,
+          "samples_ms": [
+            43.62095904350281,
+            44.13766694068909,
+            43.790417075157166,
+            42.36625003814697,
+            42.421416997909546,
+            40.784124970436096,
+            41.01929199695587,
+            42.39854109287262,
+            43.771417021751404,
+            42.5234169960022,
+            40.95287501811981,
+            41.53600001335144,
+            41.91891598701477,
+            42.05583298206329,
+            41.1594580411911,
+            41.89762496948242,
+            41.652292013168335,
+            42.50112497806549,
+            43.650041937828064,
+            43.60466694831848
+          ]
+        },
+        {
+          "backend": "loop_prod_accurate",
+          "max": 732.2693339586258,
+          "mean": 715.492213472724,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "CURRENT PRODUCTION LOOP: screencapture subprocess + PNG decode + Vision .accurate on the full window",
+            "ocr_items_mean": 55.44444444444444,
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 685.5665829181671,
+          "n": 8,
+          "p50": 717.7031875252724,
+          "p95": 729.4507255136966,
+          "samples_ms": [
+            715.9033750295639,
+            709.4993329048157,
+            718.3093340396881,
+            721.0765409469604,
+            724.216166973114,
+            717.0970410108566,
+            732.2693339586258,
+            685.5665829181671
+          ]
+        },
+        {
+          "backend": "loop_prod_fast",
+          "max": 250.447625041008,
+          "mean": 236.41308327019215,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "production capture path (screencapture subprocess) + Vision .fast on the full window",
+            "ocr_items_mean": 33.22222222222222,
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 226.65437507629395,
+          "n": 8,
+          "p50": 235.72677052021027,
+          "p95": 245.97017722725866,
+          "samples_ms": [
+            235.69774997234344,
+            226.65437507629395,
+            236.97679197788239,
+            233.83745801448822,
+            237.65491700172424,
+            250.447625041008,
+            234.27995800971985,
+            235.7557910680771
+          ]
+        },
+        {
+          "backend": "loop_inproc_accurate",
+          "max": 354.86008310317993,
+          "mean": 343.349765509367,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP: in-process SCScreenshotManager + Vision .accurate on the full window. No subprocess, no PNG.",
+            "ocr_items_mean": 34,
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 336.7245839834213,
+          "n": 8,
+          "p50": 342.1072494983673,
+          "p95": 351.92340807914735,
+          "samples_ms": [
+            341.27416694164276,
+            346.4695830345154,
+            341.7887910604477,
+            354.86008310317993,
+            342.4257079362869,
+            336.7245839834213,
+            345.200875043869,
+            338.0543329715729
+          ]
+        },
+        {
+          "backend": "loop_inproc_fast",
+          "max": 106.95170903205872,
+          "mean": 105.03428137302399,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP: in-process SCScreenshotManager + Vision .fast on the full window",
+            "ocr_items_mean": 16,
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 103.343416929245,
+          "n": 8,
+          "p50": 104.97227048873901,
+          "p95": 106.46035240888595,
+          "samples_ms": [
+            104.97354102134705,
+            105.4120420217514,
+            104.38525009155273,
+            106.95170903205872,
+            104.68945896625519,
+            105.54783296585083,
+            104.97099995613098,
+            103.343416929245
+          ]
+        },
+        {
+          "backend": "loop_inproc_fast_roi",
+          "max": 89.57004201412201,
+          "mean": 87.18902589380741,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP, ROI only: SCK sourceRect 300x200 pts + Vision .fast",
+            "ocr_items_mean": 1,
+            "sourceRect": [
+              40,
+              120,
+              300,
+              200
+            ],
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 85.00570809841156,
+          "n": 8,
+          "p50": 86.50456249713898,
+          "p95": 89.39407916665077,
+          "samples_ms": [
+            88.42358303070068,
+            86.24262499809265,
+            89.57004201412201,
+            86.48579204082489,
+            85.00570809841156,
+            86.52333295345306,
+            86.19383299350739,
+            89.06729102134705
+          ]
+        },
+        {
+          "backend": "loop_inproc_accurate_roi",
+          "max": 148.54854202270508,
+          "mean": 145.1811303794384,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP, ROI only: SCK sourceRect 300x200 pts + Vision .accurate",
+            "ocr_items_mean": 12,
+            "sourceRect": [
+              40,
+              120,
+              300,
+              200
+            ],
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 141.4392091035843,
+          "n": 8,
+          "p50": 144.57150000333786,
+          "p95": 148.504937595129,
+          "samples_ms": [
+            144.8321669101715,
+            142.57862496376038,
+            148.42395794391632,
+            144.3108330965042,
+            143.33749997615814,
+            148.54854202270508,
+            147.97820901870728,
+            141.4392091035843
+          ]
+        },
+        {
+          "backend": "loop_prod_instrumented",
+          "max": 754.2976250648499,
+          "mean": 725.487729370594,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "INSTRUMENTED production loop: capture / forced PNG decode / Vision .accurate timed separately INSIDE each iteration. No cross-backend arithmetic.",
+            "ocr_items_mean": 55,
+            "stages": {
+              "capture_subprocess": {
+                "max": 143.4221249818802,
+                "mean": 141.48993763327599,
+                "min": 135.19949996471405,
+                "n": 8,
+                "p50": 142.39210456609726,
+                "p95": 143.41490623354912
+              },
+              "png_decode_forced": {
+                "max": 28.154625058174133,
+                "mean": 26.41074475646019,
+                "min": 25.443707942962646,
+                "n": 8,
+                "p50": 26.186000049114227,
+                "p95": 27.662233489751813
+              },
+              "vision_ocr_accurate": {
+                "max": 586.4555000066757,
+                "mean": 557.5870469808578,
+                "min": 517.4333750009537,
+                "n": 8,
+                "p50": 566.7051669359207,
+                "p95": 580.9002415597439
+              }
+            },
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 685.7232500314713,
+          "n": 8,
+          "p50": 733.7591254711151,
+          "p95": 749.8445022404194,
+          "samples_ms": [
+            734.2077089548111,
+            733.3105419874191,
+            728.081041932106,
+            754.2976250648499,
+            740.7326250076294,
+            741.5744169950485,
+            685.9746249914169,
+            685.7232500314713
+          ]
+        },
+        {
+          "backend": "loop_inproc_instrumented",
+          "max": 361.01266598701477,
+          "mean": 344.2704998701811,
+          "meta": {
+            "content": "unrelated application content",
+            "live_game": false,
+            "note": "INSTRUMENTED in-process loop: SCK capture / Vision .accurate timed separately INSIDE each iteration.",
+            "ocr_items_mean": 34,
+            "stages": {
+              "sck_capture": {
+                "max": 47.63070797920227,
+                "mean": 43.82608312368393,
+                "min": 42.7352499961853,
+                "n": 8,
+                "p50": 43.15395802259445,
+                "p95": 46.49014549255371
+              },
+              "vision_ocr_accurate": {
+                "max": 318.19320797920227,
+                "mean": 300.44441674649715,
+                "min": 290.7112089395523,
+                "n": 8,
+                "p50": 300.6638750433922,
+                "p95": 313.14435614943505
+              }
+            },
+            "window_h": 677,
+            "window_id": 49420,
+            "window_label": "generic window, NOT the game window",
+            "window_layer": 0,
+            "window_owner": "\u97f3\u4e50",
+            "window_title": "\u97f3\u4e50",
+            "window_w": 1029,
+            "window_x": 321,
+            "window_y": 115
+          },
+          "min": 335.08316695690155,
+          "n": 8,
+          "p50": 343.9964374899864,
+          "p95": 356.0486600995064,
+          "samples_ms": [
+            338.535542011261,
+            345.49949991703033,
+            335.08316695690155,
+            361.01266598701477,
+            346.8297920227051,
+            338.93216598033905,
+            342.4933750629425,
+            345.7777910232544
+          ]
+        }
+      ],
+      "roi_global": [
+        361,
+        235,
+        300,
+        200
+      ],
+      "roi_local": [
+        40,
+        120,
+        300,
+        200
+      ],
+      "scale_factor": 2,
+      "target_window": {
+        "content": "unrelated application content",
+        "live_game": false,
+        "window_h": 677,
+        "window_id": 49420,
+        "window_label": "generic window, NOT the game window",
+        "window_layer": 0,
+        "window_owner": "\u97f3\u4e50",
+        "window_title": "\u97f3\u4e50",
+        "window_w": 1029,
+        "window_x": 321,
+        "window_y": 115
+      },
+      "wall_ms": 54941.78783297539,
+      "warmup": 2,
+      "_harness": {
+        "wall_ms": 55008.605791023,
+        "cmd": [
+          "/Users/ceontou/Documents/code/seer-puni-quest/native/bin/bench_capture",
+          "capture",
+          "--iters",
+          "20",
+          "--loop-iters",
+          "8",
+          "--warmup",
+          "2"
+        ],
+        "returncode": 0
+      },
+      "_stderr_tail": "[bench_capture] windowlist_enum n=20\n[bench_capture] sck_shareable_enum n=20\n[bench_capture] sck_screenshot_warm_2x n=20\n[bench_capture] sck_screenshot_warm_1x n=20\n[bench_capture] sck_screenshot_cold_2x n=8\n[bench_capture] sck_screenshot_roi_2x n=20\n[bench_capture] sck_display_screenshot_2x n=20\n[bench_capture] sck_stream_warm_setup_first_frame n=8\n[bench_capture] sck_stream_cold_setup_first_frame n=8\n[bench_capture] sck_stream_steady_state_animated n=59\n[bench_capture] sck_stream_steady_state_static n=3\n[bench_capture] sck_stream_read_latest n=100\n[bench_capture] memcpy_game_frame_bgra n=20\n[bench_capture] subprocess_screencapture_window_png n=20\n[bench_capture] subprocess_screencapture_fullscreen_png n=20\n[bench_capture] prod_shot_pipeline n=20\n[bench_capture] png_encode_memory n=20\n[bench_capture] png_decode_lazy_handle n=20\n[bench_capture] png_decode_forced n=20\n[bench_capture] bgra_extract n=20\n[bench_capture] roi_crop_inmemory n=20\n[bench_capture] inproc_pipeline_sck_bgra n=20\n[bench_capture] inproc_pipeline_sck_roi_bgra n=20\n[bench_capture] loop_prod_accurate n=8\n[bench_capture] loop_prod_fast n=8\n[bench_capture] loop_inproc_accurate n=8\n[bench_capture] loop_inproc_fast n=8\n[bench_capture] loop_inproc_fast_roi n=8\n[bench_capture] loop_inproc_accurate_roi n=8\n[bench_capture] loop_prod_instrumented n=8\n[bench_capture] loop_inproc_instrumented n=8\n"
+    },
+    "capture_game_content": {
+      "env": {
+        "candidate_windows": [
+          {
+            "h": 837,
+            "id": 66410,
+            "isSelf": false,
+            "owner": "Safari\u6d4f\u89c8\u5668",
+            "pid": 69594,
+            "title": "Usage | Activity",
+            "w": 1325,
+            "x": -57,
+            "y": -801
+          },
+          {
+            "h": 600,
+            "id": 64477,
+            "isSelf": false,
+            "owner": "DeepSeek Harness",
+            "pid": 8108,
+            "title": "# SeerAutomation \u591a\u8f6e\u5de5\u7a0b\u63a5\u7ba1\u3001 \u2014 DeepSeek Harness",
+            "w": 1280,
+            "x": 272,
+            "y": 200
+          },
+          {
+            "h": 677,
+            "id": 49420,
+            "isSelf": false,
+            "owner": "\u97f3\u4e50",
+            "pid": 37236,
+            "title": "\u97f3\u4e50",
+            "w": 1029,
+            "x": 321,
+            "y": 115
+          },
+          {
+            "h": 701,
+            "id": 50982,
+            "isSelf": false,
+            "owner": "Clash Verge",
+            "pid": 52648,
+            "title": "Clash Verge",
+            "w": 940,
+            "x": 285,
+            "y": 89
+          },
+          {
+            "h": 436,
+            "id": 67989,
+            "isSelf": false,
+            "owner": "\u8bbf\u8fbe",
+            "pid": 705,
+            "title": "paper",
+            "w": 920,
+            "x": 19,
+            "y": 105
+          },
+          {
+            "h": 436,
+            "id": 66864,
+            "isSelf": false,
+            "owner": "\u8bbf\u8fbe",
+            "pid": 705,
+            "title": "\u6210\u7a3f",
+            "w": 920,
+            "x": 214,
+            "y": 125
+          }
+        ],
+        "capture_api_note": "CGWindowListCreateImage/CGDisplayCreateImage are obsoleted in macOS 15.0 and fail to compile; ScreenCaptureKit is the only in-process option",
+        "cgdisplaycreateimage_available": false,
+        "cgwindowlistcreateimage_available": false,
+        "cpu_brand": "Apple M2",
+        "displays": [
+          {
+            "bounds_h": 956,
+            "bounds_w": 1470,
+            "bounds_x": 0,
+            "bounds_y": 0,
+            "id": 1,
+            "isMain": true,
+            "pixels_h": 956,
+            "pixels_w": 1470
+          },
+          {
+            "bounds_h": 864,
+            "bounds_w": 1536,
+            "bounds_x": -205,
+            "bounds_y": -864,
+            "id": 2,
+            "isMain": false,
+            "pixels_h": 864,
+            "pixels_w": 1536
+          }
+        ],
+        "hw_model": "Mac14,2",
+        "logical_cpus": 8,
+        "machine_arch": "arm64",
+        "main_display_id": 1,
+        "on_screen_window_count": 38,
+        "os_version": "Version 15.7.7 (Build 24G720)",
+        "physical_memory_bytes": 25769803776,
+        "process_id": 80926,
+        "process_name": "bench_capture",
+        "screen_recording_granted": true,
+        "screencapture_exists": true,
+        "screens": [
+          {
+            "backingScaleFactor": 2,
+            "frame_h": 956,
+            "frame_w": 1470,
+            "frame_x": 0,
+            "frame_y": 0,
+            "localizedName": "Built-in Retina Display"
+          },
+          {
+            "backingScaleFactor": 2,
+            "frame_h": 864,
+            "frame_w": 1536,
+            "frame_x": -205,
+            "frame_y": 956,
+            "localizedName": "P24A2G"
+          }
+        ],
+        "seer_game_window_count": 0
+      },
+      "iters": 20,
+      "loop_iters": 8,
+      "mode": "capture",
+      "results": [
+        {
+          "backend": "windowlist_enum",
+          "max": 4.452375054359436,
+          "mean": 1.0680063366889954,
+          "meta": {
+            "note": "CGWindowListCopyWindowInfo(.optionOnScreenOnly, .excludeDesktopElements) \u2014 paid by scripts/seerd.swift findWin() on every shot"
+          },
+          "min": 0.7950830459594727,
+          "n": 20,
+          "p50": 0.867167055606842,
+          "p95": 1.2454914271831536,
+          "samples_ms": [
+            1.0172920227050781,
+            0.9472919702529907,
+            1.0303339958190918,
+            0.8275411128997803,
+            0.8988330364227295,
+            0.9138749837875366,
+            0.8769580125808716,
+            0.8623330593109131,
+            0.8445000648498535,
+            4.452375054359436,
+            0.8088750839233398,
+            0.8636250495910645,
+            0.8548750877380371,
+            0.8031669855117798,
+            1.0767080783843994,
+            0.8707090616226196,
+            0.8433339595794678,
+            0.8383339643478394,
+            0.7950830459594727,
+            0.934083104133606
+          ]
+        },
+        {
+          "backend": "sck_screenshot_warm_2x",
+          "max": 45.48091697692871,
+          "mean": 43.8522812962532,
+          "meta": {
+            "configured_h": 1428,
+            "configured_w": 2298,
+            "content": "real game screenshot",
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 9216,
+              "h": 1428,
+              "ok": true,
+              "w": 2298
+            },
+            "live_game": false,
+            "note": "SCScreenshotManager.captureImage, pre-built SCContentFilter + SCStreamConfiguration, captureResolution=.best (retina px). Per-call setup excluded.",
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 42.28387498855591,
+          "n": 20,
+          "p50": 43.92862552404404,
+          "p95": 45.43840348124504,
+          "samples_ms": [
+            43.709457993507385,
+            42.41124999523163,
+            44.29904103279114,
+            42.28387498855591,
+            43.163208961486816,
+            44.875792026519775,
+            43.599416971206665,
+            42.358874917030334,
+            44.60129201412201,
+            43.36233305931091,
+            45.43616592884064,
+            45.48091697692871,
+            44.090209007263184,
+            43.76704204082489,
+            42.36704194545746,
+            43.588375091552734,
+            44.1845840215683,
+            44.65954089164734,
+            44.45100009441376,
+            44.356207966804504
+          ]
+        },
+        {
+          "backend": "sck_screenshot_warm_1x",
+          "max": 44.20583391189575,
+          "mean": 42.67059361934662,
+          "meta": {
+            "configured_h": 714,
+            "configured_w": 1149,
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 4608,
+              "h": 714,
+              "ok": true,
+              "w": 1149
+            },
+            "note": "SCScreenshotManager.captureImage, captureResolution=.nominal (1x point px) \u2014 size-matched to what screencapture -R produced in artifacts"
+          },
+          "min": 40.65787494182587,
+          "n": 20,
+          "p50": 42.502874970436096,
+          "p95": 44.11589939594269,
+          "samples_ms": [
+            42.293334007263184,
+            42.54812502861023,
+            42.45762491226196,
+            44.20583391189575,
+            42.777166962623596,
+            42.37054097652435,
+            43.364749908447266,
+            44.11116600036621,
+            42.62224996089935,
+            42.27149999141693,
+            43.2821249961853,
+            42.83533298969269,
+            42.45266604423523,
+            42.45320796966553,
+            42.382457971572876,
+            42.40383291244507,
+            42.41616594791412,
+            42.91349995136261,
+            40.65787494182587,
+            42.59241700172424
+          ]
+        },
+        {
+          "backend": "sck_screenshot_roi_2x",
+          "max": 43.88237500190735,
+          "mean": 41.97037507295609,
+          "meta": {
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 2432,
+              "h": 400,
+              "ok": true,
+              "w": 600
+            },
+            "note": "SCScreenshotManager.captureImage with sourceRect ROI (300x200 pts) \u2014 SCK-native ROI, no full frame captured",
+            "sourceRect": [
+              40,
+              120,
+              300,
+              200
+            ]
+          },
+          "min": 40.68270802497864,
+          "n": 20,
+          "p50": 42.226000010967255,
+          "p95": 43.836853843927386,
+          "samples_ms": [
+            40.84620809555054,
+            42.33554196357727,
+            41.00166702270508,
+            42.506625056266785,
+            41.190333008766174,
+            41.964625000953674,
+            43.834457993507385,
+            42.659542083740234,
+            41.286874890327454,
+            42.247833013534546,
+            40.68270802497864,
+            41.070250034332275,
+            42.20416700839996,
+            41.04291605949402,
+            42.40883409976959,
+            40.95808410644531,
+            43.88237500190735,
+            42.365167021751404,
+            42.33062493801117,
+            42.588667035102844
+          ]
+        },
+        {
+          "backend": "subprocess_screencapture_window_png",
+          "max": 145.35833406448364,
+          "mean": 143.31129584312438,
+          "meta": {
+            "content": "real game screenshot",
+            "file_bytes": 1571200,
+            "image": {
+              "bpp": 32,
+              "bytesPerRow": 9192,
+              "h": 1428,
+              "ok": true,
+              "w": 2298
+            },
+            "live_game": false,
+            "note": "/usr/sbin/screencapture -x -R <window bounds> <file>.png \u2014 process spawn + PNG encode to disk. Decode NOT included.",
+            "region": [
+              300,
+              120,
+              1149,
+              714
+            ],
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 141.27799999713898,
+          "n": 20,
+          "p50": 143.53156298398972,
+          "p95": 145.32258922457694,
+          "samples_ms": [
+            145.32070791721344,
+            144.0659999847412,
+            143.73604202270508,
+            144.8541669845581,
+            143.83924996852875,
+            142.51174998283386,
+            142.10029089450836,
+            141.2879170179367,
+            144.01616597175598,
+            144.15579104423523,
+            143.65316700935364,
+            143.1629170179367,
+            141.6672500371933,
+            142.0407499074936,
+            141.27799999713898,
+            142.0688750743866,
+            143.27625000476837,
+            144.42233300209045,
+            143.4099589586258,
+            145.35833406448364
+          ]
+        },
+        {
+          "backend": "loop_prod_accurate",
+          "max": 332.9716670513153,
+          "mean": 312.4320989996195,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "CURRENT PRODUCTION LOOP: screencapture subprocess + PNG decode + Vision .accurate on the full window",
+            "ocr_items_mean": 12,
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 302.58958399295807,
+          "n": 8,
+          "p50": 310.2959374785423,
+          "p95": 327.1016129732132,
+          "samples_ms": [
+            307.46608304977417,
+            310.35545802116394,
+            307.71429097652435,
+            332.9716670513153,
+            310.2364169359207,
+            302.58958399295807,
+            316.20008397102356,
+            311.92320799827576
+          ]
+        },
+        {
+          "backend": "loop_prod_fast",
+          "max": 231.90458393096924,
+          "mean": 230.17534372210503,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "production capture path (screencapture subprocess) + Vision .fast on the full window",
+            "ocr_items_mean": 10,
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 224.16683292388916,
+          "n": 8,
+          "p50": 231.02985399961472,
+          "p95": 231.7887920618057,
+          "samples_ms": [
+            229.79433298110962,
+            231.0356249809265,
+            231.5737500190735,
+            231.02408301830292,
+            224.16683292388916,
+            231.90458393096924,
+            230.45329201221466,
+            231.45024991035461
+          ]
+        },
+        {
+          "backend": "loop_inproc_accurate",
+          "max": 225.54650008678436,
+          "mean": 192.99109888076782,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP: in-process SCScreenshotManager + Vision .accurate on the full window. No subprocess, no PNG.",
+            "ocr_items_mean": 12,
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 186.35004198551178,
+          "n": 8,
+          "p50": 187.84887498617172,
+          "p95": 213.67117505073546,
+          "samples_ms": [
+            189.78862500190735,
+            187.60120797157288,
+            187.4844160079956,
+            186.35004198551178,
+            187.4444580078125,
+            191.61699998378754,
+            225.54650008678436,
+            188.09654200077057
+          ]
+        },
+        {
+          "backend": "loop_inproc_fast",
+          "max": 106.21583294868469,
+          "mean": 105.17229175567627,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP: in-process SCScreenshotManager + Vision .fast on the full window",
+            "ocr_items_mean": 9,
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 102.61004209518433,
+          "n": 8,
+          "p50": 105.92193746566772,
+          "p95": 106.20310205817222,
+          "samples_ms": [
+            106.17462503910065,
+            106.17945897579193,
+            105.81008398532867,
+            106.03379094600677,
+            104.11925005912781,
+            104.2352499961853,
+            106.21583294868469,
+            102.61004209518433
+          ]
+        },
+        {
+          "backend": "loop_inproc_fast_roi",
+          "max": 84.08462500572205,
+          "mean": 83.3307083696127,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP, ROI only: SCK sourceRect 300x200 pts + Vision .fast",
+            "ocr_items_mean": 0,
+            "sourceRect": [
+              40,
+              120,
+              300,
+              200
+            ],
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 82.60854196548462,
+          "n": 8,
+          "p50": 83.28333348035812,
+          "p95": 84.01736654043198,
+          "samples_ms": [
+            83.81187510490417,
+            83.19799995422363,
+            82.60854196548462,
+            83.89245796203613,
+            82.8385419845581,
+            82.84295797348022,
+            84.08462500572205,
+            83.36866700649261
+          ]
+        },
+        {
+          "backend": "loop_inproc_accurate_roi",
+          "max": 63.16279101371765,
+          "mean": 59.8229528516531,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "OPTIMIZED LOOP, ROI only: SCK sourceRect 300x200 pts + Vision .accurate",
+            "ocr_items_mean": 0,
+            "sourceRect": [
+              40,
+              120,
+              300,
+              200
+            ],
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 57.580665946006775,
+          "n": 8,
+          "p50": 59.7039999961853,
+          "p95": 62.34568694829941,
+          "samples_ms": [
+            57.580665946006775,
+            60.37512493133545,
+            60.82820796966553,
+            63.16279101371765,
+            59.269749999046326,
+            60.13824999332428,
+            58.68537497520447,
+            58.543457984924316
+          ]
+        },
+        {
+          "backend": "loop_prod_instrumented",
+          "max": 406.7675839662552,
+          "mean": 336.0702343583107,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "INSTRUMENTED production loop: capture / forced PNG decode / Vision .accurate timed separately INSIDE each iteration. No cross-backend arithmetic.",
+            "ocr_items_mean": 12,
+            "stages": {
+              "capture_subprocess": {
+                "max": 215.15783393383026,
+                "mean": 152.58514574170113,
+                "min": 141.39562499523163,
+                "n": 8,
+                "p50": 144.3174369931221,
+                "p95": 190.61148799657818
+              },
+              "png_decode_forced": {
+                "max": 40.40825009346008,
+                "mean": 37.525338634848595,
+                "min": 36.772249937057495,
+                "n": 8,
+                "p50": 37.17364603281021,
+                "p95": 39.3784772336483
+              },
+              "vision_ocr_accurate": {
+                "max": 151.20149993896484,
+                "mean": 145.95974998176098,
+                "min": 142.52233290672302,
+                "n": 8,
+                "p50": 145.6617915034294,
+                "p95": 149.95656469464302
+              }
+            },
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 322.819207906723,
+          "n": 8,
+          "p50": 326.88349997997284,
+          "p95": 379.34886083006853,
+          "samples_ms": [
+            327.62662506103516,
+            326.30158388614655,
+            322.819207906723,
+            326.00975000858307,
+            327.46541607379913,
+            328.42837500572205,
+            323.14333295822144,
+            406.7675839662552
+          ]
+        },
+        {
+          "backend": "loop_inproc_instrumented",
+          "max": 213.44612503051758,
+          "mean": 191.9451458901167,
+          "meta": {
+            "content": "real game screenshot",
+            "live_game": false,
+            "note": "INSTRUMENTED in-process loop: SCK capture / Vision .accurate timed separately INSIDE each iteration.",
+            "ocr_items_mean": 12,
+            "stages": {
+              "sck_capture": {
+                "max": 45.14833307266235,
+                "mean": 43.80501587688923,
+                "min": 42.03045904636383,
+                "n": 8,
+                "p50": 43.92502099275589,
+                "p95": 44.79917901158333
+              },
+              "vision_ocr_accurate": {
+                "max": 169.29537498950958,
+                "mean": 148.14013001322746,
+                "min": 142.6273330450058,
+                "n": 8,
+                "p50": 145.8165830373764,
+                "p95": 161.4612081170082
+              }
+            },
+            "window_h": 714,
+            "window_id": 71218,
+            "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+            "window_layer": 3,
+            "window_owner": "bench_capture",
+            "window_title": "",
+            "window_w": 1149,
+            "window_x": 300,
+            "window_y": 120
+          },
+          "min": 186.30516695976257,
+          "n": 8,
+          "p50": 189.72943753004074,
+          "p95": 205.44268972277638,
+          "samples_ms": [
+            213.44612503051758,
+            189.58775007724762,
+            188.8643330335617,
+            186.56062507629395,
+            186.30516695976257,
+            190.34687495231628,
+            189.87112498283386,
+            190.57916700839996
+          ]
+        }
+      ],
+      "roi_global": [
+        340,
+        240,
+        300,
+        200
+      ],
+      "roi_local": [
+        40,
+        120,
+        300,
+        200
+      ],
+      "scale_factor": 2,
+      "target_window": {
+        "content": "real game screenshot",
+        "live_game": false,
+        "window_h": 714,
+        "window_id": 71218,
+        "window_label": "SYNTHETIC window displaying a real screenshot (artifacts/game.png) at game geometry \u2014 NOT the live game window",
+        "window_layer": 3,
+        "window_owner": "bench_capture",
+        "window_title": "",
+        "window_w": 1149,
+        "window_x": 300,
+        "window_y": 120
+      },
+      "wall_ms": 20557.488250017166,
+      "warmup": 2,
+      "_harness": {
+        "wall_ms": 20676.02725001052,
+        "cmd": [
+          "/Users/ceontou/Documents/code/seer-puni-quest/native/bin/bench_capture",
+          "capture",
+          "--iters",
+          "20",
+          "--loop-iters",
+          "8",
+          "--warmup",
+          "2",
+          "--image-window",
+          "artifacts/game.png",
+          "--only",
+          "windowlist_enum,subprocess_screencapture_window_png,sck_screenshot_warm_2x,sck_screenshot_roi_2x,sck_screenshot_warm_1x,loop_prod_instrumented,loop_inproc_instrumented,loop_prod_accurate,loop_prod_fast,loop_inproc_accurate,loop_inproc_fast,loop_inproc_accurate_roi,loop_inproc_fast_roi"
+        ],
+        "returncode": 0
+      },
+      "_stderr_tail": "[bench_capture] image window shown: artifacts/game.png number=71218\n[bench_capture] windowlist_enum n=20\n[bench_capture] sck_screenshot_warm_2x n=20\n[bench_capture] sck_screenshot_warm_1x n=20\n[bench_capture] sck_screenshot_roi_2x n=20\n[bench_capture] subprocess_screencapture_window_png n=20\n[bench_capture] loop_prod_accurate n=8\n[bench_capture] loop_prod_fast n=8\n[bench_capture] loop_inproc_accurate n=8\n[bench_capture] loop_inproc_fast n=8\n[bench_capture] loop_inproc_fast_roi n=8\n[bench_capture] loop_inproc_accurate_roi n=8\n[bench_capture] loop_prod_instrumented n=8\n[bench_capture] loop_inproc_instrumented n=8\n"
+    },
+    "ocr": {
+      "mode": "ocr",
+      "load_start": {
+        "loadavg_1m": 4.548828125,
+        "loadavg_5m": 5.8056640625,
+        "loadavg_15m": 10.19580078125,
+        "ncpu": 8,
+        "load_per_core_1m": 0.568603515625,
+        "contended": false
+      },
+      "env": {
+        "platform": "macOS-15.7.7-arm64-arm-64bit",
+        "machine": "arm64",
+        "python_version": "3.10.13",
+        "python_executable": "/Users/ceontou/.pyenv/versions/3.10.13/bin/python3",
+        "cwd": "/Users/ceontou/Documents/code/seer-puni-quest",
+        "timestamp_utc": "2026-11-01T09:27:46+00:00",
+        "timestamp_local": "2026-11-01T17:27:46+08:00"
+      },
+      "iters": 8,
+      "cli_iters": 6,
+      "bin": "/Users/ceontou/Documents/code/seer-puni-quest/native/bin/bench_capture",
+      "inproc": [
+        {
+          "cold_first_call_items": 12,
+          "cold_first_call_ms": 363.0181670188904,
+          "decode_ms": 0.13579201698303223,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+          "forced_decode_ms": 39.07433295249939,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.13579201698303223,
+          "items": 12,
+          "iters": 8,
+          "langs": "zh-Hans,en-US",
+          "level": "accurate",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "ocr_max": 163.0810409784317,
+          "ocr_mean": 148.98818737268448,
+          "ocr_min": 145.96308302879333,
+          "ocr_n": 8,
+          "ocr_p50": 146.65329200029373,
+          "ocr_p95": 158.17395382523534,
+          "pixels": 3281544,
+          "sample_texts": [
+            "|\u516c\u5c4f\u804a\u5929 \u2022 \u5728\u7ebf",
+            "\u4ea4\u6613 NIKO\uff1a\u4e0d\u80fd\u7528\u5c3c\u5c14\u554a",
+            "\u76ee",
+            "xin\u8ba1\u5212\uff081.0.8.9\uff09",
+            "AEEEEE",
+            "hello",
+            "\u24670",
+            "16.\u7801\u519c\u54e5",
+            "SAT",
+            "NEM",
+            "NEW",
+            "11:26"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "times_ms": [
+            163.0810409784317,
+            147.26699995994568,
+            148.47908306121826,
+            145.98041594028473,
+            145.96308302879333,
+            146.03958404064178,
+            149.06079196929932,
+            146.03450000286102
+          ],
+          "usesLanguageCorrection": false,
+          "label": "game_full_accurate_zh+en",
+          "rect": null
+        },
+        {
+          "cold_first_call_items": 10,
+          "cold_first_call_ms": 118.05095899105072,
+          "decode_ms": 0.14433300495147705,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+          "forced_decode_ms": 39.30141603946686,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.14433300495147705,
+          "items": 10,
+          "iters": 8,
+          "langs": "zh-Hans,en-US",
+          "level": "fast",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "ocr_max": 78.13433301448822,
+          "ocr_mean": 62.61843240261078,
+          "ocr_min": 59.49154198169708,
+          "ocr_n": 8,
+          "ocr_p50": 60.44968801736832,
+          "ocr_p95": 72.31884994506835,
+          "pixels": 3281544,
+          "sample_texts": [
+            "xin3tw (1.0.8.9)",
+            "\u2022f*",
+            "S NIKO: TALfflF6/JillP]",
+            "rrrr-\u00b0rr-r",
+            "hello",
+            "NEM",
+            "tS",
+            "*X*6",
+            "\u2022li (J\"",
+            "11:26"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "times_ms": [
+            59.49154198169708,
+            60.06266701221466,
+            61.518667101860046,
+            59.94283306598663,
+            59.81233298778534,
+            60.83670902252197,
+            78.13433301448822,
+            61.148375034332275
+          ],
+          "usesLanguageCorrection": false,
+          "label": "game_full_fast_zh+en",
+          "rect": null
+        },
+        {
+          "cold_first_call_items": 12,
+          "cold_first_call_ms": 364.980791926384,
+          "decode_ms": 0.2413330078125,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+          "forced_decode_ms": 39.12808299064636,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.2413330078125,
+          "items": 12,
+          "iters": 8,
+          "langs": "zh-Hans",
+          "level": "accurate",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "ocr_max": 150.261332988739,
+          "ocr_mean": 146.56123435497284,
+          "ocr_min": 142.88024997711182,
+          "ocr_n": 8,
+          "ocr_p50": 146.66012501716614,
+          "ocr_p95": 149.72183737158775,
+          "pixels": 3281544,
+          "sample_texts": [
+            "|\u516c\u5c4f\u804a\u5929 \u2022 \u5728\u7ebf",
+            "\u4ea4\u6613 NIKO\uff1a\u4e0d\u80fd\u7528\u5c3c\u5c14\u554a",
+            "\u76ee",
+            "xin\u8ba1\u5212\uff081.0.8.9\uff09",
+            "AEEEEE",
+            "hello",
+            "\u24670",
+            "16.\u7801\u519c\u54e5",
+            "SAT",
+            "NEM",
+            "NEW",
+            "11:26"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "times_ms": [
+            148.7199169397354,
+            144.39691698551178,
+            142.88024997711182,
+            146.2479590177536,
+            144.95620799064636,
+            147.07229101657867,
+            147.95499992370605,
+            150.261332988739
+          ],
+          "usesLanguageCorrection": false,
+          "label": "game_full_accurate_zh",
+          "rect": null
+        },
+        {
+          "cold_first_call_items": 10,
+          "cold_first_call_ms": 119.20420801639557,
+          "decode_ms": 0.14420902729034424,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+          "forced_decode_ms": 39.164291977882385,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.14420902729034424,
+          "items": 10,
+          "iters": 8,
+          "langs": "zh-Hans",
+          "level": "fast",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "ocr_max": 62.597583055496216,
+          "ocr_mean": 61.36339598894119,
+          "ocr_min": 60.435874938964844,
+          "ocr_n": 8,
+          "ocr_p50": 61.12985450029373,
+          "ocr_p95": 62.52415618300438,
+          "pixels": 3281544,
+          "sample_texts": [
+            "xin3tw (1.0.8.9)",
+            "\u2022f*",
+            "S NIKO: TALfflF6/JillP]",
+            "rrrr-\u00b0rr-r",
+            "hello",
+            "NEM",
+            "tS",
+            "*X*6",
+            "\u2022li (J\"",
+            "11:26"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "times_ms": [
+            61.298624992370605,
+            61.91891694068909,
+            60.77537488937378,
+            62.597583055496216,
+            60.96108400821686,
+            60.435874938964844,
+            62.387791991233826,
+            60.531917095184326
+          ],
+          "usesLanguageCorrection": false,
+          "label": "game_full_fast_zh",
+          "rect": null
+        },
+        {
+          "cold_first_call_items": 1,
+          "cold_first_call_ms": 285.3090000152588,
+          "decode_ms": 0.14529192447662354,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+          "forced_decode_ms": 38.863667011260986,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.14529192447662354,
+          "items": 1,
+          "iters": 8,
+          "langs": "zh-Hans,en-US",
+          "level": "accurate",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 3600,
+            "h": 400,
+            "ok": true,
+            "w": 900
+          },
+          "ocr_max": 67.41987490653992,
+          "ocr_mean": 66.10149472951889,
+          "ocr_min": 63.567209005355835,
+          "ocr_n": 8,
+          "ocr_p50": 66.34224998950958,
+          "ocr_p95": 67.19953525066376,
+          "pixels": 360000,
+          "rect": "700,200,900,400",
+          "sample_texts": [
+            "hello"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "times_ms": [
+            65.84658300876617,
+            66.55133295059204,
+            66.79033303260803,
+            66.36333298683167,
+            67.41987490653992,
+            66.3211669921875,
+            65.95212495326996,
+            63.567209005355835
+          ],
+          "usesLanguageCorrection": false,
+          "label": "game_roi900x400_accurate_zh+en"
+        },
+        {
+          "cold_first_call_items": 1,
+          "cold_first_call_ms": 100.38333296775818,
+          "decode_ms": 0.13012492656707764,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+          "forced_decode_ms": 39.216832995414734,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.13012492656707764,
+          "items": 1,
+          "iters": 8,
+          "langs": "zh-Hans,en-US",
+          "level": "fast",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 3600,
+            "h": 400,
+            "ok": true,
+            "w": 900
+          },
+          "ocr_max": 43.73325002193451,
+          "ocr_mean": 42.682781264185905,
+          "ocr_min": 41.760125041007996,
+          "ocr_n": 8,
+          "ocr_p50": 42.520833015441895,
+          "ocr_p95": 43.67057097554207,
+          "pixels": 360000,
+          "rect": "700,200,900,400",
+          "sample_texts": [
+            "hello"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 9192,
+            "h": 1428,
+            "ok": true,
+            "w": 2298
+          },
+          "times_ms": [
+            42.19087505340576,
+            42.00262498855591,
+            43.55416703224182,
+            41.760125041007996,
+            43.17954194545746,
+            43.73325002193451,
+            42.618083000183105,
+            42.423583030700684
+          ],
+          "usesLanguageCorrection": false,
+          "label": "game_roi900x400_fast_zh+en"
+        },
+        {
+          "cold_first_call_items": 14,
+          "cold_first_call_ms": 379.77420794963837,
+          "decode_ms": 0.15158295631408691,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/battle.png",
+          "forced_decode_ms": 12.186041951179504,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.15158295631408691,
+          "items": 14,
+          "iters": 8,
+          "langs": "zh-Hans,en-US",
+          "level": "accurate",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 4600,
+            "h": 715,
+            "ok": true,
+            "w": 1150
+          },
+          "ocr_max": 185.89537501335144,
+          "ocr_mean": 166.9207498729229,
+          "ocr_min": 161.81912505626678,
+          "ocr_n": 8,
+          "ocr_p50": 163.56662499904633,
+          "ocr_p95": 179.6509081184864,
+          "pixels": 822250,
+          "sample_texts": [
+            "|\u516c\u5c4f\u804a\u5929 \u2022\u5728\u7ebf",
+            "\u7cfb\u7edf\uff1a\u5c0a\u4eab\u5165\u573a|\u5587\u53ed\u82bd \u767b\u5f55\u4e86",
+            "\u76ee",
+            "xin\u8ba1\u5212\uff081.0.8.9\uff09",
+            "\u4e07 \u6d3b\u52a8",
+            "\u6574\u4e2a\u5b57\u5b99\u7684\u8d44\u6e90\u90fd",
+            "\u5c5e\u4e8e\u6211\u4eec\u5b87\u5b99\u6d77",
+            "\u76d7\uff01",
+            "hello",
+            "\u6d77\u76d7",
+            "SRT",
+            "-NEY"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 4600,
+            "h": 715,
+            "ok": true,
+            "w": 1150
+          },
+          "times_ms": [
+            163.02291691303253,
+            162.94904088974,
+            185.89537501335144,
+            162.69191694259644,
+            161.81912505626678,
+            164.11033308506012,
+            166.8232500553131,
+            168.05404102802277
+          ],
+          "usesLanguageCorrection": false,
+          "label": "battle_full_accurate_zh+en",
+          "rect": null
+        },
+        {
+          "cold_first_call_items": 6,
+          "cold_first_call_ms": 109.32554197311401,
+          "decode_ms": 0.12549996376037598,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/battle.png",
+          "forced_decode_ms": 11.943250060081482,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.12549996376037598,
+          "items": 6,
+          "iters": 8,
+          "langs": "zh-Hans,en-US",
+          "level": "fast",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 4600,
+            "h": 715,
+            "ok": true,
+            "w": 1150
+          },
+          "ocr_max": 50.63329207897186,
+          "ocr_mean": 49.81202611327171,
+          "ocr_min": 49.066792011260986,
+          "ocr_n": 8,
+          "ocr_p50": 49.70799994468689,
+          "ocr_p95": 50.459779512882236,
+          "pixels": 822250,
+          "sample_texts": [
+            "xlnM11.0.8.91",
+            "l \u2022 \u00c8\u00c8a",
+            "A*ft.. ptyAtth I mPJl4 ftOT",
+            "-trrrrP",
+            "spr",
+            "I 'i'.IliWJ*'\u2022AI"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 4600,
+            "h": 715,
+            "ok": true,
+            "w": 1150
+          },
+          "times_ms": [
+            50.011542081832886,
+            50.13754189014435,
+            49.71329200267792,
+            50.63329207897186,
+            49.066792011260986,
+            49.56099998950958,
+            49.67004096508026,
+            49.70270788669586
+          ],
+          "usesLanguageCorrection": false,
+          "label": "battle_full_fast_zh+en",
+          "rect": null
+        },
+        {
+          "cold_first_call_items": 5,
+          "cold_first_call_ms": 306.4355419874191,
+          "decode_ms": 0.13145899772644043,
+          "decode_note": "image_source_handle_ms is the lazy CGImageSource handle; forced_decode_ms is a real full-pixel decode (BGRA draw)",
+          "file": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/battle.png",
+          "forced_decode_ms": 11.555333018302917,
+          "forced_decode_ok": true,
+          "image_source_handle_ms": 0.13145899772644043,
+          "items": 5,
+          "iters": 8,
+          "langs": "zh-Hans,en-US",
+          "level": "accurate",
+          "mode": "ocr",
+          "ocr_image": {
+            "bpp": 32,
+            "bytesPerRow": 2400,
+            "h": 300,
+            "ok": true,
+            "w": 600
+          },
+          "ocr_max": 87.47979092597961,
+          "ocr_mean": 85.06821362674236,
+          "ocr_min": 83.78433406352997,
+          "ocr_n": 8,
+          "ocr_p50": 84.88233298063278,
+          "ocr_p95": 86.89011412858963,
+          "pixels": 180000,
+          "rect": "100,150,600,300",
+          "sample_texts": [
+            "\u536b\u623e",
+            "hello",
+            "\u6574\u4e2a\u5b87\u5b99\u7684",
+            "\u5c5e\u4e8e\u6211\u4eec\u5b87",
+            "\u76d7\uff01"
+          ],
+          "source_image": {
+            "bpp": 32,
+            "bytesPerRow": 4600,
+            "h": 715,
+            "ok": true,
+            "w": 1150
+          },
+          "times_ms": [
+            87.47979092597961,
+            85.22204101085663,
+            85.26537501811981,
+            85.79500007629395,
+            83.78433406352997,
+            84.0312089920044,
+            84.4253339767456,
+            84.54262495040894
+          ],
+          "usesLanguageCorrection": false,
+          "label": "battle_roi_accurate_zh+en"
+        }
+      ],
+      "cli": {
+        "seerctl_ocr_game": {
+          "label": "seerctl_cli_ocr_game_full_accurate_zh+en",
+          "cmd": [
+            "/Users/ceontou/Documents/code/seer-puni-quest/scripts/seerctl",
+            "ocr",
+            "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+            "0.3"
+          ],
+          "note": "existing one-shot CLI: process spawn + PNG decode + Vision .accurate",
+          "items": 12,
+          "samples_ms": [
+            524.3015,
+            483.551125,
+            514.4195,
+            509.196708,
+            475.847583,
+            427.326083
+          ],
+          "n": 6,
+          "mean": 489.1070831666666,
+          "p50": 496.3739165,
+          "p95": 521.831,
+          "min": 427.326083,
+          "max": 524.3015
+        },
+        "seerctl_pos": {
+          "label": "seerctl_cli_pos_spawn_control",
+          "cmd": [
+            "/Users/ceontou/Documents/code/seer-puni-quest/scripts/seerctl",
+            "pos"
+          ],
+          "note": "control: CLI invocation that does no image work \u2014 isolates process spawn + binary init",
+          "samples_ms": [
+            24.608542,
+            26.810542,
+            26.580625,
+            22.668375,
+            33.687292,
+            26.75875
+          ],
+          "n": 6,
+          "mean": 26.852354333333327,
+          "p50": 26.669687500000002,
+          "p95": 31.9681045,
+          "min": 22.668375,
+          "max": 33.687292
+        }
+      },
+      "decomposition": {
+        "cli_total_mean_ms": 489.1070831666666,
+        "spawn_control_mean_ms": 26.852354333333327,
+        "inproc_decode_ms": 0.13579201698303223,
+        "inproc_ocr_mean_ms": 148.98818737268448,
+        "decode_plus_ocr_ms": 149.1239793896675,
+        "spawn_overhead_derived_ms": 339.9831037769991,
+        "spawn_control_ratio_of_cli": 0.05490076765905924,
+        "ocr_share_of_cli": 0.30461261449758176,
+        "note": "spawn_overhead_derived subtracts in-process decode+OCR from the measured CLI total; spawn_control is the independent control"
+      },
+      "ratios": {
+        "game_full_accurate_zh+en_over_game_full_fast_zh+en": 2.3793024139402226,
+        "game_full_accurate_zh+en_over_game_roi900x400_accurate_zh+en": 2.253930686171775,
+        "game_full_accurate_zh+en_over_game_full_accurate_zh": 1.016559310709908,
+        "battle_full_accurate_zh+en_over_battle_full_fast_zh+en": 3.3510130564323544
+      },
+      "load_end": {
+        "loadavg_1m": 5.0537109375,
+        "loadavg_5m": 5.8486328125,
+        "loadavg_15m": 10.1337890625,
+        "ncpu": 8,
+        "load_per_core_1m": 0.6317138671875,
+        "contended": false
+      }
+    },
+    "cv": {
+      "mode": "cv",
+      "opencv_version": "5.0.0",
+      "numpy_version": "2.2.6",
+      "cv2_num_threads": 8,
+      "python": "/Users/ceontou/.pyenv/versions/3.10.13/bin/python3",
+      "pythonpath_note": "run with PYTHONPATH=.pydeps",
+      "images": {
+        "game": {
+          "path": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+          "w": 2298,
+          "h": 1428
+        },
+        "battle": {
+          "path": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/battle.png",
+          "w": 1150,
+          "h": 715
+        }
+      },
+      "rois": {
+        "game_roi": [
+          700,
+          200,
+          900,
+          400
+        ],
+        "small_roi": [
+          760,
+          240,
+          300,
+          200
+        ],
+        "template": 60
+      },
+      "iters": 12,
+      "heavy_iters": 6,
+      "load_start": {
+        "loadavg_1m": 5.0537109375,
+        "loadavg_5m": 5.8486328125,
+        "loadavg_15m": 10.1337890625,
+        "ncpu": 8,
+        "load_per_core_1m": 0.6317138671875,
+        "contended": false
+      },
+      "load_end": {
+        "loadavg_1m": 4.96923828125,
+        "loadavg_5m": 5.81787109375,
+        "loadavg_15m": 10.09765625,
+        "ncpu": 8,
+        "load_per_core_1m": 0.62115478515625,
+        "contended": false
+      },
+      "env": {
+        "platform": "macOS-15.7.7-arm64-arm-64bit",
+        "machine": "arm64",
+        "python_version": "3.10.13",
+        "python_executable": "/Users/ceontou/.pyenv/versions/3.10.13/bin/python3",
+        "cwd": "/Users/ceontou/Documents/code/seer-puni-quest",
+        "timestamp_utc": "2026-11-01T09:28:03+00:00",
+        "timestamp_local": "2026-11-01T17:28:03+08:00"
+      },
+      "results": [
+        {
+          "name": "cvtColor_BGR2GRAY_full",
+          "category": "convert",
+          "note": "full frame 2298x1428",
+          "samples_ms": [
+            0.241625,
+            0.409209,
+            0.280666,
+            0.4065,
+            0.380875,
+            0.276167,
+            0.244583,
+            0.224041,
+            0.237333,
+            0.219709,
+            0.330167,
+            0.256584
+          ],
+          "n": 12,
+          "mean": 0.29228825,
+          "p50": 0.2663755,
+          "p95": 0.40771904999999997,
+          "min": 0.219709,
+          "max": 0.409209
+        },
+        {
+          "name": "cvtColor_BGR2GRAY_roi900x400",
+          "category": "convert",
+          "note": "ROI 900x400",
+          "samples_ms": [
+            0.057708,
+            0.0875,
+            0.127542,
+            0.150208,
+            0.10875,
+            0.043333,
+            0.056,
+            0.056417,
+            0.080166,
+            0.05575,
+            0.052459,
+            0.046416
+          ],
+          "n": 12,
+          "mean": 0.07685408333333334,
+          "p50": 0.0570625,
+          "p95": 0.13774169999999997,
+          "min": 0.043333,
+          "max": 0.150208
+        },
+        {
+          "name": "cvtColor_BGR2GRAY_roi300x200",
+          "category": "convert",
+          "note": "ROI 300x200",
+          "samples_ms": [
+            0.010125,
+            0.01025,
+            0.01,
+            0.009833,
+            0.01,
+            0.01,
+            0.009875,
+            0.010042,
+            0.010042,
+            0.009875,
+            0.009833,
+            0.010042
+          ],
+          "n": 12,
+          "mean": 0.009993083333333331,
+          "p50": 0.01,
+          "p95": 0.010181250000000001,
+          "min": 0.009833,
+          "max": 0.01025
+        },
+        {
+          "name": "resize_full_to_229x142",
+          "category": "resize",
+          "note": "full frame -> 229x142 (1/10 linear)",
+          "samples_ms": [
+            18.044916,
+            17.936792,
+            18.131875,
+            18.155583,
+            18.027458,
+            18.152666,
+            18.064083,
+            18.101792,
+            17.916083,
+            18.203292,
+            18.057458,
+            17.912375
+          ],
+          "n": 12,
+          "mean": 18.05869775,
+          "p50": 18.0607705,
+          "p95": 18.17705205,
+          "min": 17.912375,
+          "max": 18.203292
+        },
+        {
+          "name": "resize_full_to_half",
+          "category": "resize",
+          "note": "full frame -> 1/2 linear",
+          "samples_ms": [
+            0.318459,
+            0.352,
+            0.3405,
+            0.328583,
+            0.3395,
+            0.3345,
+            0.327208,
+            0.323333,
+            0.32325,
+            0.318417,
+            0.356792,
+            0.427875
+          ],
+          "n": 12,
+          "mean": 0.34086808333333335,
+          "p50": 0.33154150000000004,
+          "p95": 0.38877934999999997,
+          "min": 0.318417,
+          "max": 0.427875
+        },
+        {
+          "name": "absdiff_full_color",
+          "category": "diff",
+          "note": "full frame colour absdiff",
+          "samples_ms": [
+            0.392458,
+            0.922042,
+            0.398333,
+            0.370292,
+            0.403,
+            0.362584,
+            0.3645,
+            0.352125,
+            0.356167,
+            0.357708,
+            0.350917,
+            0.343792
+          ],
+          "n": 12,
+          "mean": 0.41449316666666663,
+          "p50": 0.36354200000000003,
+          "p95": 0.6365688999999997,
+          "min": 0.343792,
+          "max": 0.922042
+        },
+        {
+          "name": "absdiff_full_gray",
+          "category": "diff",
+          "note": "full frame grayscale absdiff",
+          "samples_ms": [
+            0.212917,
+            0.266209,
+            0.346709,
+            0.68575,
+            0.395709,
+            0.272166,
+            0.325,
+            0.270583,
+            0.250375,
+            0.246458,
+            0.249875,
+            0.249792
+          ],
+          "n": 12,
+          "mean": 0.31429524999999997,
+          "p50": 0.26839599999999997,
+          "p95": 0.5262274499999998,
+          "min": 0.212917,
+          "max": 0.68575
+        },
+        {
+          "name": "absdiff_downsampled_229x142",
+          "category": "diff",
+          "note": "absdiff on pre-downsampled 229x142",
+          "samples_ms": [
+            0.003792,
+            0.0095,
+            0.003791,
+            0.003792,
+            0.00375,
+            0.003792,
+            0.00375,
+            0.00375,
+            0.003709,
+            0.00375,
+            0.00375,
+            0.00375
+          ],
+          "n": 12,
+          "mean": 0.004239666666666667,
+          "p50": 0.00375,
+          "p95": 0.006360599999999996,
+          "min": 0.003709,
+          "max": 0.0095
+        },
+        {
+          "name": "change_detect_downsample_composed",
+          "category": "diff",
+          "note": "resize x2 + absdiff + mean: the whole downsampled change detector",
+          "samples_ms": [
+            35.981709,
+            35.950041,
+            35.993084,
+            36.137917,
+            35.977708,
+            36.208458,
+            35.884375,
+            35.858667,
+            35.932875,
+            36.262334,
+            36.08575,
+            36.171791
+          ],
+          "n": 12,
+          "mean": 36.03705908333334,
+          "p50": 35.9873965,
+          "p95": 36.232702200000006,
+          "min": 35.858667,
+          "max": 36.262334
+        },
+        {
+          "name": "mean_abs_diff_numpy_full",
+          "category": "diff",
+          "note": "pure-numpy full-frame mean abs diff (no cv2)",
+          "samples_ms": [
+            13.783541,
+            14.205167,
+            14.141625,
+            13.812084,
+            13.781791,
+            14.0605,
+            13.817125,
+            13.562584,
+            14.142,
+            14.006041,
+            14.036375,
+            14.022292
+          ],
+          "n": 12,
+          "mean": 13.947593750000001,
+          "p50": 14.0141665,
+          "p95": 14.17042515,
+          "min": 13.562584,
+          "max": 14.205167
+        },
+        {
+          "name": "threshold_gray_full",
+          "category": "threshold",
+          "note": "binary threshold on full gray frame",
+          "samples_ms": [
+            0.121375,
+            0.142291,
+            0.142917,
+            0.164,
+            0.144834,
+            0.124625,
+            0.135917,
+            0.146958,
+            0.15175,
+            0.150125,
+            0.147625,
+            0.168375
+          ],
+          "n": 12,
+          "mean": 0.145066,
+          "p50": 0.145896,
+          "p95": 0.16596875,
+          "min": 0.121375,
+          "max": 0.168375
+        },
+        {
+          "name": "countNonZero_roi_mask",
+          "category": "threshold",
+          "note": "threshold + countNonZero on 900x400 ROI",
+          "samples_ms": [
+            0.0605,
+            0.063166,
+            0.079083,
+            0.068625,
+            0.063167,
+            0.061916,
+            0.054834,
+            0.049209,
+            0.058,
+            0.053459,
+            0.064333,
+            0.063417
+          ],
+          "n": 12,
+          "mean": 0.061642416666666665,
+          "p50": 0.062541,
+          "p95": 0.0733311,
+          "min": 0.049209,
+          "max": 0.079083
+        },
+        {
+          "name": "fingerprint_patch_40x100x3",
+          "category": "fingerprint",
+          "note": "mean abs diff of a 40x100x3 patch \u2014 the state-fingerprint primitive",
+          "samples_ms": [
+            0.011792,
+            0.011375,
+            0.010917,
+            0.010875,
+            0.011,
+            0.01075,
+            0.010708,
+            0.010917,
+            0.010625,
+            0.010708,
+            0.011208,
+            0.014709
+          ],
+          "n": 12,
+          "mean": 0.011298666666666665,
+          "p50": 0.010917,
+          "p95": 0.013104649999999999,
+          "min": 0.010625,
+          "max": 0.014709
+        },
+        {
+          "name": "fingerprint_3patches_40x100x3",
+          "category": "fingerprint",
+          "note": "three fingerprint patches + mean \u2014 a multi-region state fingerprint",
+          "samples_ms": [
+            0.042917,
+            0.046917,
+            0.04475,
+            0.040666,
+            0.040166,
+            0.041917,
+            0.044208,
+            0.04125,
+            0.04,
+            0.039875,
+            0.04,
+            0.040041
+          ],
+          "n": 12,
+          "mean": 0.04189224999999999,
+          "p50": 0.040958,
+          "p95": 0.04572514999999999,
+          "min": 0.039875,
+          "max": 0.046917
+        },
+        {
+          "name": "matchTemplate_gray_full_2298x1428",
+          "category": "template",
+          "note": "60x60 template, TM_CCOEFF_NORMED, full grayscale frame",
+          "samples_ms": [
+            65.627708,
+            66.249083,
+            66.305458,
+            65.220875,
+            64.060208,
+            64.298334
+          ],
+          "n": 6,
+          "mean": 65.29361100000001,
+          "p50": 65.42429150000001,
+          "p95": 66.29136425,
+          "min": 64.060208,
+          "max": 66.305458
+        },
+        {
+          "name": "matchTemplate_color_full_2298x1428",
+          "category": "template",
+          "note": "60x60 template, TM_CCOEFF_NORMED, full colour frame",
+          "samples_ms": [
+            216.25625,
+            179.749792,
+            179.225792,
+            178.903625,
+            178.754875,
+            178.414416
+          ],
+          "n": 6,
+          "mean": 185.21745833333333,
+          "p50": 179.0647085,
+          "p95": 207.1296355,
+          "min": 178.414416,
+          "max": 216.25625
+        },
+        {
+          "name": "matchTemplate_gray_roi900x400",
+          "category": "template",
+          "note": "60x60 template, 900x400 grayscale ROI",
+          "samples_ms": [
+            8.152625,
+            7.7875,
+            7.95725,
+            7.8195,
+            7.992958,
+            7.641291
+          ],
+          "n": 6,
+          "mean": 7.891854000000001,
+          "p50": 7.888375,
+          "p95": 8.11270825,
+          "min": 7.641291,
+          "max": 8.152625
+        },
+        {
+          "name": "matchTemplate_color_roi900x400",
+          "category": "template",
+          "note": "60x60 template, 900x400 colour ROI",
+          "samples_ms": [
+            21.385666,
+            21.315208,
+            21.579459,
+            21.436833,
+            21.424,
+            21.748125
+          ],
+          "n": 6,
+          "mean": 21.481548500000002,
+          "p50": 21.4304165,
+          "p95": 21.7059585,
+          "min": 21.315208,
+          "max": 21.748125
+        },
+        {
+          "name": "matchTemplate_gray_roi300x200",
+          "category": "template",
+          "note": "60x60 template, 300x200 grayscale ROI",
+          "samples_ms": [
+            0.910584,
+            0.915292,
+            0.884166,
+            0.939375,
+            0.933125,
+            0.929167
+          ],
+          "n": 6,
+          "mean": 0.9186181666666666,
+          "p50": 0.9222295,
+          "p95": 0.9378124999999999,
+          "min": 0.884166,
+          "max": 0.939375
+        },
+        {
+          "name": "battle_cvtColor_gray",
+          "category": "convert",
+          "note": "battle.png 1150x715",
+          "samples_ms": [
+            0.060834,
+            0.069,
+            0.056542,
+            0.059209,
+            0.08475,
+            0.05725,
+            0.056,
+            0.069583,
+            0.052833,
+            0.062,
+            0.059875,
+            0.055708
+          ],
+          "n": 12,
+          "mean": 0.06196533333333334,
+          "p50": 0.059542,
+          "p95": 0.07640815,
+          "min": 0.052833,
+          "max": 0.08475
+        },
+        {
+          "name": "battle_matchTemplate_gray_full",
+          "category": "template",
+          "note": "battle.png 1150x715 full gray template match",
+          "samples_ms": [
+            17.338833,
+            18.071125,
+            17.374625,
+            17.388917,
+            16.783083,
+            17.247208
+          ],
+          "n": 6,
+          "mean": 17.3672985,
+          "p50": 17.356729,
+          "p95": 17.900573,
+          "min": 16.783083,
+          "max": 18.071125
+        }
+      ]
+    },
+    "vision": {
+      "mode": "vision",
+      "frame": {
+        "path": "/Users/ceontou/Documents/code/seer-puni-quest/artifacts/game.png",
+        "w": 2298,
+        "h": 1428
+      },
+      "raw_bgra_bytes": 13126176,
+      "frame_budget_ms_60hz": 16.666666666666668,
+      "downsample": [
+        229,
+        142
+      ],
+      "fingerprint_patches": [
+        [
+          900,
+          300,
+          100,
+          40
+        ],
+        [
+          1200,
+          320,
+          100,
+          40
+        ],
+        [
+          1500,
+          340,
+          100,
+          40
+        ]
+      ],
+      "rois": {
+        "small": [
+          760,
+          240,
+          300,
+          200
+        ],
+        "medium": [
+          700,
+          200,
+          900,
+          400
+        ],
+        "template": 60
+      },
+      "cv2_version": "5.0.0",
+      "numpy_version": "2.2.6",
+      "cv2_num_threads": 8,
+      "iters": 15,
+      "heavy_iters": 5,
+      "load_start": {
+        "loadavg_1m": 4.96923828125,
+        "loadavg_5m": 5.81787109375,
+        "loadavg_15m": 10.09765625,
+        "ncpu": 8,
+        "load_per_core_1m": 0.62115478515625,
+        "contended": false
+      },
+      "load_end": {
+        "loadavg_1m": 4.96923828125,
+        "loadavg_5m": 5.81787109375,
+        "loadavg_15m": 10.09765625,
+        "ncpu": 8,
+        "load_per_core_1m": 0.62115478515625,
+        "contended": false
+      },
+      "env": {
+        "platform": "macOS-15.7.7-arm64-arm-64bit",
+        "machine": "arm64",
+        "python_version": "3.10.13",
+        "python_executable": "/Users/ceontou/.pyenv/versions/3.10.13/bin/python3",
+        "cwd": "/Users/ceontou/Documents/code/seer-puni-quest",
+        "timestamp_utc": "2026-11-01T09:28:06+00:00",
+        "timestamp_local": "2026-11-01T17:28:06+08:00"
+      },
+      "results": [
+        {
+          "name": "handoff_frombuffer_view_only",
+          "note": "np.frombuffer + reshape + BGR slice of a 12.5 MB BGRA buffer (zero-copy view)",
+          "samples_ms": [
+            0.001291,
+            0.001,
+            0.00075,
+            0.000708,
+            0.000667,
+            0.000666,
+            0.000667,
+            0.000667,
+            0.000625,
+            0.000708,
+            0.000625,
+            0.000625,
+            0.000625,
+            0.000667,
+            0.000667
+          ],
+          "n": 15,
+          "mean": 0.0007305333333333333,
+          "p50": 0.000667,
+          "p95": 0.0010872999999999998,
+          "min": 0.000625,
+          "max": 0.001291,
+          "fits_60hz": true,
+          "p95_headroom_x": 15328.489530641655
+        },
+        {
+          "name": "handoff_frombuffer_plus_copy",
+          "note": "same, plus ascontiguousarray to own the pixels (one 13 MB copy)",
+          "samples_ms": [
+            13.790458,
+            14.693208,
+            14.098458,
+            14.06625,
+            13.987125,
+            14.171208,
+            13.661625,
+            14.117417,
+            14.218083,
+            14.175709,
+            13.970458,
+            14.208542,
+            14.009084,
+            13.831459,
+            14.0475
+          ],
+          "n": 15,
+          "mean": 14.06977226666667,
+          "p50": 14.06625,
+          "p95": 14.3606205,
+          "min": 13.661625,
+          "max": 14.693208,
+          "fits_60hz": true,
+          "p95_headroom_x": 1.160581234401861
+        },
+        {
+          "name": "A_fingerprint_1patch",
+          "note": "mean abs diff of ONE 100x40x3 patch (int16 cast path)",
+          "samples_ms": [
+            0.0155,
+            0.01375,
+            0.013625,
+            0.013375,
+            0.013208,
+            0.013083,
+            0.013167,
+            0.012917,
+            0.013,
+            0.012916,
+            0.013,
+            0.012833,
+            0.013,
+            0.012834,
+            0.012917
+          ],
+          "n": 15,
+          "mean": 0.013275000000000004,
+          "p50": 0.013,
+          "p95": 0.014275,
+          "min": 0.012833,
+          "max": 0.0155,
+          "fits_60hz": true,
+          "p95_headroom_x": 1167.5423234092236
+        },
+        {
+          "name": "A_fingerprint_3patches",
+          "note": "mean abs diff of THREE 100x40x3 patches (int16 cast path)",
+          "samples_ms": [
+            0.03875,
+            0.038584,
+            0.0385,
+            0.038375,
+            0.038291,
+            0.038417,
+            0.038167,
+            0.038208,
+            0.038209,
+            0.038292,
+            0.038333,
+            0.038583,
+            0.038208,
+            0.03825,
+            0.038333
+          ],
+          "n": 15,
+          "mean": 0.03836666666666666,
+          "p50": 0.038333,
+          "p95": 0.038633799999999996,
+          "min": 0.038167,
+          "max": 0.03875,
+          "fits_60hz": true,
+          "p95_headroom_x": 431.40117375631365
+        },
+        {
+          "name": "A_fingerprint_3patches_cv2absdiff",
+          "note": "three patches diffed with cv2.absdiff instead of int16 numpy",
+          "samples_ms": [
+            0.031791,
+            0.031791,
+            0.031667,
+            0.031542,
+            0.031542,
+            0.031333,
+            0.0315,
+            0.031459,
+            0.0315,
+            0.031333,
+            0.031458,
+            0.031292,
+            0.031417,
+            0.031333,
+            0.031417
+          ],
+          "n": 15,
+          "mean": 0.03149166666666666,
+          "p50": 0.031459,
+          "p95": 0.031791,
+          "min": 0.031292,
+          "max": 0.031791,
+          "fits_60hz": true,
+          "p95_headroom_x": 524.2573894079037
+        },
+        {
+          "name": "B_downsample_only",
+          "note": "resize full frame to 229x142",
+          "samples_ms": [
+            17.797709,
+            17.925458,
+            17.774125,
+            17.897084,
+            17.957792,
+            17.820541,
+            17.802959,
+            17.812042,
+            17.845875,
+            17.848125,
+            17.826291,
+            17.738583,
+            18.073542,
+            17.860709,
+            17.823333
+          ],
+          "n": 15,
+          "mean": 17.8536112,
+          "p50": 17.826291,
+          "p95": 17.992517,
+          "min": 17.738583,
+          "max": 18.073542,
+          "fits_60hz": false,
+          "p95_headroom_x": 0.9263110139991346
+        },
+        {
+          "name": "B_downsample_diff_precomputed",
+          "note": "absdiff + mean on already-downsampled buffers (capture layer did the resize)",
+          "samples_ms": [
+            0.052208,
+            0.054125,
+            0.052,
+            0.051292,
+            0.051292,
+            0.051167,
+            0.051083,
+            0.051125,
+            0.051042,
+            0.051,
+            0.051,
+            0.051042,
+            0.051,
+            0.050917,
+            0.051
+          ],
+          "n": 15,
+          "mean": 0.051419533333333343,
+          "p50": 0.051083,
+          "p95": 0.0527831,
+          "min": 0.050917,
+          "max": 0.054125,
+          "fits_60hz": true,
+          "p95_headroom_x": 315.7576320198448
+        },
+        {
+          "name": "B_downsample_diff_composed",
+          "note": "resize x2 + absdiff + mean: the complete downsampled change detector",
+          "samples_ms": [
+            35.700916,
+            35.689625,
+            35.7175,
+            36.003667,
+            35.694958,
+            35.783292,
+            35.721208,
+            35.636708,
+            35.565125,
+            35.696583,
+            35.894125,
+            35.617417,
+            35.70475,
+            35.771958,
+            35.747709
+          ],
+          "n": 15,
+          "mean": 35.729702733333326,
+          "p50": 35.70475,
+          "p95": 35.926987600000004,
+          "min": 35.565125,
+          "max": 36.003667,
+          "fits_60hz": false,
+          "p95_headroom_x": 0.46390381660238794
+        },
+        {
+          "name": "B_downsample_gray_changed_pixels",
+          "note": "resize x2 + gray + absdiff + threshold + countNonZero: 'how many pixels changed'",
+          "samples_ms": [
+            36.160875,
+            35.667917,
+            35.738541,
+            35.73625,
+            36.030375,
+            35.94275,
+            36.288875,
+            35.913542,
+            35.786125,
+            35.934792,
+            35.739167,
+            35.711208,
+            36.142792,
+            35.88675,
+            35.811167
+          ],
+          "n": 15,
+          "mean": 35.89940839999999,
+          "p50": 35.88675,
+          "p95": 36.199275,
+          "min": 35.667917,
+          "max": 36.288875,
+          "fits_60hz": false,
+          "p95_headroom_x": 0.46041437754393333
+        },
+        {
+          "name": "C_roi_template_300x200",
+          "note": "matchTemplate 60x60 on a 300x200 gray ROI",
+          "samples_ms": [
+            0.923417,
+            0.9025,
+            0.874375,
+            0.8865,
+            0.875209
+          ],
+          "n": 5,
+          "mean": 0.8924002,
+          "p50": 0.8865,
+          "p95": 0.9192336000000001,
+          "min": 0.874375,
+          "max": 0.923417,
+          "fits_60hz": true,
+          "p95_headroom_x": 18.13104597859202
+        },
+        {
+          "name": "C_roi_template_900x400",
+          "note": "matchTemplate 60x60 on a 900x400 gray ROI",
+          "samples_ms": [
+            8.124833,
+            7.86175,
+            8.1275,
+            7.751,
+            8.048416
+          ],
+          "n": 5,
+          "mean": 7.982699800000001,
+          "p50": 8.048416,
+          "p95": 8.1269666,
+          "min": 7.751,
+          "max": 8.1275,
+          "fits_60hz": true,
+          "p95_headroom_x": 2.0507856728076956
+        },
+        {
+          "name": "D_fullframe_template_gray",
+          "note": "matchTemplate 60x60 on the full 2298x1428 gray frame (expected: too slow)",
+          "samples_ms": [
+            63.80975,
+            66.333167,
+            68.606583,
+            70.524541,
+            68.326208
+          ],
+          "n": 5,
+          "mean": 67.52004980000001,
+          "p50": 68.326208,
+          "p95": 70.1409494,
+          "min": 63.80975,
+          "max": 70.524541,
+          "fits_60hz": false,
+          "p95_headroom_x": 0.2376167817692338
+        },
+        {
+          "name": "E_conditional_fingerprint_then_roi_template",
+          "note": "fingerprint(3 patches) -> if diff>2.0 -> ROI template match. The production shape.",
+          "samples_ms": [
+            7.931,
+            7.6965,
+            8.314209,
+            7.61175,
+            8.447291,
+            7.696917,
+            8.184792,
+            8.016,
+            8.020667,
+            7.719208,
+            8.197834,
+            7.905292,
+            8.045916,
+            7.986917,
+            7.81125
+          ],
+          "n": 15,
+          "mean": 7.972369533333334,
+          "p50": 7.986917,
+          "p95": 8.354133599999999,
+          "min": 7.61175,
+          "max": 8.447291,
+          "fits_60hz": true,
+          "p95_headroom_x": 1.9950203653274912
+        }
+      ]
+    }
+  }
+}

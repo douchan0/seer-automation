@@ -529,7 +529,13 @@ final class ImageWindow {
                          styleMask: [.borderless], backing: .buffered, defer: false)
         w.isOpaque = true
         w.backgroundColor = .black
-        w.level = .normal
+        // .floating, not .normal: screencapture -R grabs the COMPOSITED screen
+        // region, so a normal-level window gets covered by other apps and the
+        // "game content" screenshot silently becomes whatever is on top.
+        // That is exactly what happened on the 09:18 run (77.8 OCR items
+        // instead of the expected 12). SCK's desktopIndependentWindow is not
+        // affected, which made the two capture paths capture different pixels.
+        w.level = .floating
         w.hasShadow = false
         w.ignoresMouseEvents = true
         w.isReleasedWhenClosed = false

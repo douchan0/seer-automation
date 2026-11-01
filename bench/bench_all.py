@@ -308,10 +308,35 @@ def build_headline(cap, ocr, cv, vision, cap_game=None):
         b = bottleneck_from(beg, "game-content leg (real screenshot, real geometry)")
     else:
         b = bottleneck_from(be, "generic-window leg")
-    h["bottleneck_ranking"] = b["ranking"]
-    h["bottleneck_total_ms"] = b["total_ms"]
-    h["bottleneck_source_leg"] = b["source_leg"]
-    h["bottleneck_components"] = b["components"]
+    h["bottleneck_ranking_derived"] = b["ranking"]
+    h["bottleneck_source_leg_derived"] = b["source_leg"]
+    h["bottleneck_components_derived"] = b["components"]
+
+    # PREFERRED ranking: the instrumented per-stage numbers. These are measured
+    # inside each iteration, so there is no subtraction across backends and no
+    # exposure to load drift. The derived ranking above is kept only as a
+    # cross-check; it disagreed with its own inputs by 2.3x on 2026-11-01
+    # (305.7 ms derived vs 134.6 ms measured for the same operation) and must
+    # not be quoted.
+    ins = h.get("instrumented_prod")
+    if ins and ins.get("stages"):
+        h["bottleneck_ranking"] = [
+            {"stage": st2["stage"], "mean_ms": st2["mean_ms"],
+             "p50_ms": st2["p50_ms"], "p95_ms": st2["p95_ms"],
+             "share_pct": st2["share_pct"],
+             "source": "measured inside each iteration (loop_prod_instrumented)"}
+            for st2 in ins["stages"]
+        ]
+        h["bottleneck_total_ms"] = ins["total_ms"]
+        h["bottleneck_source_leg"] = ("loop_prod_instrumented, game content, "
+                                      f"n={ins['n']}")
+        h["bottleneck_note"] = ("preferred: per-stage timestamps recorded inside the "
+                                "same loop iterations")
+    else:
+        h["bottleneck_ranking"] = b["ranking"]
+        h["bottleneck_total_ms"] = b["total_ms"]
+        h["bottleneck_source_leg"] = b["source_leg"] + " (DERIVED — cross-check only)"
+        h["bottleneck_note"] = "derived by subtraction; may disagree with measured rows"
 
     h["game_content_loops"] = []
     if cap_game and "target_window" in cap_game:
@@ -373,13 +398,47 @@ def build_headline(cap, ocr, cv, vision, cap_game=None):
             "speedup": ip["mean"] / ii["mean"],
         }
 
+    def comparability(a, b, label):
+        """Two loops may only be compared if they OCRed the same content.
+
+        The subprocess path captures the COMPOSITED screen region; SCK's
+        desktopIndependentWindow captures the window's own backing store. On an
+        occluded window those are different pixels, which changes the OCR item
+        count and therefore the OCR cost. Detect that instead of publishing it.
+        """
+        if not a or not b or "error" in a or "error" in b:
+            return None
+        ia = a["meta"].get("ocr_items_mean")
+        ib = b["meta"].get("ocr_items_mean")
+        if ia is None or ib is None:
+            return None
+        hi = max(ia, ib, 1.0)
+        drift = abs(ia - ib) / hi
+        return {
+            "pair": label,
+            "ocr_items_prod": ia,
+            "ocr_items_inproc": ib,
+            "relative_item_drift": drift,
+            "comparable": bool(drift <= 0.25),
+            "reason": ("same content" if drift <= 0.25 else
+                       "DIFFERENT PIXELS CAPTURED — subprocess grabs the composited "
+                       "screen region (occluded), SCK grabs the window's own content. "
+                       "Loop totals for these two paths are NOT comparable."),
+        }
+
     gp = beg.get("loop_prod_accurate")
     gi = beg.get("loop_inproc_accurate")
-    if gp and gi and "error" not in gp and "error" not in gi and gp.get("mean") and gi.get("mean"):
+    h["game_content_comparability"] = comparability(gp, gi, "game content: prod vs inproc (.accurate)")
+    h["generic_comparability"] = comparability(be.get("loop_prod_accurate"),
+                                               be.get("loop_inproc_accurate"),
+                                               "generic window: prod vs inproc (.accurate)")
+    if (gp and gi and "error" not in gp and "error" not in gi
+            and gp.get("mean") and gi.get("mean")
+            and (h["game_content_comparability"] or {}).get("comparable")):
         h["game_content_speedup"] = {
             "prod_ms": gp["mean"], "inproc_ms": gi["mean"],
             "speedup": gp["mean"] / gi["mean"],
-            "note": "same OCR (.accurate), same content, same geometry — only the capture path differs",
+            "note": "same OCR (.accurate), same content, same geometry - only the capture path differs",
         }
 
     return h
@@ -582,20 +641,20 @@ def main():
                 print(f"    capture-path speed-up at identical OCR: {gs['speedup']:.2f}x "
                       f"({gs['prod_ms']:.0f} ms -> {gs['inproc_ms']:.0f} ms)")
 
-        for key, title in (("instrumented_prod", "PRODUCTION LOOP — per-stage, timed inside each iteration"),
-                       ("instrumented_inproc", "IN-PROCESS LOOP — per-stage, timed inside each iteration")):
-        ins = headline.get(key)
-        if not ins:
-            continue
-        print(f"\n{'=' * 78}\n  {title}\n"
-              f"  total {f(ins['total_ms'])} ms (n={ins['n']}, OCR items {f(ins.get('ocr_items_mean'), 1)})\n{'=' * 78}")
-        rows = [[s2["stage"], f(s2["mean_ms"]), f(s2["p50_ms"]), f(s2["p95_ms"]),
-                 f(s2["share_pct"], 1)] for s2 in ins["stages"]]
-        st.print_table(rows, ["stage", "mean ms", "p50 ms", "p95 ms", "share %"],
-                       aligns=["l", "r", "r", "r", "r"])
+        for key, title in (("instrumented_prod", "PRODUCTION LOOP - per-stage, timed inside each iteration"),
+                           ("instrumented_inproc", "IN-PROCESS LOOP - per-stage, timed inside each iteration")):
+            ins = headline.get(key)
+            if not ins:
+                continue
+            print(f"\n{'=' * 78}\n  {title}\n"
+                  f"  total {f(ins['total_ms'])} ms (n={ins['n']}, OCR items {f(ins.get('ocr_items_mean'), 1)})\n{'=' * 78}")
+            rows = [[s2["stage"], f(s2["mean_ms"]), f(s2["p50_ms"]), f(s2["p95_ms"]),
+                     f(s2["share_pct"], 1)] for s2 in ins["stages"]]
+            st.print_table(rows, ["stage", "mean ms", "p50 ms", "p95 ms", "share %"],
+                           aligns=["l", "r", "r", "r", "r"])
 
-    if headline["bottleneck_ranking"]:
-            print(f"\n{'=' * 78}\n  BOTTLENECK RANKING — current production loop\n"
+        if headline["bottleneck_ranking"]:
+            print(f"\n{'=' * 78}\n  BOTTLENECK RANKING - current production loop\n"
                   f"  source: {headline.get('bottleneck_source_leg', '?')}\n{'=' * 78}")
             rows = []
             for i, b in enumerate(headline["bottleneck_ranking"], 1):

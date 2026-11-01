@@ -76,9 +76,19 @@ def battle_state(d):
 ```
 
 **为什么慢**：整屏中文 OCR + `.accurate` 级别 + `usesLanguageCorrection=false` 但仍是 full pipeline。
-**实测**：`seerctl ocr artifacts/game.png 0.3` → mean **468.9 ms**（含进程启动）；进程内预计 240–300 ms。
 
-**真正的错配**：用一个通用 OCR 引擎去做**二分类**（战斗界面 vs 非战斗界面）。这件事用**模板匹配或像素指纹**只需毫秒级。
+**实测（分三个口径，别混用）**：
+| 口径 | 耗时 | 条件 |
+|---|---|---|
+| `seerctl ocr`（子进程，含启动） | 469 ms | 接管当天，近空闲 |
+| Vision 进程内 `.accurate` 全图 | **146.4 ms** | load 5.74–7.48（`QUIESCED-FINAL`） |
+| 同上但 load 37 / load 85 | 483 ms / 685 ms | **OCR 延迟随负载放大约 4 倍** |
+| `.fast` 全图 / `.accurate` ROI / `.fast` ROI | 62.3 / 64.8 / **41.8 ms** | 同上 |
+
+> **注意**：`usesLanguageCorrection` 已实测**不是**影响因素（false 482.7 vs true 469.4 @ 同负载）。
+> 真正的放大来自负载，所以**任何 OCR 数字不标 loadavg 都不可复现**。
+
+**真正的错配**：用一个通用 OCR 引擎去做**二分类**（战斗界面 vs 非战斗界面）。这件事用**模板匹配或像素指纹**只需亚毫秒（实测 3-patch 指纹 **0.0385 ms**、ROI 300×200 模板 **0.96 ms**）。
 
 **修复方向（分层）**：
 1. 第一层：ROI 模板匹配/像素指纹判状态 → 目标 < 10 ms。

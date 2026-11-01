@@ -133,9 +133,13 @@ CGWindowListCreateImage(...)    → error: unavailable in macOS: Please use Scre
 
 ---
 
-## 4. 性能基线（本轮首次真实测量）
+## 4. 性能基线（本机实测）
 
-所有数字均为**本机实测**，命令与样本量可复现。
+> **首次测量（接管当天，机器基本空闲）**。保留原文以便对照，但**阅读时务必注意**：
+> 后续 Round 1 的设备化测量证明 **OCR 延迟随系统负载放大约 4 倍**，
+> 所以下表 OCR 的 469 ms 只在近空闲条件下成立；load 85 时为 685 ms，load 5.7 时为 146 ms。
+> **权威口径请以 `docs/PERFORMANCE_BASELINE.md`（`QUIESCED-FINAL` run，含 loadavg）为准**，
+> 本表仅作为"接管时的第一现场记录"。
 
 | 测量项 | n | mean | p50 | p95 | min | 备注 |
 |---|---|---|---|---|---|---|
@@ -144,6 +148,9 @@ CGWindowListCreateImage(...)    → error: unavailable in macOS: Please use Scre
 | `screencapture -x -o`（去阴影全屏） | 8 | 173.5 ms | 176.3 | 177.7 | 164.2 | — |
 | `./scripts/seerctl ocr artifacts/game.png 0.3` | 6 | **468.9 ms** | 455.9 | 516.6 | — | Vision `.accurate`，含进程启动，12 个文本框 |
 | `./scripts/seerctl ocr artifacts/battle.png 0.3` | 6 | 455.6 ms | 468.7 | 472.9 | — | 14 个文本框 |
+
+**后续核实（`QUIESCED-FINAL`，load 5.74–7.48）**：同一截图为 132.3 ms、同一 OCR（进程内）为 144.7 ms。
+即上表的截图数字准确，**OCR 数字包含了进程启动开销，不能代表 OCR 本身**。
 
 ### 4.1 由此推出的闭环成本
 
