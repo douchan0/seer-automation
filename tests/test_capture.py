@@ -136,9 +136,13 @@ for line in sys.stdin:
         rect = req.get("rect") if op == "capture.roi" else None
         x, y, w, h = rect if rect else (0, 0, 2298, 1428)
         if static:
-            # change-driven source: the same frame keeps being the newest one
+            # change-driven source: the same frame keeps being the newest one.
+            # A tiny image keeps the test about blocking behaviour, not PNG decode.
             seq, ts = 1, 1000
             path = os.path.join(outdir, "static.png")
+            write_png(path, 64, 64)
+            done({"seq": seq, "ts_ns": ts, "rect": [0, 0, 2298, 1428], "path": path})
+            continue
         else:
             seq += 1
             ts = 1000 * seq
