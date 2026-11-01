@@ -94,6 +94,27 @@ def read_image(path: str | os.PathLike[str]) -> np.ndarray:
     return img
 
 
+def read_raw_bgra(path: str | os.PathLike[str], w: int, h: int, stride: int) -> np.ndarray:
+    """Read a raw BGRA frame written by the native daemon into a BGR array.
+
+    Raw is used instead of PNG because PNG encode+decode costs tens of ms per
+    frame, which would cancel out the entire point of a warm ScreenCaptureKit
+    session.  A raw read is one file read plus one channel slice.
+    """
+    need = stride * h
+    if w <= 0 or h <= 0 or stride < w * 4:
+        raise CaptureError(f"bad raw frame geometry w={w} h={h} stride={stride}")
+    raw = np.fromfile(str(path), dtype=np.uint8)
+    if raw.size < need:
+        raise CaptureError(
+            f"short raw frame: {path} has {raw.size} bytes, expected >= {need} "
+            f"(w={w} h={h} stride={stride})"
+        )
+    # BGRA rows -> (h, w, 4); dropping alpha leaves B, G, R which is exactly BGR.
+    bgra = raw[:need].reshape(h, stride)[:, : w * 4].reshape(h, w, 4)
+    return np.ascontiguousarray(bgra[:, :, :3])
+
+
 # --------------------------------------------------------------------------- #
 # frame
 # --------------------------------------------------------------------------- #
@@ -571,6 +592,8 @@ class DaemonCapture:
         self._session_ops: set[str] = set()
         self._last_frame: Frame | None = None
         self._seq = 0
+        # (key, array) for the most recent decode; see _frame_from_reply
+        self._decode_cache: tuple[tuple[Any, ...], np.ndarray] | None = None
         if not client.available:
             raise CaptureUnavailable(f"daemon unavailable: {client.describe()}")
         if warm:
@@ -610,16 +633,44 @@ class DaemonCapture:
         rect_values = reply.get("rect")
         rect_game = G.Rect(*[float(v) for v in rect_values]) if rect_values else requested
         meta = {"backend": self.name, "daemon": "warm" if self.warm else "shot"}
+        fmt = str(reply.get("fmt") or "")
         decode_started = time.perf_counter_ns()
-        if reply.get("path"):
-            array = read_image(str(reply["path"]))
-        elif reply.get("png_b64"):
-            array = decode_png_bytes(base64.b64decode(reply["png_b64"]))
-        elif reply.get("png"):
-            array = decode_png_bytes(bytes(reply["png"]))
+
+        # A repeated (seq, geometry) means byte-identical pixels: reuse the decoded
+        # array instead of re-reading.  On a static screen this makes a poll free,
+        # which is the whole reason `latest()` is cheap to call every tick.
+        cache_key = (
+            seq,
+            fmt,
+            int(reply.get("w") or 0),
+            int(reply.get("h") or 0),
+            int(reply.get("stride") or 0),
+            tuple(rect_game.as_tuple()) if rect_game is not None else None,
+        ) if seq else None
+        cached = self._decode_cache
+        if cache_key is not None and cached is not None and cached[0] == cache_key:
+            array = cached[1]
+            decode_ns = 0
+            meta["decode"] = "cached"
         else:
-            raise DaemonError(f"capture reply has no image payload: keys={sorted(reply)}")
-        decode_ns = time.perf_counter_ns() - decode_started
+            if fmt == "bgra" and reply.get("path"):
+                array = read_raw_bgra(
+                    str(reply["path"]),
+                    int(reply.get("w") or 0),
+                    int(reply.get("h") or 0),
+                    int(reply.get("stride") or 0),
+                )
+            elif reply.get("path"):
+                array = read_image(str(reply["path"]))
+            elif reply.get("png_b64"):
+                array = decode_png_bytes(base64.b64decode(reply["png_b64"]))
+            elif reply.get("png"):
+                array = decode_png_bytes(bytes(reply["png"]))
+            else:
+                raise DaemonError(f"capture reply has no image payload: keys={sorted(reply)}")
+            decode_ns = time.perf_counter_ns() - decode_started
+            if cache_key is not None:
+                self._decode_cache = (cache_key, array)
         if not self.warm and reply.get("w") and reply.get("h"):
             meta["reported_size"] = (int(reply["w"]), int(reply["h"]))
         # Preserve the daemon's sequence: a repeated seq means "same frame",

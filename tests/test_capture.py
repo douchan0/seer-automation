@@ -523,3 +523,90 @@ def test_replay_measures_real_decode_time(tmp_path, geometry):
     # cv2.imread forces the decode (unlike CGImageSourceCreateImageAtIndex), and
     # the backend must report it so the executor can book it under capture_copy.
     assert frame.decode_ns > 0
+
+
+# --------------------------------------------------------------------------- #
+# raw BGRA path (native daemon fast channel)
+# --------------------------------------------------------------------------- #
+def write_raw_bgra(path, w, h, stride, bgra_rows):
+    """Write a raw BGRA frame with an explicit stride, padding rows if asked."""
+    buf = bytearray(stride * h)
+    for row, pixels in enumerate(bgra_rows):
+        for col, (b, g, r, a) in enumerate(pixels):
+            off = row * stride + col * 4
+            buf[off:off + 4] = bytes((b, g, r, a))
+    Path(path).write_bytes(bytes(buf))
+
+
+def test_read_raw_bgra_maps_channels_to_bgr(tmp_path):
+    """BGRA bytes on disk must arrive as a BGR array of the right shape."""
+    p = tmp_path / "frame.bgra"
+    px = [[(1, 2, 3, 255), (4, 5, 6, 255)]]
+    write_raw_bgra(p, 2, 1, 2 * 4, px)
+    arr = C.read_raw_bgra(str(p), 2, 1, 2 * 4)
+    assert arr.shape == (1, 2, 3)
+    # B,G,R order preserved, alpha dropped
+    assert arr[0, 0].tolist() == [1, 2, 3]
+    assert arr[0, 1].tolist() == [4, 5, 6]
+
+
+def test_read_raw_bgra_honours_row_stride(tmp_path):
+    """A padded stride must not smear padding into the image."""
+    p = tmp_path / "padded.bgra"
+    stride = 4 * 4  # room for 4 px but only 2 are real
+    write_raw_bgra(p, 2, 2, stride, [[(9, 9, 9, 255), (8, 8, 8, 255)],
+                                     [(7, 7, 7, 255), (6, 6, 6, 255)]])
+    arr = C.read_raw_bgra(str(p), 2, 2, stride)
+    assert arr.shape == (2, 2, 3)
+    assert arr[0, 0].tolist() == [9, 9, 9]
+    assert arr[1, 1].tolist() == [6, 6, 6]
+
+
+def test_read_raw_bgra_rejects_short_or_impossible_frames(tmp_path):
+    p = tmp_path / "short.bgra"
+    p.write_bytes(b"\x00" * 10)
+    with pytest.raises(C.CaptureError):
+        C.read_raw_bgra(str(p), 100, 100, 400)   # file far too small
+    with pytest.raises(C.CaptureError):
+        C.read_raw_bgra(str(p), 100, 10, 8)      # stride < w*4
+
+
+def test_daemon_caches_decode_for_a_repeated_seq(tmp_path, geometry):
+    """Same (seq, geometry) must not be decoded twice: that is what makes
+    polling a static screen free."""
+    p = tmp_path / "cached.bgra"
+    write_raw_bgra(p, 4, 2, 16, [[(1, 1, 1, 255)] * 4, [(2, 2, 2, 255)] * 4])
+
+    replies = [{"fmt": "bgra", "path": str(p), "w": 4, "h": 2, "stride": 16,
+                "seq": 5, "ts_ns": 1000}] * 2
+
+    class _Client:
+        available = True
+        running = True
+
+        def describe(self):
+            return "fake"
+
+        def caps(self):
+            return {"capture.start", "capture.latest", "capture.roi", "capture.stop"}
+
+        def capture_start(self, rect=None):
+            return {"ok": True}
+
+        def capture_latest(self):
+            return replies.pop(0) if replies else {"fmt": "bgra", "path": str(p),
+                                                   "w": 4, "h": 2, "stride": 16,
+                                                   "seq": 5, "ts_ns": 1000}
+
+        def close(self):
+            pass
+
+    backend = C.DaemonCapture(_Client(), geometry)
+    first = backend.latest()
+    second = backend.latest()
+    assert first.seq == second.seq == 5
+    assert first.decode_ns > 0          # really decoded
+    assert second.decode_ns == 0        # served from cache
+    assert second.meta.get("decode") == "cached"
+    # identical pixels either way
+    assert np.array_equal(first.array, second.array)

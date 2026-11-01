@@ -56,7 +56,7 @@ emit a frame only every ~378 ms (measured), while an animating window emits at
 | `pin` | `x, y, w, h` (logical points) | new window bounds like `win` |
 | `activate` | — | `{"ok": true}` |
 | `capture.start` | `rect` optional `[x, y, w, h]` in game_px | `{"ok": true, "seq": 0}` |
-| `capture.latest` | — | `{"seq": int, "ts_ns": int, "path": str \| "png_b64": str, "w": int, "h": int, "rect": [x,y,w,h]?}` |
+| `capture.latest` | — | `{"seq": int, "ts_ns": int, "path": str \| "png_b64": str, "w": int, "h": int, "rect": [x,y,w,h]?, "fmt"?: str}` |
 | `capture.roi` | `rect` `[x, y, w, h]` in game_px | like `capture.latest`, cropped from the newest frame |
 | `capture.stop` | — | `{"ok": true}` |
 | `shot` | `path`, `rect` optional | `{"path": str, "w": int, "h": int}` (one-shot, no warm session) |
@@ -66,6 +66,39 @@ emit a frame only every ~378 ms (measured), while an animating window emits at
 | `key` | `code` (macOS virtual key) | `{"ok": true}` |
 | `type` | `text` | `{"ok": true}` |
 | `quit` | — | `{"bye": true}` then exit |
+
+### Extension: `fmt: "bgra"` (implemented by `native/seerdx.swift`)
+
+`capture.latest` / `capture.roi` may return a **raw frame** instead of an encoded
+one:
+
+```json
+{"fmt": "bgra", "path": "/tmp/seerdx_frame.bgra", "w": 2400, "h": 1600,
+ "stride": 9600, "seq": 42, "ts_ns": 123456789}
+```
+
+Why: PNG encode+decode costs tens of milliseconds per frame, which cancels out
+the benefit of a warm capture session. A raw frame is one file read plus one
+channel slice. Measured on the live game window: a real decode costs ~30 ms
+while a **cache hit costs 0 ms**, so this only matters on frames that actually
+changed.
+
+Client rules:
+
+* `stride` may exceed `w * 4` (row padding) — read row by row, do not assume
+  packed rows;
+* alpha is dropped by the client (`bgra[:, :, :3]` is already BGR order);
+* a client that does not understand `fmt` simply ignores it and falls back to
+  the `shot`/PNG path, so the extension never breaks an old client;
+* the client caches by `(seq, w, h, stride, rect)`: a repeated key is
+  byte-identical, so it must **not** re-read the file. This is what makes
+  polling a static screen nearly free.
+
+### Window selection
+
+The daemon targets the game window by owner-name substring. `--target <name>`
+overrides it, which is how the daemon is tested against an ordinary window when
+the game is not running.
 
 Coordinate note: `game_px` is window-local device pixels of the 2x reference
 capture (`docs/state.md` space, 2298x1428). Global input points are
