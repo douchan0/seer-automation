@@ -23,3 +23,22 @@ bin/seerdx
 scripts/.cache/
 scripts/.tmp/
 bench/.cache/
+
+# Swift build products — never version these (257 MB of modulecache leaked in once)
+native/.build/
+native/.build-*/
+native/bin/
+.build/
+*.swiftmodule
+*.pcm
+*.o
+*.dSYM/
+
+# Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Editors / OS
+.vscode/
+.idea/
