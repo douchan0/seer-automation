@@ -1,0 +1,25 @@
+# Large binary assets — keep on disk, do not version
+artifacts/video/
+artifacts/unpacked/
+frames/
+.pydeps/
+__pycache__/
+*.pyc
+scripts/__pycache__/
+
+# Benchmarks produce a lot of PNGs
+bench/results/*.png
+bench/tmp/
+tmp/
+*.log
+.DS_Store
+
+# Compiled Swift binaries are rebuilt from source
+scripts/seerd
+scripts/seerctl
+bin/seercap
+bin/seerdx
+
+scripts/.cache/
+scripts/.tmp/
+bench/.cache/
