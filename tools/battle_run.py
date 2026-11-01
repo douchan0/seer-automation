@@ -152,6 +152,8 @@ def main() -> int:
     ap.add_argument("--turn-timeout-s", type=float, default=8.0)
     ap.add_argument("--settle-timeout-s", type=float, default=3.0)
     ap.add_argument("--stable-ms", type=float, default=220.0)
+    ap.add_argument("--pause-file", default="/tmp/seerauto.pause",
+                    help="touch this file to pause, remove it to resume")
     ap.add_argument("--min-action-gap-ms", type=float, default=700.0)
     ap.add_argument("--json", default=None)
     args = ap.parse_args()
@@ -188,6 +190,8 @@ def main() -> int:
     last_state = None
     unknown_since = None
     last_progress = time.perf_counter()
+    paused = False
+    paused_at = 0.0
     end_reason = "budget"
 
     def act(px, why):
@@ -206,6 +210,32 @@ def main() -> int:
 
     try:
         while wins < args.battles and (time.perf_counter() - started) < args.max_seconds:
+            # ---- pause / resume ------------------------------------------- #
+            # A file is used instead of a signal so a human (or another agent)
+            # can pause the loop from any shell without knowing the pid, and so
+            # an accidental SIGINT kills rather than silently pauses.
+            paused_here = os.path.exists(args.pause_file)
+            if paused_here:
+                if not paused:
+                    paused = True
+                    paused_at = time.perf_counter()
+                    print(f"[{paused_at-started:6.1f}s] PAUSED (no clicks while "
+                          f"{args.pause_file} exists)")
+                time.sleep(0.1)
+                continue
+            elif paused:
+                paused = False
+                print(f"[{time.perf_counter()-started:6.1f}s] RESUMED "
+                      f"(paused {time.perf_counter()-paused_at:.1f}s)")
+                last_progress = time.perf_counter()
+                # Re-synchronise instead of assuming the turn we were in is still
+                # running: during a pause the game kept advancing on its own, so
+                # acting on the pre-pause assumption clicked into a turn that no
+                # longer existed (observed as 5x "turn did not advance").
+                last_state = None
+                time.sleep(0.3)
+                continue
+
             t = time.perf_counter()
             frame = backend.latest()
             stages["capture"].append((time.perf_counter() - t) * 1000)

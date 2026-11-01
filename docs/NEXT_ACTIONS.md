@@ -7,26 +7,98 @@
 
 ## 当前一句话状态
 
-**性能问题已经被量化并解决了组合部分**：截图 139 ms → 0.4 ms（常驻流读最新帧），状态识别的正确做法（亚毫秒像素指纹）已被证明可行。
-**但一个字都还没在真机上验证过** —— 游戏客户端今天全程未启动。
+**Round 4 的核心已经打通并在真机上验证**：客户端 1.0.8.9、窗口 1200×800pt → 2400×1600px、
+服务器 1 号啦公星、角色 hello。**3~5 场连战全胜，0 失败**，每回合 1 次点击、约 3 s/回合，
+视觉循环只占回合时间的 **~1.2%**（capture 27 ms + detect 8 ms）。
+
+**缺的不是性能，是覆盖面**：失败分支、暂停/恢复、异常场景都还没有真机样本。
+另外服务器登录页的公告明确「不允许使用第三方软件、脚本」，真机自动化需用户持续确认风险自担。
+
+**下一轮请先做「第 A 步」，不要重新做 Round 0/1。**
 
 ---
 
-## 第 0 步（前置，5 分钟）— 解除阻塞 B1
+## 第 A 步（P0，1 小时）— 补齐真机异常与生命周期验证
 
-**这是所有后续工作的前提，必须由用户完成：**
+| 任务 | 文件 | 验收 |
+|---|---|---|
+| A1 **暂停 / 恢复** | `seerauto/executor.py` + `tools/battle_run.py` | 战斗中按下暂停，点击立即停止；恢复后从当前回合继续，不重复出招 |
+| A2 **紧急停止** | `tools/battle_run.py` | SIGINT / Ctrl-C 后 1 s 内停止点击，进程干净退出，游戏保持运行 |
+| A3 **失败分支样本** | `artifacts/live/` + `seerauto/templates/live/` | 在真机上**故意输一场**（带一只低等级精灵），截取失败面板，产出 `live_defeat_word` 模板并验证区分度 |
+| A4 **战斗结束推断兜底** | `tools/battle_run.py` | 若"战斗按钮消失但没有胜利面板"→ 判定为失败并记录，不得继续盲点 |
 
-1. 启动 `/Applications/SeerGame.app`，登录账号 `hello / 188365991`。
-2. 确认客户端窗口出现后，运行：
-   ```bash
-   printf '{"op":"win"}\n{"op":"quit"}\n' | ./scripts/seerd
-   ```
-   期望返回 `{"id":…,"x":…,"y":…,"w":…,"h":…}` 而不是 `{"error":"no window"}`。
-3. 确认辅助功能授权仍有效（`AXIsProcessTrusted`，Round 1 实测为 `true`，但需在游戏上下文中复验）。
-4. **不要**先急着跑战斗。先做第 1 步的只读采集。
+> A3 是目前**唯一无法从视频补的样本**：视频 40 分钟里作者一次没输过
+> （见 `docs/TEMPLATE_CANDIDATES.md`），只能真机制造。
 
-> 若用户不启动游戏：第 1 步之外的**所有**工作仍可推进（离线 Replay、算法、打包、接口层），
-> 但**不得**把任何结果写成"真机验证通过"。
+---
+
+## 第 B 步（P1）— 把已验证的能力接回内核
+
+现在跑通的是 `tools/battle_run.py`（一个独立脚本）。**要接回 `seerauto/` 才算产品化**：
+
+| 任务 | 文件 | 验收 |
+|---|---|---|
+| B1 把 `live_*` 模板接进配置，启用 `battle_result_victory` 规则 | `seerauto/config/default.json` | `pytest` 覆盖：胜利帧命中、战斗帧不命中 |
+| B2 `BattleTask` 用内核状态机跑完一场 | `seerauto/tasks/battle.py` | `python3 -m seerauto replay artifacts/live/` 能正确判出胜利 |
+| B3 把 `tools/ctl.py` 的单步能力提升为 `seerauto` 的 CLI 子命令 | `seerauto/cli.py` | `python3 -m seerauto look / click / step` 可用 |
+| B4 用内核跑 3 场连战，与 `tools/battle_run.py` 对比 | — | 两者场次/胜率/回合数一致 |
+
+> **注意 stage 偏移会随会话变化**：真机截图的 stage 起点是 (154,210)，而
+> `seerauto` 参考几何是 (102,128)。**必须每次从画面算，不能写死**（见 `docs/TEMPLATE_CANDIDATES.md`）。
+
+---
+
+## 第 C 步（P2）— 扩大战斗覆盖面
+
+| 任务 | 说明 |
+|---|---|
+| C1 四技能选择 | 技能格坐标已标定但**未逐个点击验证**；先验证坐标，再做选择策略（例如"优先高威力技能"） |
+| C2 血量/PP 读取 | `89/92`、`使用次数：31/35` 都在屏幕上，可接 OCR 升级路径做资源判断与"该吃药了" |
+| C3 多精灵/换精灵 | 右下「精灵」按钮流程未验证 |
+| C4 连续刷塔 | 谱尼路线需要 试炼之塔 / 勇者之塔；入口尚未定位（SPT 里搜「试炼之塔」返回 0 个入口，需另找路径） |
+| C5 交易行门槛推进 | 已确认门槛是**击败 SPT 首领**（面板原文「击败后解锁交易行资格」）；73 个入口里已击败 1 个（蘑菇怪） |
+
+---
+
+## 第 D 步（P3）— 产品化（前几步验收通过后才做）
+
+按用户要求顺序：任务调度器 → GUI（先 CLI/TUI 更省）→ 本地任务服务 → MCP Server →
+DSH 插件（已核实真实 API：`export const name/inject/apply` + `defineTool`，版本 `0.2.1-rc.5`）→ `.app` 打包。
+
+对外语义接口固定：`game.get_status` / `game.list_tasks` / `game.start_task` /
+`game.pause_task` / `game.stop_task` / `game.get_progress`。
+
+---
+
+## 环境与命令速查（真机已验证）
+
+```bash
+PYTHONPATH=.pydeps python3 -m pytest -q                 # 171 passed
+PYTHONPATH=.pydeps python3 -m seerauto doctor           # 会如实报 game window 状态
+
+./tools/build_seerdx.sh                                  # 构建原生 SCK 守护进程
+PYTHONPATH=.pydeps python3 tools/ctl.py look             # 单步：看一眼（绝不点击）
+PYTHONPATH=.pydeps python3 tools/ctl.py clicktext "确认"  # 单步：点文字
+PYTHONPATH=.pydeps python3 tools/battle_run.py --battles 3   # 多场连战（真机）
+```
+
+**三条必须遵守的真机纪律**（都是踩过坑总结的）：
+1. **点击前必须确认游戏窗口在最前面** —— `ScreenCaptureKit` 会照常截取被遮挡的窗口，
+   但 `CGEvent` 点击会落到最前面的那个 App 上。`tools/ctl.py` 已有 `ensure_frontmost` 守卫。
+2. **常驻流激活时不要用 `shot`** —— 实测会返回近空白图（6 KB），导致 OCR 静默返回空。
+   要 OCR 就**直接把暖流帧导出成 PNG**。
+3. **回合推进靠"日志指纹变化 + 画面稳定"两个条件**，不要靠固定 sleep，也不要只看按钮在不在
+   （战斗按钮在胜利遮罩下依然可见）。
+
+---
+
+## 历史步骤（Round 4 之前的阻塞项，已完成，保留供追溯）
+
+- ~~B1 启动游戏客户端~~ ✅ 2026-11-01 23:35 用户启动并授权
+- ~~重新标定坐标系~~ ✅ 见 `docs/state.md`（1200×800 新坐标系）
+- ~~单场真实战斗闭环~~ ✅ 见 `docs/PROGRESS.md` Round 4
+- ~~多次连续战斗~~ ✅ 3 场连战全胜
+
 
 ---
 
