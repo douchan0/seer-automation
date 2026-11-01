@@ -49,6 +49,8 @@ ROI_FIGHT = (1710, 1130, 2040, 1260)      # just the 战斗 button
 ROI_VICTORY = (980, 640, 1430, 790)       # just the 胜利 glyph band
 ROI_DIALOG = (1070, 940, 1300, 1040)      # just the 确认 button
 ROI_SCENE = (200, 340, 2260, 1330)        # playable area, excludes the HUD
+ROI_LOG = (500, 1100, 1100, 1400)         # 当前战报: rewrites every turn, so a
+                                          # change here means the turn advanced
 
 
 def frontmost() -> bool:
@@ -86,6 +88,19 @@ class Matcher:
         _, s, _, loc = cv2.minMaxLoc(r)
         th, tw = self.tpl[name].shape[:2]
         return float(s), (x0 + loc[0] + tw / 2, y0 + loc[1] + th / 2)
+
+
+def _log_signature(frame) -> int:
+    """Cheap fingerprint of the combat-log region (no OCR, ~0.1 ms).
+
+    Two frames with the same signature have an unchanged log, i.e. the turn has
+    not resolved yet. A 16-bucket mean is enough to notice a rewritten line
+    without being sensitive to one-pixel anti-aliasing noise.
+    """
+    x0, y0, x1, y1 = ROI_LOG
+    sub = frame[y0:y1, x0:x1]
+    small = sub[::8, ::8]
+    return int(small.mean() * 64) ^ int(small.std() * 64)
 
 
 def _ocr_escalate(client, backend, geo, act, args) -> float:
@@ -134,6 +149,9 @@ def main() -> int:
     ap.add_argument("--monster-th", type=float, default=0.72)
     ap.add_argument("--escalate-s", type=float, default=1.2)
     ap.add_argument("--stall-s", type=float, default=60.0)
+    ap.add_argument("--turn-timeout-s", type=float, default=8.0)
+    ap.add_argument("--settle-timeout-s", type=float, default=3.0)
+    ap.add_argument("--stable-ms", type=float, default=220.0)
     ap.add_argument("--min-action-gap-ms", type=float, default=700.0)
     ap.add_argument("--json", default=None)
     args = ap.parse_args()
@@ -272,24 +290,48 @@ def main() -> int:
 
             if state == "BATTLE":
                 act(p_fight, "attack")
-                # wait for the UI to move on: victory panel or the turn changing
+                # Wait for the turn to ACTUALLY advance before deciding anything.
+                # The combat log rewrites on every turn, so a pixel change there is
+                # a cheap (sub-millisecond) and reliable signal — far better than
+                # "sleep 0.35 s then re-click", which double-clicked most turns.
                 t = time.perf_counter()
-                deadline = time.perf_counter() + 6.0
-                moved = False
-                base = frame.seq
+                before = _log_signature(frame.array)
+                deadline = time.perf_counter() + args.turn_timeout_s
+                advanced = False
                 while time.perf_counter() < deadline:
                     f2 = backend.latest()
-                    if f2.seq != base:
-                        s2, _ = matcher.score(f2.array, "live_victory_word", ROI_VICTORY)
-                        if s2 >= args.victory_th:
-                            moved = True
+                    s2, _ = matcher.score(f2.array, "live_victory_word", ROI_VICTORY)
+                    if s2 >= args.victory_th:
+                        advanced = True
+                        break
+                    if _log_signature(f2.array) != before:
+                        advanced = True
+                        break
+                    time.sleep(0.005)
+                # A log change only means the turn STARTED. If we click again now we
+                # interrupt the animation and the game queues clicks, which is how a
+                # 5-turn fight turned into 57 "turns". So: wait until the screen has
+                # settled (log stable for a short window) before the next decision.
+                if advanced:
+                    stable_since = None
+                    settle_deadline = time.perf_counter() + args.settle_timeout_s
+                    prev = None
+                    while time.perf_counter() < settle_deadline:
+                        f3 = backend.latest()
+                        s3, _ = matcher.score(f3.array, "live_victory_word", ROI_VICTORY)
+                        if s3 >= args.victory_th:
                             break
-                        # a real turn makes the combat log/HP change; give it a beat
-                        if time.perf_counter() - t > 0.35:
-                            moved = True
+                        sig = _log_signature(f3.array)
+                        if sig != prev:
+                            prev = sig
+                            stable_since = time.perf_counter()
+                        elif stable_since and (time.perf_counter() - stable_since) * 1000 >= args.stable_ms:
                             break
-                    time.sleep(0.004)
+                        time.sleep(0.01)
                 stages["wait"].append((time.perf_counter() - t) * 1000)
+                if not advanced:
+                    print(f"           -> turn did not advance within "
+                          f"{args.turn_timeout_s:.1f}s")
                 unknown_since = None
                 continue
 
@@ -301,7 +343,15 @@ def main() -> int:
                       f"score={s_mob:.2f}, engaging")
                 act(p_mob, f"engage monster {s_mob:.2f}")
                 battles_started += 1
-                time.sleep(1.4)
+                # wait for the battle UI to appear instead of re-clicking the
+                # same monster every 1.4 s (that is what inflated the click count)
+                d = time.perf_counter() + 6.0
+                while time.perf_counter() < d:
+                    f4 = backend.latest()
+                    s4, _ = matcher.score(f4.array, "live_fight_btn", ROI_FIGHT)
+                    if s4 >= args.fight_th - 0.10:
+                        break
+                    time.sleep(0.03)
                 unknown_since = None
                 continue
             # ---- escalation path -------------------------------------- #
