@@ -227,3 +227,67 @@ PYTHONPATH=.pydeps python3 -m seerauto goal report          # 生成报告
 
 产物：`data/goalrunner.sqlite3`、`data/reports/goal-*.md`、`data/ai/*.json`、
 `artifacts/round5/*.png`、`data/live_run.log`。
+
+
+---
+
+# 附：2026-11-03 夜间长程运行补充（02:00–06:00）
+
+> 玩家去睡觉，Agent 继续推进。以下是这一段的真实结果，仍然只用
+> `PASS / FAIL / BLOCKED / NOT TESTED`。
+
+## 目标图第一次出现 completed
+
+```
+run 988c91ef9ea7  planner=deterministic  33.7 s / 7 actions / 0 errors
+  puni.seal.entry_nav      completed   feature 'puni.entrance.reachable'  (LIVE_VERIFIED)
+  puni.prepare.tutor_room  completed   feature 'training.tutor_room.reachable' (LIVE_VERIFIED)
+  puni.prepare.level_up    blocked     no pet can battle (all pets at 0 HP)
+  stop_reason: blocked: no pet can battle (all pets at 0 HP); healing required
+```
+
+* **谱尼入口**：`SPT → 太空站左翼 → 谱尼 → 前往` 真机到达「勇者之塔神秘领域」。
+  到达判定用模板匹配那个美术字传送门（自身 1.00 / 其它场景 ≤0.46），因为 OCR 读不到它。
+* **8 倍经验前置**：星图第 3 个（橙色）目的地就是辅导员房间，画面出现「初级班辅导员/高级班辅导员」。
+  两个 NPC 打开的都是「精灵模拟训练」；8 倍开关本身仍未被任何素材捕获，所以只声明"到达"。
+
+## 账号变化（本轮结束时）
+
+| 项 | 值 |
+|---|---|
+| 烈火猴 | Lv34，HP **0/95**（全员 0 血，详见 `docs/BLOCKER_PET_HP.md`） |
+| 升级所需经验 | 3633 → **2573**（本轮真机打进 1060 XP ≈ 10 场胜利） |
+| 已完成节点 | **2**（此前一直是 0） |
+
+## 验收状态更新
+
+| 层级 | 之前 | 现在 | 依据 |
+|---|---|---|---|
+| Level A 产品可跑 | PASS | **PASS** | 433 tests + doctor + CLI 六命令 |
+| Level B Agent 闭环 | PASS | **PASS** | 本轮又跑通一次：观察→规划→闸门→执行→验证→持久化 |
+| Level C 有意义的谱尼进展 | FAIL | **部分 PASS**：2 个新节点 completed、经验 +1060 | 但"升到 36 级"仍 **FAIL**（宠物 0 血） |
+| Level D 长程与恢复 | 部分 | **PASS**（暂停/恢复/停止/断点 + 硬阻塞安全停机） | 长跑本身被 0 血阻塞，属真实阻塞而非空转 |
+
+## 今晚新增/修复（都被真机触发过）
+
+1. 战斗按钮第二套画法（真机战斗被判成 WORLD 的根因）；
+2. 「恭喜你得到了N个积累经验」弹窗模板（曾让一轮 28 次点击打 0 场）；
+3. 面板关闭器家族：精灵面板族、万圣活动、精灵模拟训练、聊天面板、活动弹窗；
+   其中「公屏聊天」误判曾让"关面板"变成假动作；
+4. 扩展后的聊天面板盖住星图目的地图标 —— 这是今晚所有"地图打不开"的真正原因；
+5. `game.read_pet_bag`：模板定位精灵背包，读出全员 HP + 等级 + 升级所需经验；
+6. `game.travel` / `game.goto_puni_entrance` / `game.goto_tutor_room`：命名目的地 + 到达验证；
+7. 战斗闸门：`can_battle=false` 时拒绝执行战斗步骤并记录 `recovery=heal_pet`；
+8. SIGTERM 现在等价 Ctrl-C（写 checkpoint 再退出）。
+
+## 玩家醒来只需要做一件事
+
+给任意一只精灵补满血（体力药剂 / 精灵中心），然后：
+
+```bash
+PYTHONPATH=.pydeps python3 -m seerauto goal resume --allow-input --planner deterministic \
+    --max-minutes 50 --max-battles 45
+```
+
+剩 2573 XP ≈ 24 场可到 35 级；建议先开 8 倍经验把 40 场压到 5 场。
+细节见 `docs/BLOCKER_PET_HP.md`。
