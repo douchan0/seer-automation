@@ -32,7 +32,7 @@ echo "   arch      $(uname -m)"
 command -v python3 >/dev/null || die "python3 not found"
 echo "   python    $(python3 -V 2>&1)"
 command -v swiftc >/dev/null || die "swiftc not found (install Xcode Command Line Tools)"
-echo "   swift     $(swiftc --version | head -1)"
+printf "   swift     %s\n" "$(swiftc --version | head -1 | tr -s " ")"
 [[ -d /Applications/SeerGame.app ]] && echo "   game       /Applications/SeerGame.app" \
     || warn "game client not found at /Applications/SeerGame.app (you can still run dry runs)"
 
