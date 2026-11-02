@@ -269,8 +269,17 @@ class GoalRunner:
                 result = self.registry.get(skill_id)(ctx)
                 payload = result.data.get("world") if isinstance(result.data, dict) else None
                 if isinstance(payload, Mapping):
-                    world = GameWorldState.from_dict(payload)
-                    world.run_id = self.run_id
+                    fresh = GameWorldState.from_dict(payload)
+                    fresh.run_id = self.run_id
+                    # An observation that cannot identify the *lead* pet must not
+                    # overwrite one that was read from the bag (that is how the
+                    # world briefly claimed 小蘑菇 was the active pet while the
+                    # bag had 烈火猴 at Lv34 with a trusted level).
+                    keep = self._trusted_active(world)
+                    if keep is not None and not self._pet_has_trusted_level(fresh, keep):
+                        fresh.pets[keep] = world.pets[keep]
+                        fresh.active_pet = keep
+                    world = fresh
                 elif result.ok:
                     world = ctx.world
             except Exception as exc:  # noqa: BLE001
@@ -292,6 +301,23 @@ class GoalRunner:
         world.captured_at = now_iso()
         self._last_world = world
         return world
+
+    @staticmethod
+    def _pet_has_trusted_level(world: GameWorldState, name: str) -> bool:
+        pet = world.pets.get(name)
+        return bool(pet is not None and pet.level is not None
+                    and pet.evidence.source.can_complete_goal)
+
+    @classmethod
+    def _trusted_active(cls, world: GameWorldState) -> str | None:
+        """The active pet that has a trusted level, if any."""
+
+        if world.active_pet and cls._pet_has_trusted_level(world, world.active_pet):
+            return world.active_pet
+        for name in world.pets:
+            if cls._pet_has_trusted_level(world, name):
+                return name
+        return None
 
     def preflight(self, world: GameWorldState) -> GameWorldState:
         """Read the facts planning cannot work without, before planning.

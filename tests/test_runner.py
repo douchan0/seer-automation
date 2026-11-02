@@ -397,3 +397,24 @@ def test_battle_step_is_blocked_when_no_pet_can_fight(tmp_path):
     assert results, "a blocked battle step must still produce a result"
     assert results[-1].status is Status.BLOCKED
     assert "heal" in (results[-1].data.get("recovery") or "")
+
+
+def test_observation_cannot_replace_the_pet_with_the_trusted_level(tmp_path):
+    """A weaker observation must not promote a pet that has no level.
+
+    Observed live: with 烈火猴 Lv34 already read from the bag, the next
+    game.observe pass reported 小蘑菇 (an unlevelled pet from the same panel) as
+    the active pet, and the planner then lost the level it had just paid for.
+    """
+
+    world = GameWorldState()
+    world.pets["烈火猴"] = PetState(name="烈火猴", level=34,
+                                    evidence=Evidence.live("bag read"))
+    world.active_pet = "烈火猴"
+    assert GoalRunner._trusted_active(world) == "烈火猴"
+
+    fresh = GameWorldState()
+    fresh.pets["小蘑菇"] = PetState(name="小蘑菇", level=None, hp=0, hp_max=12)
+    fresh.active_pet = "小蘑菇"
+    assert not GoalRunner._pet_has_trusted_level(fresh, "烈火猴")
+    assert GoalRunner._pet_has_trusted_level(world, "烈火猴")
