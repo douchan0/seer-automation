@@ -212,7 +212,7 @@ PYTHONPATH=.pydeps python3 -m seerauto goal resume --allow-input --planner bridg
 * AI 只发结构化文本，**不发截图**。
 * **账号信息已脱敏**：工作区里的 QQ 号与邮箱替换为 `<REDACTED_UID>` / `<REDACTED_EMAIL>`。
   ⚠️ **但 Git 历史里仍有**（旧提交），需要用户决定是否重写历史：
-  `git filter-repo --replace-text <(echo "1179236059@qq.com==><REDACTED_EMAIL>")` +
+  `git filter-repo --replace-text <(echo "<REDACTED_EMAIL>==><REDACTED_EMAIL>")` +
   强推。本轮**没有**擅自改写历史。
 
 ---
