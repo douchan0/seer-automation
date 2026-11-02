@@ -352,7 +352,7 @@ class RunBattle(_Base):
         ally_level: int | None = None
         ally_hp: tuple[int, int] | None = None
         xp_to_next: int | None = None
-        level_read_for_battle = False
+        hud_attempts = 0
         hunt_seconds = float(ctx.options.get("hunt_seconds", 20.0)) if ctx.options else 20.0
         engage_tries = 0
         stall_seconds = float(ctx.options.get("stall_seconds", 150.0)) if ctx.options else 150.0
@@ -411,15 +411,15 @@ class RunBattle(_Base):
                 continue
 
             if state is Scene.BATTLE:
-                if not level_read_for_battle:
-                    # The battle HUD is the cheapest *verified* level readout:
-                    # ally `LV:33` sits at (556,261) next to the HP bar, and the
-                    # pet panel is not needed (it is behind an icon whose
-                    # position moves with the scene's bottom bar).
+                # The battle HUD is the cheapest *verified* level readout: ally
+                # `LV:33` sits at (556,261) next to the HP bar.  The HUD animates
+                # in, so the first OCR can miss it — retry while we stay in the
+                # same battle instead of giving up on the whole fight.
+                if ally_level is None and hud_attempts < 3:
+                    hud_attempts += 1
                     lvl, hp = self._read_battle_hud(s)
                     ally_level = lvl or ally_level
                     ally_hp = hp or ally_hp
-                    level_read_for_battle = True
                 act(probe.points["fight"], "attack")
                 before = s.log_signature(frame)
                 advanced = s.wait_log_change(before, timeout_s=8.0) or s.wait_for(
@@ -443,7 +443,7 @@ class RunBattle(_Base):
                 engage_tries += 1
                 hunt_started = None
                 last_progress = time.perf_counter()
-                level_read_for_battle = False
+                hud_attempts = 0
                 act(mob.point_px, f"engage {monster} ({mob.template} {mob.score:.2f})")
                 in_battle = s.wait_for(
                     lambda f: s.score(f, "live_fight_btn", (1710, 1130, 2040, 1260)).score

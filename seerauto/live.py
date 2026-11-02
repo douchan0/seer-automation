@@ -61,6 +61,11 @@ TH_MONSTER = 0.72
 
 CONFIRM_WORDS = ("确认", "確定", "确定", "我已知晓", "我知道啦", "关闭")
 
+#: Every known 确认-button style, matched in ``ROI_DIALOG``.  A new dialog style
+#: that is missing here is invisible to the state machine, so this tuple is the
+#: first place to look when "clicks do nothing".
+CONFIRM_TEMPLATES = ("live_confirm_btn", "live_confirm_xp", "live_confirm_xp2")
+
 
 class LiveError(RuntimeError):
     """Base class for refusals raised by the live layer."""
@@ -268,9 +273,16 @@ class LiveSession:
             frame = self.latest()
         p_fight = self.score(frame, "live_fight_btn", ROI_FIGHT)
         p_victory = self.score(frame, "live_victory_word", ROI_VICTORY)
-        p_ok_a = self.score(frame, "live_confirm_btn", ROI_DIALOG)
-        p_ok_b = self.score(frame, "live_confirm_xp", ROI_DIALOG)
-        p_ok = p_ok_a if p_ok_a.score >= p_ok_b.score else p_ok_b
+        # Three dialog styles are known; taking the best match instead of a
+        # single template is what made the 「恭喜你得到了N个积累经验」 modal
+        # invisible to the state machine (it scored 0.41 against the old
+        # templates and silently blocked every click behind it).
+        p_ok = None
+        for name in CONFIRM_TEMPLATES:
+            probe = self.score(frame, name, ROI_DIALOG)
+            if p_ok is None or probe.score > p_ok.score:
+                p_ok = probe
+        assert p_ok is not None
 
         is_victory = p_victory.score >= TH_VICTORY
         is_dialog = p_ok.score >= TH_CONFIRM and not is_victory
