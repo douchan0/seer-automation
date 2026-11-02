@@ -159,6 +159,9 @@ export SEERAUTO_AI_TIMEOUT_S=45
 | `window moved/resized ... refusing` | `goal status` | 你手动挪了窗口；重启一次运行即可（几何会重新读取） |
 | `another run already owns the executor` | `goal status` | 上一次没退干净：`goal stop`，或删 `/tmp/seerauto.executor.lock` |
 | `planner refused: nothing schedulable` | `goal status` 的 `next` 段 | 只剩"未观测"这一种阻塞：先跑一次真实观测 |
+| `blocked: no pet can battle` | `docs/BLOCKER_PET_HP.md` | **全员 0 血**：去补血（体力药剂 / 精灵中心）后再 `goal resume` |
+| `star map did not open` | 同上 | 展开的聊天面板会盖住星图目的地图标；新版已自动关闭，旧日志里出现说明是修复前 |
+| 客户端卡在「版本检测中…」/ 白屏 | 窗口标题栏 | 若标题出现 `502 502 502`，是**服务端**在报错；退出 App 重开即可，不要重装 |
 | 点不动、画面没反应 | `goal status` 的事件 | 面板没关（残留弹窗），或窗口不在最前 |
 
 日志：`data/live_run.log`（如果按本文档的方式重定向），
@@ -176,3 +179,38 @@ export SEERAUTO_AI_TIMEOUT_S=45
 | `native/bin/` | 能（bootstrap 重新编译） |
 | `artifacts/` | **不要删**，是回放测试与证据 |
 | `seerauto/templates/live/` | **不要删**，是识别的基础 |
+
+
+---
+
+## 8. 战斗前置检查（很重要）
+
+每次要打架之前，运行器会先读**精灵背包**确认"还有没有能出战的精灵"：
+
+```bash
+PYTHONPATH=.pydeps python3 tools/watch_goal.py
+# scene=WORLD pet=烈火猴 Lv34 xp_to_next=2573
+```
+
+如果全员 0 血，运行器会**直接停下**并给出：
+
+```
+[runner] BLOCKED: no pet can battle (all pets at 0 HP); healing required (recovery: heal_pet)
+```
+
+这不是故障，是设计：修复前遇到这种情况会白点 28 次、打 0 场。
+补血后 `goal resume` 即可继续。
+
+## 9. 已命名的星图目的地
+
+`game.travel` 支持按名字前往（地图布局固定，底栏会漂移）：
+
+| 名字 | 地方 |
+|---|---|
+| `ship_bridge` | 赛尔号主控室（迪恩 / 探险家爱丽丝） |
+| `tutor_room` | 辅导员训练室（**8 倍经验前置**，见 `puni.prepare.tutor_room`） |
+| `station_arena` | 精灵太空站 挑战区 |
+| `station_hall` | 精灵太空站 大厅 |
+| `mystic_realm` | 勇者之塔神秘领域（谱尼入口，见 `puni.seal.entry_nav`） |
+| `teleport_cabin` | 传送舱 / 发明室 |
+| `fortress` | 要塞 |

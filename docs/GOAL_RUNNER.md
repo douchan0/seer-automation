@@ -144,6 +144,11 @@ loop:
 | `game.navigate_spt_boss` | act | ✅ real（蘑菇怪、钢牙鲨两张卡验证过） |
 | `game.run_battle` | act | ✅ real |
 | `game.read_active_pet_level` | act | ✅ real |
+| `game.read_pet_bag` | observe | ✅ real（模板定位精灵背包；读全员 HP / 等级 / 升级所需经验，返回 `can_battle`） |
+| `game.travel` | act | ✅ real（星图命名目的地 + 到达验证） |
+| `game.goto_puni_entrance` | act | ✅ real（SPT→太空站左翼→谱尼；用模板确认「勇者之塔」传送门） |
+| `game.goto_tutor_room` | act | ✅ real（8 倍经验前置；委托给 `game.travel`） |
+| `game.click_text` | act | ⚠️ 探索用原语（点文字并把整屏文字返回） |
 | `game.confirm_known_dialog` | act | ✅ real |
 
 ---
@@ -209,3 +214,16 @@ stop_reason / last_error / next_recovery_action / started_at / updated_at`。
 * 四技能选择、换精灵、用药、交易行、融合、抓宠仍未实现；
 * 没有 GUI（CLI + SQLite + Markdown 报告优先）；
 * 没有做 MCP Server / DSH 插件封装 —— 语义接口已经稳定，但这一轮不做包装。
+
+
+---
+
+## 10. 硬阻塞（halt）语义
+
+技能可以返回 `status=BLOCKED` + `data.recovery`。运行器看到它会：
+
+1. 把节点标成 `blocked`（不是 `attempted`）；
+2. 把 `next_recovery_action` 写进 `goal_runs`；
+3. **干净停机**，不消耗 error budget、不重试、不瞎点。
+
+已实现的 recovery：`heal_pet`（全员 0 血）。这是长程任务里"知道自己该停下"的能力。
