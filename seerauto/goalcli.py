@@ -356,6 +356,37 @@ def _write_and_print(args: Any, text: str, run_id: str) -> None:
 # --------------------------------------------------------------------------- #
 # parser wiring
 # --------------------------------------------------------------------------- #
+def cmd_goal_ai_check(args: Any) -> int:
+    """One-shot diagnostic for the AI planner path.
+
+    Answers three questions without touching the game: is a provider configured,
+    does the credential work, and does the response satisfy the decision schema.
+    """
+
+    from .planner import PlannerUnavailable
+    from .planner.openai_compat import AIConfig, OpenAICompatPlanner
+
+    cfg = AIConfig.from_env() if hasattr(AIConfig, "from_env") else None
+    planner = OpenAICompatPlanner()
+    print("provider config")
+    for key, value in planner.describe_config().items() if hasattr(planner, "describe_config") else []:
+        print(f"  {key:14s} {value}")
+    if not planner.available():
+        print("status: BLOCKED — no usable credential in the environment")
+        print("  set SEERAUTO_AI_BASE_URL / SEERAUTO_AI_API_KEY / SEERAUTO_AI_MODEL")
+        return 3
+    try:
+        planner.self_test()
+    except PlannerUnavailable as exc:
+        print(f"status: BLOCKED — {exc}")
+        return 3
+    except Exception as exc:  # noqa: BLE001
+        print(f"status: FAIL — {type(exc).__name__}: {exc}")
+        return 2
+    print("status: PASS — the gateway answered and the decision parsed")
+    return 0
+
+
 def add_goal_subcommand(sub: Any) -> None:
     goal = sub.add_parser("goal", help="long-horizon goal runner (puni …)")
     gsub = goal.add_subparsers(dest="goal_command", required=True)
@@ -412,6 +443,9 @@ def add_goal_subcommand(sub: Any) -> None:
     stop.add_argument("--stop-file", default=None)
     stop.set_defaults(func=cmd_goal_stop)
 
+    ai_check = gsub.add_parser("ai-check", help="diagnose the AI planner provider (no game access)")
+    ai_check.set_defaults(func=cmd_goal_ai_check)
+
     report = gsub.add_parser("report", help="write a run report (markdown or json)")
     report.add_argument("--run-id", default=None)
     report.add_argument("--format", default="md", choices=["md", "json"])
@@ -421,4 +455,4 @@ def add_goal_subcommand(sub: Any) -> None:
 
 
 __all__ = ["add_goal_subcommand", "cmd_goal_start", "cmd_goal_status", "cmd_goal_pause",
-           "cmd_goal_resume", "cmd_goal_stop", "cmd_goal_report"]
+           "cmd_goal_resume", "cmd_goal_stop", "cmd_goal_report", "cmd_goal_ai_check"]

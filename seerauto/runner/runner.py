@@ -501,10 +501,32 @@ class GoalRunner:
             run_id=self.run_id,
         )
 
+    def _log_ai_call(self, decision: Any) -> None:
+        """Record provider/model/latency/cost so the spec's audit trail exists."""
+
+        meta = getattr(decision, "meta", None)
+        if meta is None or self.store is None:
+            return
+        try:
+            self.store.record_ai_call(
+                self.run_id,
+                provider=str(getattr(meta, "provider", "openai_compat")),
+                model=str(getattr(meta, "model", "")),
+                prompt_chars=int(getattr(meta, "prompt_chars", 0)),
+                response_chars=int(getattr(meta, "response_chars", 0)),
+                latency_ms=float(getattr(meta, "latency_ms", 0.0)),
+                status="ok",
+                error=None,
+                cost_usd=getattr(meta, "cost_usd", None),
+            )
+        except Exception as exc:  # noqa: BLE001 - logging must never break a run
+            self.log(f"[runner] could not log the AI call: {exc}")
+
     def decide(self, request: PlanRequest) -> PlanDecision:
         assert self.planner is not None
         try:
             decision = self.planner.decide(request)
+            self._log_ai_call(decision)
         except PlannerUnavailable as exc:
             self._planner_degraded = str(exc)
             self.log(f"[runner] planner unavailable ({exc}); degrading to deterministic")

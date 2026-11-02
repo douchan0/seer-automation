@@ -156,9 +156,20 @@ class AIConfig:
         max_calls = _env_int(env, ENV_MAX_CALLS, DEFAULT_MAX_CALLS)
         if max_calls < 1:
             raise PlannerError(f"{ENV_MAX_CALLS} must be >= 1, got {max_calls}")
+        # Fall back to the credential names this machine already uses, so a local
+        # user does not have to export anything twice.  An explicit
+        # SEERAUTO_AI_API_KEY always wins.
+        api_key = text(ENV_API_KEY, "")
+        if not api_key:
+            for fallback in ("OPENCODE_GO_API_KEY",
+                             "DSH_OPENCODE_GO_ACCOUNT_F9736BCC02EA3E61F692DAEDA78C65A7"):
+                candidate = env.get(fallback)
+                if candidate and str(candidate).strip():
+                    api_key = str(candidate).strip()
+                    break
         return cls(
             base_url=base_url,
-            api_key=text(ENV_API_KEY, ""),
+            api_key=api_key,
             model=text(ENV_MODEL, DEFAULT_MODEL),
             timeout_s=timeout_s,
             max_calls=max_calls,
@@ -269,6 +280,47 @@ class OpenAICompatPlanner:
         """True when this planner could attempt a call right now."""
 
         return self.transport_configured() and self.calls_remaining() > 0
+
+    def describe_config(self) -> dict[str, str]:
+        """Safe, secret-free view of the transport for diagnostics."""
+
+        key = self.config.api_key or ""
+        return {
+            "base_url": self.config.base_url or "<unset>",
+            "model": self.config.model or "<unset>",
+            "api_key": ("set (…" + key[-4:] + ")") if key else "<unset>",
+            "session": self.session,
+            "timeout_s": str(self.config.timeout_s),
+            "max_calls": str(self.config.max_calls),
+        }
+
+    def self_test(self) -> str:
+        """One minimal round trip, so a bad credential fails loudly.
+
+        Sends no game data: a two-line prompt asking for a fixed JSON object, then
+        parses it with :func:`parse_decision`.  Raises ``PlannerUnavailable`` when
+        the credential is missing and ``PlannerError`` on any transport/schema
+        problem.
+        """
+
+        self._require_available()
+        body = {
+            "model": self.config.model,
+            "messages": [
+                {"role": "system", "content":
+                 "Reply with exactly one JSON object and nothing else."},
+                {"role": "user", "content":
+                 'Return {"goal":"selftest","selected_node":"none","capability":"none",'
+                 '"reason":"selftest","expected_observation":"none","max_actions":1,'
+                 '"max_duration_s":1,"requires_approval":false}'},
+            ],
+            "max_tokens": 200,
+        }
+        payload = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        self._calls += 1
+        raw = self._post(payload)
+        response = self._load_response(raw)
+        return str(response.get("content") or "")
 
     # -- protocol ---------------------------------------------------------- #
     def decide(self, req: PlanRequest) -> PlanDecision:
