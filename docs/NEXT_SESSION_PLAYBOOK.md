@@ -27,6 +27,17 @@ nohup ./tools/backoff_monitor.sh >/dev/null 2>&1 &
 tail -f /tmp/seerauto_backend_watch.log
 ```
 
+客户端重开后停在登录页，点三下就能进去（都是真机验证过的坐标，窗口大小 1200×800）：
+
+```bash
+PYTHONPATH=.pydeps python3 tools/ctl.py clicktext "我已知晓"        # 关系统公告
+PYTHONPATH=.pydeps python3 tools/ctl.py clicktext "开启万圣夜冒险"   # 登录（记住密码）
+sleep 8
+PYTHONPATH=.pydeps python3 tools/ctl.py clickpx 1350 955            # 服务器 1 号 啦公星
+```
+
+进去后先 `goal status` 看上次跑到哪，再按 §1 补血、§2 刷级。
+
 ---
 
 ## 1. 第一件事：把精灵血量补满（当前唯一硬阻塞）
