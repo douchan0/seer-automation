@@ -1035,7 +1035,7 @@ class GotoTutorRoom(_Base):
         evidence=("artifacts/round5/10_tutor_dialog.png",),
     )
 
-    MAP_BUTTON_PX = (1220, 1360)
+    MAP_BUTTON_PX = (1185, 1375)
     TUTOR_ROOM_PX = (1613, 1045)
     MARKERS = ("初级班辅导员", "高级班辅导员")
 
@@ -1079,6 +1079,99 @@ class GotoTutorRoom(_Base):
         return SkillResult.fail(self.id, "tutor room not confirmed after two attempts")
 
 
+#: The star map's destinations, measured live on 2026-11-03.  The map layout is
+#: fixed (unlike the bottom bar, which drifts ~100 px between scenes), so these
+#: points are stable; every travel is still verified by the OCR text it must show.
+MAP_DESTINATIONS: dict[str, dict[str, Any]] = {
+    "ship_bridge": {"px": (571, 1027), "expect": ("迪恩", "爱丽丝", "探险家"),
+                    "label": "赛尔号主控室（迪恩/爱丽丝）"},
+    "tutor_room": {"px": (1613, 1045), "expect": ("辅导员",),
+                   "label": "辅导员训练室（8倍经验前置）"},
+    "station_arena": {"px": (1168, 1040), "expect": ("连胜场数", "等待挑战"),
+                      "label": "精灵太空站 挑战区"},
+    "station_hall": {"px": (571, 1120), "expect": ("主播纽斯", "小XIN"),
+                     "label": "精灵太空站 大厅"},
+    "mystic_realm": {"px": (1835, 1035), "expect": ("勇者之塔", "卫兵", "命运"),
+                     "label": "勇者之塔神秘领域"},
+    "teleport_cabin": {"px": (935, 1120), "expect": ("发明家肖恩", "传送"),
+                       "label": "传送舱/发明室"},
+    "fortress": {"px": (813, 1120), "expect": ("要塞", "保卫战"),
+                 "label": "要塞"},
+}
+
+
+class Travel(_Base):
+    """Open the star map and travel to a named destination, verifying arrival.
+
+    This exists because "click the shop icon" is not a capability: the bottom bar
+    moves between scenes, while the map is fixed.  Destinations are named so a
+    planner can ask for ``tutor_room`` instead of a pixel pair.
+    """
+
+    spec = SkillSpec(
+        id="game.travel",
+        kind=SkillKind.ACT,
+        summary="打开星际地图，前往命名的目的地（主控室/训练室/太空站/神秘领域…）并验证到达",
+        inputs={"destination": {"type": "str", "required": True}},
+        outputs={"arrived": "bool", "scene_text": "list"},
+        max_duration_s=60.0,
+        max_actions=4,
+        requires_input=True,
+        verified="real",
+        evidence=("artifacts/round5/07_map.png", "artifacts/round5/10_tutor_dialog.png"),
+    )
+
+    MAP_BUTTON_PX = (1185, 1375)
+
+    def run(self, ctx: SkillContext, destination: str = "") -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        spec = MAP_DESTINATIONS.get(destination)
+        if spec is None:
+            return SkillResult.fail(
+                self.id, f"unknown destination {destination!r}; known: "
+                         f"{sorted(MAP_DESTINATIONS)}")
+        ensure_world(ctx)
+        _dismiss_dialogs(ctx, limit=2)
+        for attempt in range(2):
+            target = self.MAP_BUTTON_PX
+            try:  # prefer the template: the bar drifts, the icon does not
+                probe = ctx.session.score(ctx.session.latest(), "live_map_icon",
+                                          (300, 1300, 2100, 1450))
+                if probe.score >= 0.75:
+                    target = probe.point_px
+            except Exception:  # noqa: BLE001
+                pass
+            ok, why = self.click_and_check(ctx, target, "open map")
+            if not ok:
+                return SkillResult.blocked(self.id, f"click refused: {why}",
+                                           escalation="pause")
+            time.sleep(2.2)
+            items = _ocr(ctx.session, min_conf=0.25)
+            if _has_text(items, ("啦公星",)) is None:
+                if attempt == 0:
+                    continue
+                return SkillResult.fail(self.id, "star map did not open")
+            ok, why = self.click_and_check(ctx, spec["px"], f"travel {destination}")
+            if not ok:
+                return SkillResult.blocked(self.id, f"click refused: {why}",
+                                           escalation="pause")
+            deadline = time.perf_counter() + 12.0
+            while time.perf_counter() < deadline:
+                time.sleep(0.9)
+                texts = [str(i.get("text") or "") for i in _ocr(ctx.session, min_conf=0.25)]
+                if any(e in t for e in spec["expect"] for t in texts):
+                    return SkillResult.pass_(
+                        self.id,
+                        proof=f"arrived at {spec['label']} ({destination})",
+                        after={"arrived": True, "scene_text": texts[:20]},
+                        actions=2,
+                        evidence=[Evidence.live(f"ocr:{destination}",
+                                                detail=", ".join(texts[:6]))])
+        return SkillResult.fail(self.id, f"destination {destination!r} not confirmed")
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -1091,6 +1184,7 @@ def build_act_skills() -> list[Skill]:
         ReadPetBag(),
         GotoPuniEntrance(),
         GotoTutorRoom(),
+        Travel(),
     ]
 
 
@@ -1105,6 +1199,8 @@ __all__ = [
     "ReadPetBag",
     "GotoPuniEntrance",
     "GotoTutorRoom",
+    "Travel",
+    "MAP_DESTINATIONS",
     "build_act_skills",
     "ICON",
     "PANEL_MARKERS",
