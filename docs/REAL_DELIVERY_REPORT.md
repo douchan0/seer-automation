@@ -291,3 +291,48 @@ PYTHONPATH=.pydeps python3 -m seerauto goal resume --allow-input --planner deter
 
 剩 2573 XP ≈ 24 场可到 35 级；建议先开 8 倍经验把 40 场压到 5 场。
 细节见 `docs/BLOCKER_PET_HP.md`。
+
+
+## 追加（03:05）：`--planner ai` 从 FAIL 变成 **PASS**
+
+之前判 FAIL 的原因是我把人写死的网关路径搞错了：请求打到 `/zen/go/v1`（要 session 头）
+而不是 `/inference/go/openai/v1`。用正确路径后**同一个 key 是好的**。
+
+现在有三层证据：
+
+1. **连通性诊断**（不碰游戏）：
+
+   ```bash
+   SEERAUTO_AI_API_KEY=… python3 -m seerauto goal ai-check
+   # provider config: base_url=https://opencode.ai/inference/go/openai/v1
+   #                  model=deepseek-v4.1-flash  api_key=set (…KExJ)
+   # status: PASS — the gateway answered and the decision parsed
+   ```
+
+2. **AI 真决策**（dry run，真机世界摘要喂给模型）：
+
+   ```
+   [runner] node puni.prepare.level_up (将主力精灵练到 36 级) —
+     constraints.allow_input is false and the two higher-priority ready nodes
+     (puni.prepare.tutor_room P4-05 priority 88, puni.seal.entry_nav P2-01 priority 84)
+     can only be driven by input-requiring skills (game.goto_tutor_room /
+     game.goto_puni_entrance), so I pick the remaining ready node
+     puni.prepare.level_up (bootstrap, ready) whose blocked_reason is exactly the
+     UNKNOWN 'state.active_pet_level_known' (world.active_pet null, xp_to_next null),
+     and attach the input-free observe capability game.inspect_pets to fill that gap.
+   ```
+
+   模型读到的是：世界摘要 + 42 节点摘要 + 能力清单 + 预算约束。
+   它自己指出了"两个更高优先级的节点在 allow_input=false 时不可驱动"，并选了合法的那个。
+
+3. **调用审计**：`ai_calls` 表记录 provider/model/latency/chars/cost，
+   `goal report` 显示 `ai calls: 1 (failures 0, cost 0.0)`。
+
+**仍未完成的一步**：`--planner ai --allow-input` 的**完整真机闭环**（AI 决策 → 真点 → 验证）。
+客户端在 02:40 之后被服务端宕机挡住（见 `docs/BLOCKER_PET_HP.md` §8），
+这一步等客户端恢复后补：命令已就绪。
+
+```bash
+SEERAUTO_AI_API_KEY=… python3 -m seerauto goal start puni --planner ai \
+    --allow-input --max-minutes 40 --max-battles 30
+```
