@@ -20,7 +20,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from . import __version__
 from . import capture as C
@@ -219,14 +219,52 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         screencapture=config.capture.screencapture_path,
     )
     print(f"capture:     screencapture={'available' if one_shot.available else 'MISSING'} ({config.capture.screencapture_path})")
-    if config.capture.daemon_binary:
-        client = C.DaemonClient(config.capture.daemon_binary, args=config.capture.daemon_args)
+    # The shipped daemon is native/bin/seerdx; the config may be silent about it.
+    daemon_binary = config.capture.daemon_binary
+    if not daemon_binary:
+        candidate = Path(__file__).resolve().parent.parent / "native" / "bin" / "seerdx"
+        daemon_binary = str(candidate) if candidate.exists() else None
+    if daemon_binary:
+        client = C.DaemonClient(daemon_binary, args=config.capture.daemon_args)
         print(f"             daemon={'available' if client.available else 'NOT AVAILABLE'} ({client.describe()})")
         print("             warm-session ops: capture.start / capture.latest / capture.roi / capture.stop")
     else:
         client = None
         print("             daemon=not configured (fallback: screencapture, ~139 ms per grab)")
     print(f"ocr:         {'daemon' if client else 'disabled'} (pure-vision default: templates first, OCR only as escalation)")
+
+    # -- is the client actually rendering? ------------------------------- #
+    # A window that exists but shows a blank / loading / error page is the failure
+    # mode that looks like a vision bug but is not one (measured live 2026-11-03:
+    # the client sat on its version check with a 502 while the window was there).
+    if client is not None and client.available:
+        try:
+            client.start()
+            win = client.win()
+            if isinstance(win, Mapping) and "w" in win:
+                geo = G.WindowGeometry(
+                    origin_pt=G.Point(float(win["x"]), float(win["y"])),
+                    size_pt=G.Size(float(win["w"]), float(win["h"])),
+                    scale=G.RETINA_SCALE,
+                )
+                backend = C.DaemonCapture(client, geo)
+                frame = backend.latest()
+                spread = float(frame.array.std())
+                if spread < 25.0:
+                    print(f"content:     BLANK (frame std {spread:.1f}) - the client is not "
+                          f"rendering game content")
+                    print("             -> check the game window; a 502 in the title bar means "
+                          "the game server is down")
+                else:
+                    print(f"content:     rendering (frame std {spread:.1f})")
+                backend.close()
+        except Exception as exc:  # noqa: BLE001 - doctor must never crash
+            print(f"content:     unknown - {type(exc).__name__}: {exc}")
+        finally:
+            try:
+                client.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     # -- budgets ---------------------------------------------------------- #
     budgets = config.budgets
