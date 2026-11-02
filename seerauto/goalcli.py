@@ -288,6 +288,7 @@ def cmd_goal_report(args: Any) -> int:
         events = list(reversed(store.events(run_id, limit=200)))
         checkpoints = store.checkpoints(run_id, limit=10)
         ai = store.ai_cost(run_id)
+        ai_rows = store.ai_calls(run_id, limit=30) if hasattr(store, "ai_calls") else []
     finally:
         store.close()
 
@@ -299,6 +300,7 @@ def cmd_goal_report(args: Any) -> int:
             "events": events,
             "checkpoints": checkpoints,
             "ai_cost": ai,
+            "ai_calls": ai_rows,
         }
         text = json.dumps(payload, ensure_ascii=False, indent=1)
     else:
@@ -325,6 +327,17 @@ def cmd_goal_report(args: Any) -> int:
         if world is not None:
             lines += ["", "## Last observed world", "", "```json",
                       json.dumps(world.summary(), ensure_ascii=False, indent=1), "```"]
+        if ai_rows:
+            lines += ["", "## AI planner calls", ""]
+            for call in ai_rows:
+                keys = ("ts", "provider", "model", "latency_ms", "prompt_chars",
+                        "response_chars", "cost_usd", "status")
+                row = {k: call.get(k) for k in keys}
+                lines.append(
+                    f"- {row['ts']} `{row['provider']}`/`{row['model']}` "
+                    f"latency={row['latency_ms']}ms prompt={row['prompt_chars']}ch "
+                    f"resp={row['response_chars']}ch cost=${row['cost_usd']} "
+                    f"status={row['status']}")
         lines += ["", "## Checkpoints", ""]
         for ck in checkpoints:
             lines.append(f"- {ck.get('ts')} `{ck.get('label')}` verified={ck.get('verified')}")

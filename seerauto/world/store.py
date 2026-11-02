@@ -689,6 +689,20 @@ class WorldStore:
             call_id = int(cur.lastrowid or 0)
         return call_id
 
+    def ai_calls(self, run_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        """The AI call audit trail (newest first)."""
+
+        sql = "SELECT * FROM ai_calls"
+        params: list[Any] = []
+        if run_id is not None:
+            sql += " WHERE run_id = ?"
+            params.append(str(run_id))
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(int(limit))
+        with self._lock:
+            rows = self._db().execute(sql, params).fetchall()
+        return [dict(row) for row in rows]
+
     def ai_cost(self, run_id: str | None = None) -> dict[str, Any]:
         """``{calls, cost_usd, failures}`` for one run or the whole store."""
 
