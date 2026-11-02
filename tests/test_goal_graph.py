@@ -159,7 +159,10 @@ def test_reference_node_matches_the_spec_example(graph: GoalGraph) -> None:
     assert node.completion.args["level"] == 36
     assert node.skill == "game.run_battle"
     assert node.skill_inputs == {"battles": 6}
-    assert node.budget == {"max_minutes": 45, "max_battles": 15, "max_spend": 0}
+    # Budgets are measured, not guessed: the live client gives 106 XP per battle
+    # and the 34->35 requirement is 2573 XP, so 15 battles could never finish a
+    # level (documented in the node's notes_round5_measured).
+    assert node.budget == {"max_minutes": 50, "max_battles": 45, "max_spend": 0}
     assert node.on_failure == "pause_and_replan"
     assert node.blocked_reason == ""
     assert node.evidence

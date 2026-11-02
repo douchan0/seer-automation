@@ -38,8 +38,12 @@ def snapshot() -> str:
         if world is not None:
             s = world.summary()
             pet = s.get("active_pet") or {}
+            hp = ""
+            if pet.get("hp") is not None:
+                hp = f" hp={pet.get('hp')}/{pet.get('hp_max')}"
+            battle = s.get("battle_ready")
             lines.append(f"  scene={s.get('scene')} pet={pet.get('name')} Lv{pet.get('level')}"
-                         f" xp_to_next={s.get('xp_to_next')}")
+                         f"{hp} xp_to_next={s.get('xp_to_next')} can_battle={battle}")
         for node_id, row in sorted(nodes.items()):
             lines.append(f"  node {node_id}: {row.get('status')} {row.get('proof') or ''}")
         sk = [e for e in store.events(run["run_id"], limit=40) if e["kind"].startswith("skill")]

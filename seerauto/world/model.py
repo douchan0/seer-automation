@@ -500,6 +500,8 @@ class GameWorldState:
             # next level.  This is what makes "a level is close" observable
             # without opening the pet panel.
             "xp_to_next": self.observations.get("pet_xp_to_next"),
+            #: Whether anything can still fight (set by the pet-bag reader).
+            "battle_ready": self.fact("session.battle_ready"),
         }
 
     def describe(self) -> str:  # pragma: no cover - human/debug output
