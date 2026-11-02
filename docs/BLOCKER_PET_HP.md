@@ -148,7 +148,22 @@ ping -c 2 119.45.28.34        # 通，~40 ms（主机活着，只是 3000 端口
 客户端 `app.asar` 里写死的入口是 `http://119.45.28.34:3000/...`（`getInfo` / `file`），
 版本检查走 `http://version.seerxin.com/seerxin`。
 **版本接口是活的，游戏后端 3000 端口超时** —— 这就是白屏 + 标题栏 `502` 的原因。
-本地任何操作都救不了它；等后端恢复即可。
+
+### 8.2 2026-11-03 04:53 追加：确认是**源站宕机**，不是本机被墙
+
+游戏 API 的域名走 Cloudflare。直接查它：
+
+```bash
+host api.seerxin.com          # 172.67.74.4（Cloudflare）
+curl -m 8 -o /dev/null -w "%{http_code}\n" https://api.seerxin.com/file
+# 530   <- Cloudflare "origin unreachable"：源站连不上
+curl -m 8 -o /dev/null -w "%{http_code}\n" http://119.45.28.34:3000/file
+# 000   <- 直连源站也超时（3000/80/443/8080 全不响应）
+```
+
+**530 是 Cloudflare 的"回源失败"**，也就是连 Cloudflare 自己都连不上那台服务器。
+所以既不是本机网络问题，也不是路径问题 —— **源站挂了，只能等**。
+本地任何操作都救不了它；恢复后重开客户端即可。
 
 **副作用（必须知道）**：这次重启之后，本轮所有真机验证都被迫停止；
 在此之前跑出的证据（2 个 completed 节点、XP 3633→2573）都是重启之前采集的，未受影响。
