@@ -84,7 +84,7 @@ def test_hysteresis_keeps_a_flickering_battle_in_battle(classifier):
     assert TH_FIGHT - 0.10 < TH_FIGHT
 
 
-def test_blank_page_is_unknown_not_world():
+def test_blank_page_is_unknown_not_world(classifier):
     """A loading/error page must never be mistaken for the game world.
 
     Everything scores 0.0 on a blank frame, which used to read as "no fight
