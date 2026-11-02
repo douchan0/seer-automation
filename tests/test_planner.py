@@ -1287,6 +1287,15 @@ def test_ai_refuses_without_a_goal(ai_env):
 
 
 def test_ai_cost_is_none_for_a_model_without_a_price(ai_env):
-    planned = OpenAICompatPlanner(opener=FakeTransport()).decide(request())
+    """Unknown models must report `None`, never a guessed price.
+
+    The default model now HAS a price (from the gateway's catalogue), so the test
+    pins the unknown-model path explicitly instead of relying on the table being
+    empty.
+    """
+
+    ai_env.setenv("SEERAUTO_AI_MODEL", "no-such-model")
+    planner = OpenAICompatPlanner(opener=FakeTransport())
+    planned = planner.decide(request())
     assert planned.meta.cost_usd is None
     assert planned.meta.to_dict()["cost_usd"] is None

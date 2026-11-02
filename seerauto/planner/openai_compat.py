@@ -63,7 +63,15 @@ ENV_JSON_MODE = "SEERAUTO_AI_JSON_MODE"
 #: vendor prices drift and a stale table silently misreports cost.  The runner
 #: passes ``prices=`` from its own config; ``cost_usd`` stays ``None`` for any
 #: model that is not listed here.
-PRICE_TABLE_USD_PER_MTOK: dict[str, tuple[float, float]] = {}
+#: ``{model: (usd_per_mtok_prompt, usd_per_mtok_completion)}``.  Prices come from
+#: the gateway's own model catalogue (``GET /models``); an unknown model reports
+#: ``cost_usd = None`` rather than a made-up number.
+PRICE_TABLE_USD_PER_MTOK: dict[str, tuple[float, float]] = {
+    "deepseek-v4.1-flash": (0.15, 0.60),
+    "deepseek-v4-flash": (0.15, 0.60),
+    "deepseek-v4-pro": (0.66, 1.98),
+    "deepseek-v4-flash-vision-exp": (0.15, 0.60),
+}
 
 SYSTEM_PROMPT = """\
 You are the high-level planner of a macOS game-automation kernel. You pick ONE
