@@ -56,6 +56,7 @@ PANEL_CLOSERS: dict[str, tuple[tuple[str, ...], tuple[int, int]]] = {
     "petpanel": (("升级所需经验值", "精灵仓库", "精英收藏", "放生仓库", "放入背包",
                   "全部精灵", "个体："), (2072, 312)),
     "event": (("万圣节活动", "本期回顾", "比巴卜酷滑"), (2113, 309)),
+    "training": (("精灵模拟训练", "选择课程"), (1530, 544)),
 }
 
 PANEL_MARKERS = {
@@ -1013,6 +1014,71 @@ class GotoPuniEntrance(_Base):
         )
 
 
+class GotoTutorRoom(_Base):
+    """Reach the 初级班/高级班辅导员 training room (the 8x-XP prerequisite).
+
+    Measured route (2026-11-03): open the map from the centre button, then the
+    orange destination icon at (1613,1045) — the map layout is fixed while the
+    bottom bar is not.  Arrival is proved by OCR naming either tutor.
+    """
+
+    spec = SkillSpec(
+        id="game.goto_tutor_room",
+        kind=SkillKind.ACT,
+        summary="地图→橙色调练室，用「初级班辅导员/高级班辅导员」文字确认到达（8倍经验前置）",
+        inputs={},
+        outputs={"unlocked": "dict", "scene_text": "list"},
+        max_duration_s=60.0,
+        max_actions=4,
+        requires_input=True,
+        verified="real",
+        evidence=("artifacts/round5/10_tutor_dialog.png",),
+    )
+
+    MAP_BUTTON_PX = (1220, 1360)
+    TUTOR_ROOM_PX = (1613, 1045)
+    MARKERS = ("初级班辅导员", "高级班辅导员")
+
+    def run(self, ctx: SkillContext) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        ensure_world(ctx)
+        _dismiss_dialogs(ctx, limit=2)
+        for attempt in range(2):
+            ok, why = self.click_and_check(ctx, self.MAP_BUTTON_PX, "open map")
+            if not ok:
+                return SkillResult.blocked(self.id, f"click refused: {why}",
+                                           escalation="pause")
+            time.sleep(2.2)
+            items = _ocr(ctx.session, min_conf=0.25)
+            if _has_text(items, ("啦公星",)) is None:
+                if attempt == 0:
+                    continue
+                return SkillResult.fail(self.id, "map did not open")
+            ok, why = self.click_and_check(ctx, self.TUTOR_ROOM_PX, "goto tutor room")
+            if not ok:
+                return SkillResult.blocked(self.id, f"click refused: {why}",
+                                           escalation="pause")
+            time.sleep(3.0)
+            deadline = time.perf_counter() + 12.0
+            while time.perf_counter() < deadline:
+                items = _ocr(ctx.session, min_conf=0.25)
+                texts = [str(i.get("text") or "") for i in items]
+                if any(m in t for m in self.MARKERS for t in texts):
+                    return SkillResult.pass_(
+                        self.id,
+                        proof="arrived at the tutor room ("
+                              + ", ".join(m for m in self.MARKERS
+                                          if any(m in t for t in texts)) + ")",
+                        after={"unlocked": {"training.tutor_room.reachable": True},
+                               "scene_text": texts[:20]},
+                        actions=2,
+                        evidence=[Evidence.live("ocr:tutor room", detail=", ".join(texts[:6]))])
+                time.sleep(0.8)
+        return SkillResult.fail(self.id, "tutor room not confirmed after two attempts")
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -1024,6 +1090,7 @@ def build_act_skills() -> list[Skill]:
         ClickText(),
         ReadPetBag(),
         GotoPuniEntrance(),
+        GotoTutorRoom(),
     ]
 
 
@@ -1037,6 +1104,7 @@ __all__ = [
     "ClickText",
     "ReadPetBag",
     "GotoPuniEntrance",
+    "GotoTutorRoom",
     "build_act_skills",
     "ICON",
     "PANEL_MARKERS",

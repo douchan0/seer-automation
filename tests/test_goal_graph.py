@@ -119,11 +119,15 @@ def test_default_path_and_load(graph: GoalGraph) -> None:
 
 def test_at_least_42_nodes_and_every_legacy_id(graph: GoalGraph) -> None:
     assert len(graph) >= 42
-    assert len(graph) == 42
     expected = {f"P{phase}-{n:02d}" for phase, count in
                 (("0", 7), ("1", 15), ("2", 9), ("3", 7), ("4", 4))
                 for n in range(1, count + 1)}
-    assert {node.legacy_id for node in graph} == expected
+    # Round 5 added one derived node (P4-05, the 辅导员 training room the 8x-XP
+    # toggle lives in).  Every node still carries a unique source-style id, and
+    # the 42 original ids must all be present.
+    legacy = {node.legacy_id for node in graph}
+    assert expected <= legacy
+    assert len(legacy) == len(graph)
     for node in graph:
         doc_phase = node.legacy_id.split("-")[0][1:]
         if node.id == "puni.prepare.level_up":

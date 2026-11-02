@@ -544,6 +544,26 @@ class GoalRunner:
         scene = str(world.fact("session.scene") or "")
         return scene in (Scene.BATTLE.value, Scene.RESULT.value, Scene.DIALOG.value)
 
+    def _refresh_battle_ready(self, world: GameWorldState) -> None:
+        """Ask the pet bag whether anything can fight right now."""
+
+        if self.registry is None or self.session is None:
+            return
+        if "game.read_pet_bag" not in self.registry:
+            return
+        ctx = self._skill_ctx(world, max_duration_s=45.0, max_actions=4)
+        try:
+            result = self.registry.get("game.read_pet_bag")(ctx)
+        except Exception as exc:  # noqa: BLE001
+            world.notes.append(f"battle-readiness check failed: {exc}")
+            return
+        if result.ok and result.after.get("can_battle") is not None:
+            self._can_battle = bool(result.after["can_battle"])
+            world.notes.append(f"battle readiness: {result.proof}")
+            if self.store is not None and self.run_id:
+                self.store.append_event(self.run_id, "observe.battle_ready",
+                                        result.proof, result.to_dict())
+
     def _step_when(self, when: str, world: GameWorldState) -> bool:
         if when in ("always", ""):
             return True
@@ -579,6 +599,11 @@ class GoalRunner:
             # A battle step must not even be attempted when every pet is at 0 HP:
             # the client answers 「你没有可出战的精灵哦」 and the pass burns its whole
             # budget on clicks that cannot start a fight (measured 2026-11-03).
+            if "battle" in step.skill and self._can_battle is None:
+                # Readiness was never established (the bag read can lose a race
+                # with a modal).  Check it *here*, right before the fight, rather
+                # than assume the account can fight.
+                self._refresh_battle_ready(world)
             if "battle" in step.skill and self._can_battle is False:
                 results.append(SkillResult(
                     skill=step.skill, status=Status.BLOCKED,

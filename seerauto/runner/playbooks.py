@@ -42,6 +42,9 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
     "puni.seal.entry_nav": (
         Step("game.goto_puni_entrance", {}, label="SPT→太空站左翼→谱尼→前往"),
     ),
+    "puni.prepare.tutor_room": (
+        Step("game.goto_tutor_room", {}, label="地图→辅导员训练室"),
+    ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
              label="传送到已验证的刷怪场景"),

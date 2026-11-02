@@ -75,6 +75,10 @@ conventions:
   skills: "skill 字段写的是“该节点应由哪个语义技能执行”，不保证已实现；真机只有 game.run_battle 有原型（tools/battle_run.py）"
 
 capabilities:
+  map.open:
+    summary: 打开星际地图并点选目的地（地图图标在屏幕中央，位置稳定）
+    verified: real
+    evidence: artifacts/round5/07_map.png
   puni.entrance:
     summary: SPT→太空站左翼→谱尼→前往 可达勇者之塔神秘领域（2026-11-03 真机验证）
     verified: real
@@ -372,6 +376,28 @@ nodes:
       - docs/progress.md#round-4
     blocked_reason: 勇者之塔/试炼之塔的入口与楼层选择在新坐标系下从未标定；Round 4 验证的是野外连战，不是塔
     notes: "文档的 partial 来自 Round 3 旧塔循环：`[f0] floor cleared` 之后两次 `cannot engage - stop`。Round 4 验证的是克洛斯星林间的野外连战（3 场全胜、每场约 17 次点击、约 45 s/场），塔的入场与楼层导航仍未验证 → 保持 partial，不能升级为 proven。completion 只证明『至少清过一层』，不证明攒够钱：每层收益未统计（U-C6），「要刷多久」目前无法回答。R8 的「失败即重来」断点续跑仍是缺口。"
+  - id: puni.prepare.tutor_room
+    legacy_id: P4-05
+    title: 到达辅导员训练室（8 倍经验的前置）
+    description: 地图→橙色调练室，找到初级班/高级班辅导员。8 倍经验/4 倍学习力开关就在这两个 NPC 上，但开关面板本身还没被任何素材捕获。
+    phase: P0
+    priority: 88
+    prerequisites: [state.logged_in]
+    requires_capabilities: [map.open]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: training.tutor_room.reachable}
+    status: partial
+    executable: true
+    skill: game.goto_tutor_room
+    skill_inputs: {}
+    budget: {max_minutes: 8, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/UI_FINDINGS_EXP_BOOST_AND_CHECKIN.md
+      - artifacts/round5/10_tutor_dialog.png
+    notes: "2026-11-03 真机：地图第 3 个（橙色）目的地就是辅导员房间，画面 OCR 出现「初级班辅导员」「高级班辅导员」。两个 NPC 都会打开「精灵模拟训练」面板（选择课程/取消/1of1）——但视频 417 帧里没有捕获到「8倍经验」开关本身，所以本节点只声明『到达』，不声明『已开启』。"
   - id: puni.prepare.level_up
     legacy_id: P1-01
     title: 将主力精灵练到 36 级
