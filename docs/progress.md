@@ -457,7 +457,7 @@ SCK 流在已被另一个进程持有时不可靠。测量时请复用同一个�
 
 | 时间 | 内容 |
 |---|---|
-| 17:20 | 接手：账号 hello/188365991，小火猴 Lv5，赛尔豆 0，XIN豆 5000 |
+| 17:20 | 接手：账号 hello/<REDACTED_UID>，小火猴 Lv5，赛尔豆 0，XIN豆 5000 |
 | 17:45 | 与海盗对战（失败/逃跑），小火猴升到 Lv12 |
 | 18:03 | 建成常驻驱动 seerd（单次点击 78ms） |
 | 18:15 | 通过 SPT 找到谱尼入口：太空站左翼 → 勇者之塔神秘领域 |
@@ -467,3 +467,48 @@ SCK 流在已被另一个进程持有时不可靠。测量时请复用同一个�
 > **对上述数字的复核（Round 1）**：`单次点击 78ms` 与实测不矛盾——
 > `seerd.clickAt()` 内部硬编码了 15 + 12 + 40 = **67 ms** 的 `usleep`，加上 CGEvent 提交与往返开销正好落在 70–80 ms 区间。
 > 这 67 ms **是可以去掉的**，不是 API 的固有成本（CGEvent 提交实测仅 0.015 ms）。
+
+---
+
+## Round 5 — 从战斗脚本到 AI 辅助的长期目标运行器 ⚠️ 部分交付（真机）
+
+**时间**：2026-11-03 00:00 – 01:00
+
+### 完成了什么（真机）
+
+1. **目标图机器化**：`seerauto/goals/puni.yaml`（42 节点 / 32 能力注册表）+ 校验器 + 谓词表。
+   只有 `puni.prepare.level_up` 是 `executable`，其余明确写清缺什么。
+2. **世界状态模型**：`GameWorldState` + `Evidence(LIVE/REPLAY/INFERRED/HISTORICAL/UNKNOWN)`；
+   历史证据不能完成任务，未知不等于 false。
+3. **SQLite 持久化**：世界快照 / 运行 / 节点状态 / 事件 / checkpoint / AI 调用与费用。
+4. **语义技能层**：observe 6 个 + act 6 个，每个都有输入契约、前后置条件、预算、可观测后置条件。
+5. **执行器**：`LiveSession`（唯一接触像素与鼠标的地方），几何复核 + 前台校验 + 单一执行权。
+6. **规划器**：deterministic / ai(OpenAI 兼容) / bridge(文件) 三档，Schema 严格校验，异常降级。
+7. **Goal Runner**：observe → plan → gate → execute → verify → checkpoint 循环，四类预算，
+   暂停/恢复/停止/断点恢复。
+8. **CLI**：`goal start|status|pause|resume|stop|report`。
+9. **真机**：登录 → SPT 面板全量读取 → 精灵面板（Lv34）→ 战斗（1 胜 +106 XP）→
+   暂停/恢复/停止实测 → AI bridge 决策闭环实测。
+
+### 没做到（必须承认）
+
+* **没有完成任何新的任务节点**：Lv34 → 36 需要约 80 场战斗，本轮只跑了个位数场。
+  因此按验收规则 **Level C = FAIL**。
+* 交易行入口、8 倍经验 NPC、每日签到入口均未定位。
+* 战败分支仍无样本。
+* `--planner ai` 因凭证 401 无法端到端验证（降级路径已验证）。
+
+### 本轮修的 3 个真 bug（都写进代码注释了）
+
+1. **SIGTERM 不写 checkpoint**：`pkill` 后数据库停在 `running` 且没有进程。
+   → `goal start` 现在安装 SIGTERM 处理器（等价 KeyboardInterrupt）。
+2. **`start_run()` 自己生成 run_id**，与调用方生成的 id 不一致，导致 `get_run` 永远返回 None。
+   → 改用返回值。
+3. **世界状态每拍重置**：新一轮观测从空世界开始，已观测到的事实被抹成 UNKNOWN。
+   → 改为"上一拍世界 carry forward + 合并"，证据等级高者胜。
+
+### 测试
+
+`PYTHONPATH=.pydeps python3 -m pytest -q` → 426 passed, 2 skipped（Round 4 结束时是 176）。
+新增：`test_world_store.py`(19) / `test_goal_graph.py`(53) / `test_planner.py`(90) /
+`test_observe_skills.py`(72) / `test_runner.py`(16)。

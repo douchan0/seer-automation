@@ -1,0 +1,1175 @@
+# 谱尼目标图（机器可读版）
+#
+# 来源：docs/PUNI_TASK_GRAPH.md（917 行，42 个节点 P0-01..P4-04）＋ Round 4 真机事实。
+# 规则：任何节点都只能被「当前账号的观测证据」判定完成；文档说法属 HISTORICAL，
+#      永远不能完成任务（见 seerauto/goals/predicates.py）。
+#
+# 本文件是规划器唯一需要读的谱尼资料。不要再去读 42 页 markdown 猜状态。
+
+version: 1
+goal: puni
+title: 获取谱尼
+updated: "2026-11-02"
+source: docs/PUNI_TASK_GRAPH.md
+
+conventions:
+  phases:
+    P0: prepare
+    P1: roster
+    P2: seal
+    P3: truebody
+    P4: crosscut
+
+  status:
+    proven: 真机完整跑通且有日志/截图证据
+    partial: 部分环节真机验证过，或只成功过一次
+    todo: 能力可实现，尚未做过
+    unverified: 机制已知但从未在本账号上观测过；文档说法未被复核
+    blocked: 外部状态阻塞，写再多代码也过不去
+    unknown: 机制本身不明，或当前账号数值未被观测
+
+  completion_types:
+    verified_account_state: 唯一可自动完成的类型；predicate 读 GameWorldState 的当前证据
+    capability_demonstrated: 横切能力节点；只有人/工具能把节点加入 completed，本图永不自动完成
+
+  world_keys:
+    pets: "world.pets[<精灵名>] = PetState(level, evidence)"
+    resources: "world.resources[<资源名>] = ResourceState(amount, evidence)"
+    spt: "world.spt[<boss_id 或面板名>] = SptEntry(defeated, name, evidence)"
+    unlocks: "world.unlocked[<key>] = Fact(bool)，由观察者写入"
+    counters: "world.facts['counters.<name>'] = Fact(int)，只在观测到效果后 +1"
+    spt_panel: "world.facts['panel.spt_open'] = Fact(bool)"
+
+  unlock_keys:
+    market: 交易行可进入且能搜索挂单（SPT 面板原文：击败后解锁交易行资格）
+    buff.exp8x: 当日 8 倍经验/4 倍学习力已开启
+    daily.signin: 今日签到已完成
+    settings.compressed_animation: 系统设置里「呼吸模式」与「压缩超长出招动画」已勾选
+    training.effort_maxed: 学习力训练完成（面板读数）
+    exp_giver.poured: 经验分配器灌注过一次且目标精灵等级确实上升
+    team.composed: 出战阵容与关卡要求一致（进战前选择面板读数）
+    puni.panel.reachable: 谱尼封印选择面板可达（人工或自动）
+    puni.seal.1: 虚无封印 已通关（面板显示）
+    puni.seal.2: 元素封印 已通关（面板显示）
+    puni.seal.3: 能量封印 已通关（面板显示）
+    puni.seal.4: 生命封印 已通关（面板显示）
+    puni.seal.5: 轮回封印 已通关（面板显示）
+    puni.seal.6: 永恒封印 已通关（面板显示）
+    puni.seal.7: 圣洁封印 已通关（面板显示）
+    puni.truebody.entered: 已进入谱尼真身战斗且屏幕显示「第一命」
+    puni.truebody.life1: 真身第一命已清
+    puni.truebody.life2: 真身第二命已清
+    puni.truebody.life3: 真身第三命已清
+    puni.truebody.life4: 真身第四命已清
+    puni.truebody.life5: 真身第五命已清
+    puni.truebody.defeated: 谱尼真身已被击败（成就面板/胜利面板）
+
+  counters:
+    tower.floors_cleared: 塔内已清的楼层数（只在观测到层数推进后 +1，不记意图）
+
+  predicates:
+    completion: "pet_level_at_least / pet_exists / spt_defeated / spt_defeated_count_at_least / resource_at_least / feature_unlocked / counter_at_least / capability_demonstrated"
+    state: "active_pet_level_known / scene_is / logged_in / spt_panel_open / battle_capable"
+    caution: "HISTORICAL（文档）与 UNKNOWN（没看）都返回 None，永远不等于 False，也永远不能完成任务"
+
+  skills: "skill 字段写的是“该节点应由哪个语义技能执行”，不保证已实现；真机只有 game.run_battle 有原型（tools/battle_run.py）"
+
+capabilities:
+  observe.window:
+    summary: 查找游戏窗口 + 几何冻结（选面积最大的窗口，忽略 <200px 的辅助窗口）
+    verified: real
+    evidence: docs/progress.md#round-4
+  observe.capture:
+    summary: 区域截图（常驻 SCStream 暖流读最新帧，mean 18.95 ms）
+    verified: real
+    evidence: docs/progress.md#round-4
+  observe.ocr:
+    summary: 中文 OCR（归一化 bbox；升级路径 mean 1177.97 ms，只在必要时走）
+    verified: real
+    evidence: docs/progress.md#round-4
+  observe.template:
+    summary: 真机模板匹配（8 个 live 模板，含战斗按钮/胜利面板/确认按钮）
+    verified: real
+    evidence: docs/progress.md#round-4
+  input.click:
+    summary: 局部像素 → 屏幕点击；Round 4 已验证「点击后状态变化」（回合 1→3、战报变化），点击落空会被检测并安全停止
+    verified: real
+    evidence: docs/progress.md#round-4
+  input.hover_text:
+    summary: 悬停后点「前往/挑战/进入」（CAP-HOVERBTN，未系统验证）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  input.type_text:
+    summary: 中文键盘输入（keyboardSetUnicodeString 路径存在，未见成功用例）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.repeat:
+    summary: 本地状态机连战（进战斗→出招→等回合→胜利→确认→再开）；真机 3 场连战全胜，每场约 17 次点击
+    verified: real
+    evidence: docs/progress.md#round-4
+    notes: 只在「克洛斯星林间」的野外怪上验证；勇者之塔/试炼之塔的入口与楼层导航未验证
+  battle.skill_select:
+    summary: 按名字点四技能格之一（坐标已推算，未逐个点击验证 —— G4）
+    verified: unverified
+    evidence: docs/state.md#已验证界面坐标
+  battle.switch_pet:
+    summary: 战斗内换精灵（CAP-SWITCH，「精灵」按钮未验证）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.item_use:
+    summary: 战斗内用药（CAP-ITEM，「道具」按钮未验证）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.log_read:
+    summary: 读「当前战报」滚动文本流（`圣光气` = 空 PP 判定，性价比最高）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.hp_read:
+    summary: 解析 `159/361` 取血量/血比（OCR 已能读到文本，缺解析器）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.pp_read:
+    summary: 解析 `使用次数：25/30`
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.stage_read:
+    summary: 读 `虚无封印` / `第N命` / `当前回合`
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.buff_count:
+    summary: 数左边缘 buff 图标层数（「毒剩 1 回合」类预判的前提）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  battle.escape:
+    summary: 逃跑（CAP-ESCAPE，只试过一次即坐标失准失败）
+    verified: unverified
+    evidence: docs/action-log.md
+  battle.defeat_branch:
+    summary: 战败/结算失败分支的识别（G1：没有任何失败样本，`失败` 模板不存在）
+    verified: unverified
+    evidence: AGENTS.md#6
+  battle.long_watch:
+    summary: 长战看护（回合单调性、无进展升级、弹窗识别、断线恢复、预算急停）
+    verified: unverified
+    evidence: docs/progress.md#round-4
+    notes: 预算/停滞守卫/暂停恢复已真机验证；165 回合长战与断线恢复未验证
+  spt.panel:
+    summary: SPT 面板读取（图标→面板→卡片文本→已击败/未击败；面板原文可读「击败后解锁交易行资格」）
+    verified: real
+    evidence: docs/progress.md#round-4
+  spt.navigate:
+    summary: SPT 卡片 →「前往」→ 传送到首领场景（蘑菇怪 → 克洛斯星林间，真机验证）
+    verified: real
+    evidence: docs/progress.md#round-4
+    notes: 只对蘑菇怪这一个卡片验证过；其余星球/星系的卡片与滚动未验证
+  daily.quota:
+    summary: 每日额度读取与调度（CAP-DAILY，含谱尼每日 4 次）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  market.buy:
+    summary: 交易行 搜名/筛个体性格/购买（原语够，但门未开）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  shop.buy:
+    summary: 官方商城购买（只 OCR 读过 141 件商品，从未购买）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  team.compose:
+    summary: 出战队伍编排（CAP-TEAM）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  train.effort:
+    summary: 学习力训练室六选一（CAP-TRAIN）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  exp.give:
+    summary: 经验分配器灌注（CAP-EXPGIVE）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  catch.pet:
+    summary: 抓宠（削血 + 投胶囊，CAP-CATCH）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  fuse.pet:
+    summary: 融合转生（CAP-FUSION，流程未完整展示）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  settings.animation:
+    summary: 系统设置面板勾选出招动画压缩/呼吸模式
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#1
+  budget.stop:
+    summary: 次数/时长预算 + 停滞守卫 + 暂停/恢复/急停 + 带原因安全停止
+    verified: real
+    evidence: docs/progress.md#round-4
+  puni.panel:
+    summary: 谱尼入口导航（太空站左翼 → 勇者之塔神秘领域 → 点击谱尼）
+    verified: unverified
+    evidence: docs/PUNI_TASK_GRAPH.md#P2-01
+    notes: 只有 Round 3 人工按旧坐标到达过一次；Round 4 换了坐标系，未重测
+
+nodes:
+  # ------------------------------------------------------------------ P0 --
+  - id: puni.prepare.market_unlock
+    legacy_id: P0-01
+    title: 交易行解锁
+    description: 取得交易行资格，使萨帕克/闪光波克尔/卡奥鲁/尼尔这四只只能从交易行获得的精灵可购买。
+    phase: P0
+    priority: 95
+    prerequisites: [state.logged_in]
+    requires_capabilities: [spt.panel]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: market}
+    status: unknown
+    executable: false
+    skill: game.check_market_gate
+    skill_inputs: {read_only: true}
+    budget: {max_minutes: 60, max_battles: 0, max_spend: 0}
+    on_failure: mark_blocked
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P0-01
+      - docs/state.md#进度
+      - docs/progress.md#round-4
+    blocked_reason: 交易行面板本轮从未打开；解锁所需的首领集合（几只/哪几只）未观测，且人类从未演示过解锁过程
+    notes: "文档已过期两处。① 门槛性质：docs §0.1 与 U-A1 怀疑是「注册满 3 天」的时间门槛，Round 4 读了 SPT 面板，每张首领卡下方写着「击败后解锁交易行资格」→ 门槛是击败 SPT 首领（任务门槛），不是时间门槛（U-A1 已答）。② 进度：文档称三条任务「实测 0/3」，但 docs/state.md 记录 2026-11-02 已击败 蘑菇怪（克洛斯星-克洛斯星林间）→ 0/3 已过时。仍未观测：击败 1 只首领是否足够、还需要哪几只、交易行面板本身能否进入。注意 SPT 面板显示 73 个入口。"
+  - id: puni.prepare.daily_exp_pool
+    legacy_id: P0-02
+    title: 每日 50 万经验（找 50 级野怪开战即逃跑）
+    description: 在含 50 级野生精灵的场景开战，立刻逃跑，拿每日一次的经验池 50 万。
+    phase: P0
+    priority: 45
+    prerequisites: [capability.battle.escape, state.battle_capable]
+    requires_capabilities: [battle.escape, observe.ocr]
+    completion:
+      type: verified_account_state
+      predicate: resource_at_least
+      args: {resource: 积累经验, amount: 500000}
+    status: todo
+    executable: false
+    skill: game.escape_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 15, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P0-02
+    blocked_reason: CAP-ESCAPE 未验证（只试过一次即坐标失准失败）；「经验入池」的读数路径也未建立
+    notes: "U-A9 逃跑成功率/失败惩罚未知；U-A10 副本是否仍刷新杰拉特未知；「每天只能获得一次」的判定点未知。另注：文档称经验池 5,000（Round 2 历史值），Round 4 未重读 → 当前余额未知。"
+  - id: puni.prepare.exp_boost
+    legacy_id: P0-03
+    title: 开启 8 倍经验 / 4 倍学习力
+    description: 在精灵太空站与初级班/高级班辅导员对话，打开当日的 8 倍经验与 4 倍学习力。
+    phase: P0
+    priority: 64
+    prerequisites: [state.logged_in]
+    requires_capabilities: [input.click, observe.ocr]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: buff.exp8x}
+    status: todo
+    executable: false
+    skill: game.toggle_daily_buff
+    skill_inputs: {buff: exp8x}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P0-03
+    blocked_reason: 精灵太空站辅导员对话入口在新坐标系（1200×800）下未标定；提示文本「已开启/已耗尽」的读数未验证
+    notes: "U-C3 每日重置时刻未知；U-A11 每日时长未知。文档标 auto 的是 P0-04 签到，本节点是 semi-auto（需对话导航 + OCR 确认）。"
+  - id: puni.prepare.daily_signin
+    legacy_id: P0-04
+    title: 每日签到领奖
+    description: 点「我要签到」并清掉确认弹窗，领取每日奖励。
+    phase: P0
+    priority: 30
+    prerequisites: [state.logged_in]
+    requires_capabilities: [input.click, observe.ocr]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: daily.signin}
+    status: todo
+    executable: false
+    skill: game.daily_signin
+    skill_inputs: {days: 1}
+    budget: {max_minutes: 5, max_battles: 0, max_spend: 0}
+    on_failure: retry
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P0-04
+      - docs/state.md#待重新标定
+    blocked_reason: 签到入口坐标从未标定（docs/state.md「待重新标定」列了底栏/顶部一排入口，全部未重测）
+    notes: "文档把它评为 auto（动作集合 ⊆ 已验证原语），这一点仍然成立；缺的只是入口一次标定。签到按钮「已签到」状态需要 OCR 读数才能判定完成。"
+  - id: puni.prepare.animation_off
+    legacy_id: P0-05
+    title: 关闭出招动画（呼吸模式 + 压缩超长出招动画）
+    description: 在系统设置里勾选「呼吸模式」与「压缩超长出招动画」，缩短全场战斗时长。
+    phase: P0
+    priority: 65
+    prerequisites: [state.logged_in]
+    requires_capabilities: [settings.animation, input.click]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: settings.compressed_animation}
+    status: todo
+    executable: false
+    skill: game.toggle_setting
+    skill_inputs: {setting: compressed_animation, value: true}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P0-05
+    blocked_reason: 系统设置面板在新坐标系下未标定；勾选后的读回（勾选框状态）未实现
+    notes: "U-B11 加速比未知，直接影响全场耗时预算 —— 没测出来之前所有 max_minutes 都只是上界。"
+  - id: puni.prepare.buy_potions
+    legacy_id: P0-06
+    title: 采购体力 / 活力药剂
+    description: 在商店买高级体力药剂、超级体力药剂、高级活力药剂若干，供长战（封印 1 起）使用。
+    phase: P0
+    priority: 60
+    prerequisites: [state.logged_in]
+    requires_capabilities: [shop.buy, observe.ocr]
+    completion:
+      type: verified_account_state
+      predicate: resource_at_least
+      args: {resource: 高级体力药剂, amount: 1}
+    status: unknown
+    executable: false
+    skill: game.buy_items
+    skill_inputs: {read_only: true}
+    budget: {max_minutes: 15, max_battles: 0, max_spend: 0}
+    on_failure: mark_blocked
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P0-06
+    blocked_reason: 货币余额与药剂价格本轮都未观测；CAP-SHOP 从未成功购买过任何商品 → 也不能断言「买不起」
+    notes: "文档把本节点标 blocked，依据是 §0.1 的「赛尔豆 0 / 金豆 0 / XIN豆 5,000 / 积累经验 5,000」。这些是 Round 2 的历史读数，Round 4 从未重新读货币栏或背包 → 余额未知，故本图改为 unknown，不再复述「0」。另一个事实：17:35 只 OCR 读过 141 件商品，从未真正购买（CAP-SHOP ⚠️）。completion 里的 amount=1 只是可观测下界，真实目标数量未知（U-A12：买高级还是特级×100；U-C1 三种货币图标对应关系）。"
+  - id: puni.prepare.tower_farm
+    legacy_id: P0-07
+    title: 货币与经验积累（刷塔）
+    description: 进塔选楼层，循环「进战斗→出招→等结算→清弹窗→再开」，推进层数并攒经验/赛尔豆。
+    phase: P0
+    priority: 92
+    prerequisites: [capability.battle.repeat, state.battle_capable]
+    requires_capabilities: [battle.repeat, budget.stop]
+    completion:
+      type: verified_account_state
+      predicate: counter_at_least
+      args: {counter: tower.floors_cleared, at_least: 1}
+    status: partial
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 10}
+    budget: {max_minutes: 30, max_battles: 10, max_spend: 0}
+    on_failure: retry
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P0-07
+      - docs/progress.md#round-4
+    blocked_reason: 勇者之塔/试炼之塔的入口与楼层选择在新坐标系下从未标定；Round 4 验证的是野外连战，不是塔
+    notes: "文档的 partial 来自 Round 3 旧塔循环：`[f0] floor cleared` 之后两次 `cannot engage - stop`。Round 4 验证的是克洛斯星林间的野外连战（3 场全胜、每场约 17 次点击、约 45 s/场），塔的入场与楼层导航仍未验证 → 保持 partial，不能升级为 proven。completion 只证明『至少清过一层』，不证明攒够钱：每层收益未统计（U-C6），「要刷多久」目前无法回答。R8 的「失败即重来」断点续跑仍是缺口。"
+  - id: puni.prepare.level_up
+    legacy_id: P1-01
+    title: 将主力精灵练到 36 级
+    description: 用已验证的连战循环在可达场景反复打怪，把火系主力练到 36 级（文档称 36 级自动进化烈焰猩猩）。
+    phase: P0
+    priority: 50
+    prerequisites: [capability.battle.repeat, state.active_pet_level_known]
+    requires_capabilities: [battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_level_at_least
+      args: {pet: 烈火猴, level: 36, aliases: [小火猴, 烈焰猩猩]}
+    status: unverified
+    executable: true
+    skill: game.run_battle
+    skill_inputs: {battles: 6}
+    budget: {max_minutes: 45, max_battles: 15, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-01
+      - docs/state.md#精灵
+      - docs/progress.md#round-4
+    notes: "这是本图当前唯一 executable 的节点（判据：动作集合完全落在 Round 4 真机验证过的能力里，且场景已可达）：动作集合 = 已验证的 battle.repeat（野外连战）+ observe.* + input.click，且场景已在 Round 4 真机到达过。等级事实已过期：docs/state.md（2026-11-02）看到主力是烈火猴（小火猴已进化），等级只从窗口徽章读到「约 15 级」，此后未复读 → HISTORICAL，predicate 返回 None（历史证据不能完成任务），必须现场重读等级。进化链 小火猴→烈火猴→(36)烈焰猩猩 改用 aliases 覆盖，避免进化改名让节点永远判不完成；「36 级是否本服一致」仍未验证。文档里它属于 P1（docs §4.2），本图归入 P0 因为它是所有阵容节点的公共前置。"
+  # ------------------------------------------------------------------ P1 --
+  - id: puni.roster.catch_pipi
+    legacy_id: P1-02
+    title: 抓皮皮 → 比波（手下留情）
+    description: 在克洛斯星遇皮皮，用「手下留情」削到 1 HP 再投胶囊。
+    phase: P1
+    priority: 40
+    prerequisites: [state.battle_capable]
+    requires_capabilities: [catch.pet, battle.skill_select]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 皮皮}
+    status: todo
+    executable: false
+    skill: game.catch_pet
+    skill_inputs: {species: 皮皮, target_hp: 1}
+    budget: {max_minutes: 20, max_battles: 3, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-02
+    blocked_reason: CAP-CATCH 不存在（削血 + 投胶囊均未实现）；「手下留情」需要按技能名选招（battle.skill_select 未验证）
+    notes: "文档标 human-only：视频里抓宠是人手完成的（26:16）。可选节点 —— 皮皮/比波不在 7 主力里。U-B9 胶囊成功率与血量门槛未知。"
+  - id: puni.roster.catch_jier
+    legacy_id: P1-03
+    title: 抓吉尔（火山星，融合副宠）
+    description: 在火山星野外遇吉尔 Lv17，削血后投胶囊，作为融合转生的副宠。
+    phase: P1
+    priority: 55
+    prerequisites: [state.battle_capable]
+    requires_capabilities: [catch.pet]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 吉尔}
+    status: todo
+    executable: false
+    skill: game.catch_pet
+    skill_inputs: {species: 吉尔, target_level: 17}
+    budget: {max_minutes: 20, max_battles: 3, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-03
+    blocked_reason: CAP-CATCH 不存在；火山星的场景坐标与刷新点未标定
+    notes: "U-B9 胶囊成功率未知；U-A10 刷新点未知。它是 P1-04 融合转生的前置（mermaid：P103 → P104）。"
+  - id: puni.roster.fuse_flame
+    legacy_id: P1-04
+    title: 融合转生 → 炎火猴 → 魔焰猩猩
+    description: 把烈焰猩猩(36) 与 吉尔(17) 放进融合转生仓，材料位放任意材料，生成红色元神珠 → 元神赋形 → 孵化 → 经验灌注到 100。
+    phase: P1
+    priority: 70
+    prerequisites: [puni.prepare.level_up, puni.roster.catch_jier]
+    requires_capabilities: [fuse.pet, exp.give]
+    completion:
+      type: verified_account_state
+      predicate: pet_level_at_least
+      args: {pet: 魔焰猩猩, level: 100}
+    status: unknown
+    executable: false
+    skill: game.fuse_pet
+    skill_inputs: {main_pet: 烈焰猩猩, sub_pet: 吉尔}
+    budget: {max_minutes: 60, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-04
+    blocked_reason: 融合转生流程在视频中未完整展示（U-B3：顺序/材料要求/孵化时长全部未知），CAP-FUSION 状态是 unknown 而不是「未实现」
+    notes: "文档标 human-only + unknown。U-B3 完整 UI 流程未知；U-A13 材料位是否真的任意未知。本节点是魔焰猩猩的唯一来源（文档 P0-07/P1-01 之外的第三条培养路径）。"
+  - id: puni.roster.buy_salake
+    legacy_id: P1-05
+    title: 交易行买萨拉 → 萨帕克
+    description: 在已解锁的交易行筛「萨拉」，按价格升序、个体 31 / 性格沉着挑挂单，买下后练到 72 进化萨帕克，再拉到 100。
+    phase: P1
+    priority: 90
+    prerequisites: [puni.prepare.market_unlock, puni.prepare.tower_farm]
+    requires_capabilities: [market.buy, battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 萨帕克}
+    status: blocked
+    executable: false
+    skill: game.market_buy
+    skill_inputs: {species: 萨拉, sort: price_asc}
+    budget: {max_minutes: 20, max_battles: 0, max_spend: 0}
+    on_failure: mark_blocked
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-05
+      - docs/state.md#进度
+    blocked_reason: 交易行资格未确认解锁（见 puni.prepare.market_unlock）；余额与挂单存量未观测，故不允许花钱（max_spend=0）
+    notes: "关键缺口：文档称萨帕克是封印 1 与真身第一命的唯一解，缺萨帕克 = 这两处无解。门槛更正见 puni.prepare.market_unlock（击败 SPT 首领，不是「注册满 3 天」）。文档写「赛尔豆 0」是 Round 2 历史值，本轮未重读；价格单位（U-C1）与挂单存量（U-C2）、是否仍有萨拉在售（U-A2）均未验证。"
+  - id: puni.roster.buy_flash_pipi
+    legacy_id: P1-06
+    title: 交易行买闪光皮皮 → 闪光波克尔
+    description: 交易行买高个体加速性格的闪光皮皮，练到 99，速度学习力刷满，得到带「同生共死」的闪光波克尔。
+    phase: P1
+    priority: 76
+    prerequisites: [puni.prepare.market_unlock, puni.prepare.level_up]
+    requires_capabilities: [market.buy, train.effort]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 闪光波克尔}
+    status: blocked
+    executable: false
+    skill: game.market_buy
+    skill_inputs: {species: 闪光皮皮, min_individual: 28}
+    budget: {max_minutes: 20, max_battles: 0, max_spend: 0}
+    on_failure: mark_blocked
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-06
+    blocked_reason: 交易行资格未确认解锁；速度学习力刷满依赖 CAP-TRAIN（未实现）；价格与挂单存量未观测
+    notes: "「同生共死」在封印 5 与真身第五命里承伤用（文档 §4.3/§4.4）。U-C2 挂单存量、U-A2 是否有货均未验证。"
+  - id: puni.roster.buy_kaolu
+    legacy_id: P1-07
+    title: 交易行买卡西达 → 卡奥鲁
+    description: 交易行买个体尽量高的卡西达，练到 100，攻击+速度学习力，得到卡奥鲁（补刀位）。
+    phase: P1
+    priority: 75
+    prerequisites: [puni.prepare.market_unlock, puni.prepare.level_up]
+    requires_capabilities: [market.buy, battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 卡奥鲁}
+    status: blocked
+    executable: false
+    skill: game.market_buy
+    skill_inputs: {species: 卡西达, max_price: 0}
+    budget: {max_minutes: 20, max_battles: 0, max_spend: 0}
+    on_failure: mark_blocked
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-07
+    blocked_reason: 交易行资格未确认解锁；价格单位与余额未观测
+    notes: "文档记录价格约 5.6W（56,000）—— 视频里的价，不是本服挂单价，属 HISTORICAL，不能拿来定预算。U-C1/U-C2 未验证。"
+  - id: puni.roster.buy_nier
+    legacy_id: P1-08
+    title: 交易行买尼尔（塞维尔洗性格材料）
+    description: 塞维尔性格若是「任意+特防」则不需要本节点；否则买一只个体 28 左右的尼尔做基因重组材料。
+    phase: P1
+    priority: 60
+    prerequisites: [puni.prepare.market_unlock]
+    requires_capabilities: [market.buy]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 尼尔}
+    status: blocked
+    executable: false
+    skill: game.market_buy
+    skill_inputs: {species: 尼尔, min_individual: 28}
+    budget: {max_minutes: 15, max_battles: 0, max_spend: 0}
+    on_failure: mark_blocked
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-08
+    blocked_reason: 交易行资格未确认解锁；且这是条件节点（塞维尔性格未观测，是否需要都还不知道）
+    notes: "条件性：先要观测塞维尔的性格是否为「任意+特防」——现在连塞维尔有没有都没观测过。文档称价格约 3W，同属视频历史值。"
+  - id: puni.roster.spt_hamoleite
+    legacy_id: P1-09
+    title: SPT 哈莫雷特
+    description: SPT 面板找卡兰星系（尼古尔星/塔克星）的哈莫雷特卡片，「前往」后进战斗击败，再领取/孵化。
+    phase: P1
+    priority: 74
+    prerequisites: [capability.spt.navigate, state.battle_capable]
+    requires_capabilities: [spt.navigate, battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 哈莫雷特}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {boss: 哈莫雷特, battles: 1}
+    budget: {max_minutes: 40, max_battles: 5, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-09
+      - docs/progress.md#round-4
+    blocked_reason: 战斗难度未知（视频只显示「已击败」，战斗本身未演示，U-C5）；SPT 卡片→前往 只在蘑菇怪上真机验证过，卡兰星系卡片与滚动未验证
+    notes: "哈莫雷特是龙系主坦，封印 2/3/4/6/7 与真身多命都要用。文档的 U-C5：本服难度未知 → 不能按视频的回合数写预算。"
+  - id: puni.roster.spt_naduolei
+    legacy_id: P1-10
+    title: SPT 纳多雷
+    description: SPT 面板找帕诺星系双子阿尔法星-阿尔法星岩地的纳多雷，前往、击败、孵化，得到「属性反转」位。
+    phase: P1
+    priority: 72
+    prerequisites: [capability.spt.navigate, state.battle_capable]
+    requires_capabilities: [spt.navigate, battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 纳多雷}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {boss: 纳多雷, battles: 1}
+    budget: {max_minutes: 40, max_battles: 5, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-10
+    blocked_reason: 战斗难度未验证；孵化流程未知（U-B4）；双子阿尔法星的卡片与传送未验证
+    notes: "「属性反转」在封印 5/6/7 与真身第四命用。文档此处与 P1-09 共用同一条 verify：孵化流程 U-B4。"
+  - id: puni.roster.spt_saiweier
+    legacy_id: P1-11
+    title: 塞维尔（龙王殿 / 精元孵化）
+    description: 打通龙王殿线拿到精元，再孵化出塞维尔（「锁敌」「龙之毒」的载体）。
+    phase: P1
+    priority: 68
+    prerequisites: [capability.spt.navigate, state.battle_capable]
+    requires_capabilities: [puni.panel, battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 塞维尔}
+    status: unknown
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {line: 龙王殿, battles: 1}
+    budget: {max_minutes: 60, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-11
+    blocked_reason: U-B4 精元孵化完整流程与时长未知；U-A2 龙王殿当前是否可挑战未知 → 连「怎么拿」都不清楚
+    notes: "文档标 human-only + unknown，capabilities 一栏是空的（连原语都没有）。塞维尔是封印 2/5/7 与真身第二/五/六命的毒伤/锁敌位。"
+  - id: puni.roster.kelida_awaken
+    legacy_id: P1-12
+    title: 克里 → 克罗达（技能唤醒 + 还原 + 验特防6）
+    description: 野外遇克里 Lv18，同生共死削血投胶囊；练到 54 花 100 赛尔豆技能唤醒「偏激防守」；用精灵还原药剂还原到 Lv1；校验面板特防=6，否则重洗。
+    phase: P1
+    priority: 66
+    prerequisites: [capability.catch.pet, puni.prepare.level_up]
+    requires_capabilities: [catch.pet, battle.skill_select]
+    completion:
+      type: verified_account_state
+      predicate: pet_exists
+      args: {pet: 克罗达}
+    status: unknown
+    executable: false
+    skill: game.catch_pet
+    skill_inputs: {species: 克里, target_level: 18}
+    budget: {max_minutes: 45, max_battles: 3, max_spend: 100}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-12
+    blocked_reason: U-A8「特防=6 为何决定弹伤量」原理未解释；技能唤醒菜单（U-B5）与还原药剂规则（U-B6）未知；CAP-CATCH 不存在
+    notes: "唯一有明确小额花费的节点：技能唤醒 100 赛尔豆（视频）。max_spend=100 取自文档，但当前余额未观测 → 真跑之前必须先读货币。completion 只证明『克罗达存在』：特防=6 是数值判据，world model 没有该字段，真正的验收缺口没被这个 predicate 覆盖。"
+  - id: puni.roster.train_effort
+    legacy_id: P1-13
+    title: 学习力训练室刷满
+    description: 在学习力训练室选六项之一，一次 +4，反复训练到目标两项刷满。
+    phase: P1
+    priority: 62
+    prerequisites: [state.logged_in]
+    requires_capabilities: [train.effort]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: training.effort_maxed}
+    status: todo
+    executable: false
+    skill: game.train_effort
+    skill_inputs: {stats: [攻击, 速度]}
+    budget: {max_minutes: 45, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-13
+    blocked_reason: 训练室入口未标定；学习力数值在 world model 中没有字段，只能靠面板读数（未实现）
+    notes: "U-B7 单项上限与总量上限未知 → 连「刷满」的判据都给不出来；target stats 也是按视频里两只精灵推的，不是本服确认值。"
+  - id: puni.roster.exp_pour
+    legacy_id: P1-14
+    title: 经验分配器灌注
+    description: 在实验室经验分配器选目标精灵，输入/拉满经验值并确认灌注。
+    phase: P1
+    priority: 58
+    prerequisites: [state.logged_in]
+    requires_capabilities: [exp.give]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: exp_giver.poured}
+    status: todo
+    executable: false
+    skill: game.give_exp
+    skill_inputs: {amount: 1000000}
+    budget: {max_minutes: 15, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-14
+    blocked_reason: 实验室/分配器入口未标定；单次上限（视频见 1,000,000）是否本服一致未知；经验池余额未观测
+    notes: "skill_inputs.amount 是视频里见到的单次上限，不是本服确认值。completion 只要求「灌注发生过且等级确实上升」——因为没有指定目标精灵，写不出等级阈值。"
+  - id: puni.roster.team_compose
+    legacy_id: P1-15
+    title: 出战队伍编排
+    description: 进战前在精灵选择面板按关卡要求编排阵容（封印 1 只带萨帕克；封印 5/真身带全部主力）并确认。
+    phase: P1
+    priority: 70
+    prerequisites: [state.logged_in]
+    requires_capabilities: [team.compose]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: team.composed}
+    status: todo
+    executable: false
+    skill: game.compose_team
+    skill_inputs: {lineup: auto}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P1-15
+    blocked_reason: 精灵选择面板未标定；CAP-TEAM 未实现；「校验上场精灵名」的读数路径未建立
+    notes: "视频称「7 只全带」，但队伍上限是否为 6（含替补？）未确认 → 这是个未解的小未知，会影响封印 5/真身的阵容可行性。"
+  # ------------------------------------------------------------------ P2 --
+  - id: puni.seal.entry_nav
+    legacy_id: P2-01
+    title: 谱尼入口导航 + 每日额度检查
+    description: 打开 SPT → 太空站左翼 → 勇者之塔神秘领域 → 点击谱尼 → 读今日剩余挑战次数。
+    phase: P2
+    priority: 84
+    prerequisites: [state.logged_in, puni.roster.team_compose]
+    requires_capabilities: [spt.panel, puni.panel, daily.quota]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.panel.reachable}
+    status: partial
+    executable: false
+    skill: game.navigate
+    skill_inputs: {target: puni_seal_panel}
+    budget: {max_minutes: 20, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-01
+      - docs/state.md#坐标系
+    blocked_reason: 唯一的成功证据是 Round 3 人工按旧坐标（1149×714）到达一次；Round 4 坐标系已变（1200×800），入口路径未重测；「今日剩余次数」读数（CAP-DAILY）未实现
+    notes: "文档的 partial 只基于「人工到达过一次」（action-log 18:16:42 / 18:09）。⚠️ 那次用的是已作废的坐标空间（docs/state.md：宽高比 1.609→1.5，旧坐标不可缩放复用）→ 在新坐标下等于从未验证。它是所有封印节点的闸门：决定「今天还能打几次」。⚠️ completion 只证明『面板可达』，不证明『今日次数 > 0』—— 每日额度读数（CAP-DAILY）未实现，这一步没有被 predicate 覆盖。U-A5 失败是否消耗次数、U-C3 次数重置时刻未解。"
+  - id: puni.seal.vacuum_1
+    legacy_id: P2-02
+    title: 封印 1 虚无（萨帕克单挑，约 21 回合）
+    description: 只带萨帕克进场；开局连点「感应」叠特防，叠够后「精神强化」，用「七彩龙息」输出，HP 低于阈值就嗑超级体力药剂。
+    phase: P2
+    priority: 82
+    prerequisites: [puni.seal.entry_nav, puni.roster.buy_salake, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.hp_read, battle.pp_read, battle.stage_read, battle.item_use]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.seal.1}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 30, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-02
+    blocked_reason: 需要按名选招 + 读 HP/PP + 战斗内用药，四项能力全部未实现；且缺萨帕克（唯一解，交易行未解锁）
+    notes: "文档把本节点列为「第 3 高价值」：状态空间最小的真实谱尼战斗（单精灵、4 技能、约 21 回合、无换人），是验证整套框架的第一关。未验证：感应 PP=30 是否本版本一致、buff 层数能否用图标数读出、HP 阈值取 1/3 是否最优。"
+  - id: puni.seal.element_2
+    legacy_id: P2-03
+    title: 封印 2 元素（哈莫耗 PP + 魔焰烧伤）
+    description: 哈莫雷特先「龙之意志」再一直「回避」耗 PP，PP 低就嗑高级活力药剂；见「圣光气」换魔焰猩猩，用「火焰漩涡」刷烧伤磨死。
+    phase: P2
+    priority: 71
+    prerequisites: [puni.seal.entry_nav, puni.roster.spt_hamoleite, puni.roster.fuse_flame, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.switch_pet, battle.log_read, battle.pp_read]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.seal.2}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 45, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-03
+    blocked_reason: 需要选招/换人/读战报/读 PP，四项能力均未实现；哈莫雷特与魔焰猩猩都还没有
+    notes: "未验证：U-A6 谱尼 PP 池是否与本服一致、回避 PP=15、烧伤每回合 -1000 是否本服数值。「等圣光气」依赖 P2-09 的战报读取。"
+  - id: puni.seal.energy_3
+    legacy_id: P2-04
+    title: 封印 3 能量（同封印 2）
+    description: 与封印 2 完全相同的打法（哈莫耗 PP + 魔焰烧伤）。
+    phase: P2
+    priority: 70
+    prerequisites: [puni.seal.entry_nav, puni.roster.spt_hamoleite, puni.roster.fuse_flame, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.switch_pet, battle.log_read]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.seal.3}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 45, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-04
+    blocked_reason: 同封印 2；另有一个未验证前提（两者是否真的数值同构）
+    notes: "未验证：与封印 2 是否真的数值同构 —— 视频「只展示一次」（作者把两个封印合并演示），所以本节点实际上是「推断同构」，不是观测。"
+  - id: puni.seal.life_4
+    legacy_id: P2-05
+    title: 封印 4 生命（猩猩消强 → 哈莫单挑）
+    description: 魔焰猩猩先「压迫」消强（可送），换哈莫雷特「龙之意志」×2 后全程回避，补一轮龙之意志，两发「龙王灭碎阵」收尾。
+    phase: P2
+    priority: 69
+    prerequisites: [puni.seal.entry_nav, puni.roster.fuse_flame, puni.roster.spt_hamoleite, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.switch_pet, battle.pp_read]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.seal.4}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 45, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-05
+    blocked_reason: 需要选招/换人/读 PP，能力均未实现；且「两发搓死」是否依赖特定面板（攻 369）未验证
+    notes: "未验证：「两发搓死」是否依赖视频作者的特定面板（攻 369）—— 若依赖，本账号面板不达标就打不死，属于未知失败模式。"
+  - id: puni.seal.samsara_5
+    legacy_id: P2-06
+    title: 封印 5 轮回（4 条命，125 回合）★最难
+    description: 7 只全带打 4 条命：第1命 猩猩压迫→塞维尔龙女之声→哈莫耗PP→纳多雷属性反转→塞维尔龙之毒→闪光波克尔同生共死→哈莫灭碎阵→萨帕克收；第2命 毒+同生共死；第3命 哈莫单挑；第4命 萨帕克单挑。
+    phase: P2
+    priority: 67
+    prerequisites:
+      - puni.seal.entry_nav
+      - puni.roster.buy_salake
+      - puni.roster.buy_flash_pipi
+      - puni.roster.buy_kaolu
+      - puni.roster.spt_hamoleite
+      - puni.roster.spt_naduolei
+      - puni.roster.spt_saiweier
+      - puni.roster.fuse_flame
+      - state.battle_capable
+    requires_capabilities: [battle.switch_pet, battle.log_read, battle.buff_count, budget.stop]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.seal.5}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 120, max_battles: 2, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-06
+    blocked_reason: 文档判 human-only —— 换人时机要在「毒剩 1 回合」这类对方 buff 倒计时上预判（U-B6），buff 剩余回合是否可读未知；7 只主力里 3 只还锁在交易行
+    notes: "human-only 的原因不是难度，而是逐回合预判（见文档读图要点 3）。U-B6：对方 buff 剩余回合是否可读，决定换人时机能不能自动化 —— 不可读则本节点无法自动化。4 条命在同一场战斗内（回合计数连续）。"
+  - id: puni.seal.eternity_6
+    legacy_id: P2-07
+    title: 封印 6 永恒（打 60 次）
+    description: 猩猩压迫→纳多雷属性反转→哈莫龙之意志→回避耗到「圣光气」→龙王波连续输出 60 次，注意别被反伤反死。
+    phase: P2
+    priority: 65
+    prerequisites: [puni.seal.entry_nav, puni.roster.spt_hamoleite, puni.roster.spt_naduolei, puni.roster.fuse_flame, state.battle_capable]
+    requires_capabilities: [battle.log_read, battle.skill_select, battle.stage_read]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.seal.6}
+    status: unknown
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 60, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-07
+    blocked_reason: U-A7「60 次」的语义不明（命中？回合？有效伤害？）→ 写不出终止条件
+    notes: "文档标 unknown。视频只做快进。另一个坑：谱尼 HP 会回升（视频观测 214→294→334/414）→ 判据不可是血条，必须是「次数」或战报文本。这也是本节点 completion 用面板 flag 而不是血量的原因。"
+  - id: puni.seal.holy_7
+    legacy_id: P2-08
+    title: 封印 7 圣洁（三次龙之意志 + 灭碎阵）
+    description: 猩猩压迫→纳多雷属性反转（谱尼转地面系）→哈莫龙之意志×3→龙王灭碎阵单挑，打完即 1-7 封印全清。
+    phase: P2
+    priority: 68
+    prerequisites: [puni.seal.entry_nav, puni.roster.spt_hamoleite, puni.roster.spt_naduolei, puni.roster.fuse_flame, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.switch_pet]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.seal.7}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 45, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-08
+    blocked_reason: 需要选招与换人（未实现）；哈莫雷特/纳多雷/魔焰猩猩都没有
+    notes: "文档 R11：作者文字版把封印 6/7 的编号写反了，本图与节点按视频实测顺序编号（名称互换已确认）。清完 7 个封印才可能进真身（P3-01，U-B10 未验证）。"
+  - id: puni.seal.boss_pp_empty
+    legacy_id: P2-09
+    title: 空 PP 窗口识别（圣光气）【横切】
+    description: 读「当前战报」滚动文本，匹配 `圣光气` 后标记 BOSS_PP_EMPTY，把状态机切进「可安全输出」分支。
+    phase: P2
+    priority: 88
+    prerequisites: []
+    requires_capabilities: [battle.log_read]
+    completion:
+      type: capability_demonstrated
+      predicate: capability_demonstrated
+      args: {capability: battle.log_read}
+    status: todo
+    executable: false
+    skill: game.observe_battle_log
+    skill_inputs: {pattern: 圣光气}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P2-09
+    blocked_reason: CAP-LOGREAD 不存在（战报区坐标已知 (500..760, 1110+)，但从未当作文本流读过）
+    notes: "文档「五个最高价值节点」排第 1：7 个封印 + 真身 6 命全部复用这一个判据，priority 高于任何单个封印。U-A6：`圣光气` 是否等价于「全部招式空 PP」（也可能只是某一招）—— 若是后者，整套「耗 PP」打法都要改。completion 类型是 capability_demonstrated：它证明的是「能力建成并有一次真机演示」，不是账号状态，所以永不自动完成。"
+  # ------------------------------------------------------------------ P3 --
+  - id: puni.truebody.enter
+    legacy_id: P3-01
+    title: 真身进场
+    description: 7 封印全清后，在谱尼面板选 S 级真身、确认 7 只阵容、进战斗，直到屏幕出现「谱尼真身」+「第一命」。
+    phase: P3
+    priority: 66
+    prerequisites:
+      - puni.seal.vacuum_1
+      - puni.seal.element_2
+      - puni.seal.energy_3
+      - puni.seal.life_4
+      - puni.seal.samsara_5
+      - puni.seal.eternity_6
+      - puni.seal.holy_7
+      - puni.roster.team_compose
+      - state.battle_capable
+    requires_capabilities: [team.compose, battle.stage_read]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.entered}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 15, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P3-01
+    blocked_reason: 7 个封印一个都没打；U-B10「真身是否必须先清 7 封印」本身未验证；U-A3 S 级奖励范围未知
+    notes: "「第N命」的读数（battle.stage_read）是整段真身战斗的节拍器，未实现。若 U-B10 为假（不需 7 封印），本节点的前置会大幅减少 —— 值得优先查证。"
+  - id: puni.truebody.life_1_vacuum
+    legacy_id: P3-02
+    title: 命 1 虚无（萨帕克 感应+精神强化+龙息）
+    description: 感应保命优先，精神强化提特攻，七彩龙息输出，HP 低就嗑超级体力药剂。
+    phase: P3
+    priority: 60
+    prerequisites: [puni.truebody.enter, puni.roster.buy_salake, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.hp_read, battle.stage_read, battle.item_use]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.life1}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 45, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P3-02
+    blocked_reason: 需要选招/读HP/读阶段/用药（全未实现）；缺萨帕克
+    notes: "未验证：命 1 是否与封印 1 同构 —— 若同构，P2-02 建成的能力可整段复用。"
+  - id: puni.truebody.life_2_element
+    legacy_id: P3-03
+    title: 命 2 元素（塞维尔 锁敌 + 龙之毒）
+    description: 萨帕克先打点血，换塞维尔「锁敌」提命中后反复挂「龙之毒」，毒到死。
+    phase: P3
+    priority: 58
+    prerequisites: [puni.truebody.life_1_vacuum, puni.roster.spt_saiweier, state.battle_capable]
+    requires_capabilities: [battle.switch_pet, battle.skill_select, battle.log_read]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.life2}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 40, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P3-03
+    blocked_reason: 需要换人/选招/读战报（未实现）；缺塞维尔（龙王殿线 unknown）
+    notes: "未验证：龙之毒命中 50% → 需要重试逻辑；中毒每回合 1000 是否本服一致。"
+  - id: puni.truebody.life_3_energy
+    legacy_id: P3-04
+    title: 命 3 能量（相位移动耗 PP → 克罗达漩涡×7）
+    description: 萨帕克上感应、耗光谱尼 5 个圣灵魔闪光；全程相位移动躲千烈虚光闪/旋灭裂空阵（约 20 个）；等连续圣光气，塞维尔过渡后换克罗达「意念集中」×2，漩涡点 7 下冻死。
+    phase: P3
+    priority: 56
+    prerequisites: [puni.truebody.life_2_element, puni.roster.kelida_awaken, puni.roster.spt_saiweier, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.switch_pet, battle.pp_read, battle.log_read]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.life3}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 60, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P3-04
+    blocked_reason: 需要选招/换人/读PP/读战报（全未实现）；克罗达与塞维尔都没有
+    notes: "未验证：相位移动 PP=20 与「能躲约 20 个技能」是否同一回事 —— 若不等价，躲避窗口的判据要重写。"
+  - id: puni.truebody.life_4_life
+    legacy_id: P3-05
+    title: 命 4 生命（克罗达 偏激防守弹伤）
+    description: 克罗达 Lv1 特防6 上场用「偏激防守」，等谱尼攻击 → 伤害反弹 → 谱尼被击败，快攻收尾。
+    phase: P3
+    priority: 54
+    prerequisites: [puni.truebody.life_3_energy, puni.roster.kelida_awaken, state.battle_capable]
+    requires_capabilities: [battle.skill_select]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.life4}
+    status: unknown
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 20, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P3-05
+    blocked_reason: U-A8「反弹比例与特防=6 的关系」原理未解释；是否依赖谱尼自选攻击招也未知 → 机制本身不明
+    notes: "文档标 unknown：这是全图唯一「靠一条未解释的机制取胜」的战斗节点。若原理不成立，克罗达白练、命 4 打不死。"
+  - id: puni.truebody.life_5_samsara
+    legacy_id: P3-06
+    title: 命 5 轮回（4 条 HP）★第二难
+    description: (1) 萨帕克感应扛→相位移动耗光千烈虚光闪→纳多雷属性反转→地裂磨→闪光波克尔同生共死→卡奥鲁补刀→塞维尔锁敌+龙之毒→毒剩1回合时提前换萨帕克接；(2) 塞维尔丢毒提速→仙女龙补掉；(3) 塞维尔丢毒毒死。
+    phase: P3
+    priority: 52
+    prerequisites:
+      - puni.truebody.life_4_life
+      - puni.roster.buy_salake
+      - puni.roster.buy_flash_pipi
+      - puni.roster.buy_kaolu
+      - puni.roster.spt_naduolei
+      - puni.roster.spt_saiweier
+      - state.battle_capable
+    requires_capabilities: [battle.switch_pet, battle.buff_count, battle.log_read, budget.stop]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.life5}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 120, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P3-06
+    blocked_reason: 文档判 human-only；「毒剩 1 回合时提前换人」是纯预判（U-B6 对方 buff 剩余回合是否可读未知）；「仙女龙」甚至不在 7 只主力清单里
+    notes: "文档标 human-only 的第二处战斗节点。注意作者的「仙女龙」出现得没有来历（§4.4 第(2)命提到），本图没有对应获取节点 —— 这是一个未追查的缺口，不假装它存在。"
+  - id: puni.truebody.life_6_final
+    legacy_id: P3-07
+    title: 命 6（塞维尔 重踏 + 毒循环）
+    description: 塞维尔「重踏」→「龙之毒」循环，初级活力药剂补 PP，毒死收工，谱尼真身结束、成就达成。
+    phase: P3
+    priority: 50
+    prerequisites: [puni.truebody.life_5_samsara, puni.roster.spt_saiweier, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.pp_read, battle.item_use]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.defeated}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {battles: 1}
+    budget: {max_minutes: 30, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P3-07
+    blocked_reason: 需要选招/读PP/战斗内用药（未实现）；缺塞维尔
+    notes: "「第六命无对应封印」—— 这也是为什么真身不能靠封印的经验外推。U-A3 成就/奖励内容未知，completion 只能证明面板说「谱尼真身被击败」，不证明拿到了什么。"
+  # ------------------------------------------------------------------ P4 --
+  - id: puni.crosscut.item_use
+    legacy_id: P4-01
+    title: 战斗内用药（体力 / 活力）
+    description: 点「道具」→ 选药剂 → 确认 → 校验 HP/PP 已回升；HP 低于阈值或关键技能 PP 低于阈值时触发。
+    phase: P4
+    priority: 80
+    prerequisites: [state.scene_is:BATTLE]
+    requires_capabilities: [battle.item_use, battle.hp_read, battle.pp_read]
+    completion:
+      type: capability_demonstrated
+      predicate: capability_demonstrated
+      args: {capability: battle.item_use}
+    status: todo
+    executable: false
+    skill: game.use_item
+    skill_inputs: {item: 超级体力药剂}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: retry
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P4-01
+    blocked_reason: CAP-ITEM 不存在（「道具」按钮 = 右下 2×2 的右上，坐标未验证）；HP/PP 解析器不存在 → 没有触发判据
+    notes: "横切能力，被封印 1/4/5、真身 1/3/6 命共用。未验证：用药是否消耗回合（影响时序）、药剂栏排序是否稳定。"
+  - id: puni.crosscut.switch_pet
+    legacy_id: P4-02
+    title: 战斗内换精灵
+    description: 点「精灵」→ 选目标精灵 → 确认 → 校验上场精灵名（战报出现「XX登场了」）。
+    phase: P4
+    priority: 79
+    prerequisites: [state.scene_is:BATTLE]
+    requires_capabilities: [battle.switch_pet, battle.log_read]
+    completion:
+      type: capability_demonstrated
+      predicate: capability_demonstrated
+      args: {capability: battle.switch_pet}
+    status: todo
+    executable: false
+    skill: game.switch_pet
+    skill_inputs: {pet: next}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: retry
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P4-02
+    blocked_reason: CAP-SWITCH 不存在（「精灵」按钮 = 右下 2×2 的左下，坐标未验证）；战报读取（P2-09）未实现 → 换人成功无法校验
+    notes: "横切能力，被封印 2/5/7 与真身 2/3/4/5 命共用。未验证：换人是否消耗回合、阵亡后是否强制换人。"
+  - id: puni.crosscut.defeat_retry
+    legacy_id: P4-03
+    title: 战败 / 重试判定
+    description: 读结算面板文本判定胜负；失败则回入口重新进入并核对剩余次数。
+    phase: P4
+    priority: 78
+    prerequisites: [state.battle_capable]
+    requires_capabilities: [battle.defeat_branch, daily.quota]
+    completion:
+      type: capability_demonstrated
+      predicate: capability_demonstrated
+      args: {capability: battle.defeat_branch}
+    status: unknown
+    executable: false
+    skill: game.observe_result
+    skill_inputs: {read_only: true}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P4-03
+      - AGENTS.md#6
+    blocked_reason: U-A5「失败是否消耗每日次数」未解；G1：全项目**没有任何失败样本**（真机 11 场全胜、40 分钟视频作者一次没输）→ 连「失败」模板都不存在
+    notes: "文档标 unknown，Round 4 之后这一点**没有改善**：不是「没写代码」，而是「没有样本」。按 AGENTS.md G1，失败分支规则保持禁用。这条要一直保留，别被「我们全胜」的假象骗过去。"
+  - id: puni.crosscut.long_battle_watch
+    legacy_id: P4-04
+    title: 长战看护（165 回合、弹窗/断线恢复）
+    description: 回合数单调性校验；长时间无变化升级 UNKNOWN；识别并关闭成就/活动/公告弹窗；断线重连后恢复状态；预算耗尽则安全停机。
+    phase: P4
+    priority: 86
+    prerequisites: [state.battle_capable]
+    requires_capabilities: [battle.long_watch, budget.stop]
+    completion:
+      type: capability_demonstrated
+      predicate: capability_demonstrated
+      args: {capability: battle.long_watch}
+    status: partial
+    executable: false
+    skill: game.watch_long_battle
+    skill_inputs: {max_turns: 165}
+    budget: {max_minutes: 180, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/PUNI_TASK_GRAPH.md#P4-04
+      - docs/progress.md#round-4
+    blocked_reason: 165 回合长战从未跑过；弹窗（成就/活动/公告）识别与断线重连恢复都未实现/未构造
+    notes: "状态已从 todo 升为 partial（依据 Round 4 真机）：次数/时长预算（`budget reached`）、无进展停滞守卫（`no progress for Ns`）、暂停/恢复/SIGINT 停止、点击落空后 8 s 带原因安全停止 —— 全部实测触发过。⚠️ 仍未验证：165 回合长战、弹窗识别、断线恢复。文档的 P8 缺口因此是「部分关闭」，不是关闭。"

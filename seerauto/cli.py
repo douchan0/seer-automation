@@ -486,6 +486,10 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("--config", default=None)
     replay.set_defaults(func=cmd_replay)
 
+    from .goalcli import add_goal_subcommand
+
+    add_goal_subcommand(sub)
+
     bench = sub.add_parser("bench", help="micro-benchmark the hot-loop primitives")
     bench.add_argument("--frame", default=None, help="fixture PNG (default artifacts/game.png)")
     bench.add_argument("--iterations", type=int, default=30)
@@ -509,3 +513,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\ninterrupted", file=sys.stderr)
         return 130
+    except Exception as exc:  # noqa: BLE001 - a CLI crash must be readable, not a traceback
+        from .runner.control import LockHeld
+
+        if isinstance(exc, LockHeld):
+            print(f"refused: {exc}", file=sys.stderr)
+            return 4
+        raise

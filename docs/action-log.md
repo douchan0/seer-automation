@@ -4,7 +4,7 @@
 
 ## 2026-10-31
 
-- 17:20–17:30 侦察：定位客户端 /Applications/SeerGame.app（Electron+PepperFlash），数据目录 ~/Library/Application Support/seer-game，内置本地服务 127.0.0.1:3444；账号 hello/188365991
+- 17:20–17:30 侦察：定位客户端 /Applications/SeerGame.app（Electron+PepperFlash），数据目录 ~/Library/Application Support/seer-game，内置本地服务 127.0.0.1:3444；账号 hello/<REDACTED_UID>
 - 17:25 建立自动化工具链：seerctl（截图窗口列表/OCR/鼠标/键盘/改窗口尺寸）+ play.py 驱动
 - 17:26 与用户确认「辅助功能」授权（AXIsProcessTrusted=true）
 - 17:28–17:40 拆解视频计划（子代理）：产出 docs/plan-from-video.md、docs/checklist.md

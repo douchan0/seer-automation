@@ -42,3 +42,11 @@ native/bin/
 # Editors / OS
 .vscode/
 .idea/
+
+# Goal-runner runtime data (local only; never commit account state)
+data/*.sqlite3
+data/*.sqlite3-shm
+data/*.sqlite3-wal
+data/reports/
+data/ai/
+data/live_run.log
