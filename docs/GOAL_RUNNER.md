@@ -227,3 +227,10 @@ stop_reason / last_error / next_recovery_action / started_at / updated_at`。
 3. **干净停机**，不消耗 error budget、不重试、不瞎点。
 
 已实现的 recovery：`heal_pet`（全员 0 血）。这是长程任务里"知道自己该停下"的能力。
+
+另外两条"提前止损"规则，都是 2026-11-03 真机踩出来的：
+
+| 规则 | 触发 | 行为 |
+|---|---|---|
+| **空画面停止** | 画面帧对比度 < 25（真实游戏帧实测 63–105，白屏/加载页 ~11） | 立刻停，理由写成「client is not showing game content (blank / loading / error page)」，**不计 error、不重试技能** |
+| **血量下限** | 战斗中 `hp/hp_max <= 25%` | 把这一批连战当作**成功**结束（理由写明 hp floor reached），避免精灵战死导致账号被"锁死"到需要人工回血 |
