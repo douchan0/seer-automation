@@ -134,6 +134,10 @@ def test_at_least_42_nodes_and_every_legacy_id(graph: GoalGraph) -> None:
             # Deliberate re-grouping, documented in the YAML: the level-up node
             # keeps its source id P1-01 but is planned as a P0 prerequisite.
             assert node.phase == "P0" and doc_phase == "1"
+        elif node.id == "puni.prepare.tutor_room":
+            # Derived node (Round 5): new P4-05 id, scheduled as P0 because it is
+            # a prerequisite of the level-up grind.
+            assert node.phase == "P0" and doc_phase == "4"
         else:
             assert node.phase == f"P{doc_phase}", node.id
 
