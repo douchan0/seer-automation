@@ -134,5 +134,21 @@ PYTHONPATH=.pydeps python3 -m seerauto goal resume --allow-input --planner deter
 **结论**：这是外部故障，本地无法修复。等服务器恢复后，重新打开客户端即可。
 如果打开后仍白屏，退出 App 再开一次（不必重装）。
 
+### 8.1 网络诊断（可复现）
+
+```bash
+curl -sS -m 8 -o /dev/null -w "%{http_code}\n" https://www.apple.com        # 200  -> 本机网络正常
+curl -sSL -m 10 -o /dev/null -w "%{http_code}\n" http://version.seerxin.com/seerxin
+#   301 -> 200（HTTPS），返回 {"version":"1.0","requiredMacVersion":"1.0.8.0",...}
+curl -sS -m 8 -o /dev/null -w "%{http_code}\n" http://119.45.28.34:3000/file
+#   curl: (28) Connection timed out      <-- 游戏后端 API 不响应
+ping -c 2 119.45.28.34        # 通，~40 ms（主机活着，只是 3000 端口的服务没响应）
+```
+
+客户端 `app.asar` 里写死的入口是 `http://119.45.28.34:3000/...`（`getInfo` / `file`），
+版本检查走 `http://version.seerxin.com/seerxin`。
+**版本接口是活的，游戏后端 3000 端口超时** —— 这就是白屏 + 标题栏 `502` 的原因。
+本地任何操作都救不了它；等后端恢复即可。
+
 **副作用（必须知道）**：这次重启之后，本轮所有真机验证都被迫停止；
 在此之前跑出的证据（2 个 completed 节点、XP 3633→2573）都是重启之前采集的，未受影响。
