@@ -72,6 +72,8 @@ class RunConfig:
     stop_file: str = DEFAULT_STOP_FILE
     lock_file: str = DEFAULT_LOCK_FILE
     run_id: str | None = None
+    #: Opt-in: open the pet panel during preflight (needs a template-located icon).
+    preflight_pet_panel: bool = False
     planner_options: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -311,6 +313,16 @@ class GoalRunner:
         # previous run (or by the user): settle those first, otherwise opening a
         # panel is impossible and every observation after it is garbage.
         world = self._settle_pending_battle(world)
+        # The pet-panel icon lives in a bottom bar whose position drifts between
+        # scenes (measured: ~100 px between 太空站 and 克洛斯星林间), so opening it
+        # by coordinate is unreliable and can open a stray panel that then blocks
+        # the battle loop.  The battle HUD reports the ally level anyway, so the
+        # panel path is opt-in rather than part of every preflight.
+        if not self.config.preflight_pet_panel:
+            world.notes.append(
+                "preflight: pet panel skipped (opt-in); ally level will be read "
+                "from the battle HUD")
+            return world
         if "game.read_active_pet_level" not in self.registry:
             return world
         ctx = self._skill_ctx(world, max_duration_s=60.0, max_actions=4)
@@ -729,6 +741,12 @@ class GoalRunner:
                 for r in results:
                     self.store.append_event(run_id, f"skill.{r.status.value.lower()}",
                                             f"{r.skill}: {r.proof or r.reason}", r.to_dict())
+                # heartbeat stats: a 45-minute run must be observable while it
+                # runs, not only after it stops
+                self.store.update_run(run_id, stats={
+                    "battles": self._battles, "actions": self._actions,
+                    "errors": self._errors, "loops": self._loops,
+                    "elapsed_s": round(self.elapsed_s, 1)})
 
                 if self.config.dry_run or not self.config.allow_input:
                     end_reason = "dry run complete (no input was sent)"

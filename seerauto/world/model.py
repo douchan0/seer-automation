@@ -496,6 +496,10 @@ class GameWorldState:
             "unlocked": {k: v.value for k, v in self.unlocked.items()},
             "unknowns": list(self.unknowns),
             "notes": list(self.notes),
+            # battle-UI progress signal: how much XP is still missing for the
+            # next level.  This is what makes "a level is close" observable
+            # without opening the pet panel.
+            "xp_to_next": self.observations.get("pet_xp_to_next"),
         }
 
     def describe(self) -> str:  # pragma: no cover - human/debug output

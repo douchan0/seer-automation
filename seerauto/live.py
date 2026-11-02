@@ -45,7 +45,7 @@ TEMPLATE_DIR = os.path.join(ROOT, "seerauto", "templates", "live")
 #: Search regions in ``game_px`` (window-local device pixels of the 2x capture).
 #: These are *search* regions, not click coordinates: the click point always
 #: comes from the match itself, so a shifted stage does not misclick.
-ROI_FIGHT = (1710, 1130, 2040, 1260)
+ROI_FIGHT = (1650, 1100, 2100, 1400)
 ROI_VICTORY = (980, 640, 1430, 790)
 ROI_DIALOG = (1070, 940, 1300, 1040)
 ROI_SCENE = (200, 340, 2260, 1330)
@@ -65,6 +65,12 @@ CONFIRM_WORDS = ("确认", "確定", "确定", "我已知晓", "我知道啦", "
 #: that is missing here is invisible to the state machine, so this tuple is the
 #: first place to look when "clicks do nothing".
 CONFIRM_TEMPLATES = ("live_confirm_btn", "live_confirm_xp", "live_confirm_xp2")
+
+#: Every known 战斗-button style.  The button is redrawn per battle state (idle vs
+#: highlighted), and a single template scored 0.0 on a live battle frame while
+#: ``live_turn_badge`` matched at 1.00 — i.e. the state machine called a real
+#: battle "WORLD" and went hunting for monsters instead of attacking.
+FIGHT_TEMPLATES = ("live_fight_btn", "live_fight_btn2")
 
 
 class LiveError(RuntimeError):
@@ -271,7 +277,12 @@ class LiveSession:
 
         if frame is None:
             frame = self.latest()
-        p_fight = self.score(frame, "live_fight_btn", ROI_FIGHT)
+        p_fight = None
+        for name in FIGHT_TEMPLATES:
+            probe = self.score(frame, name, ROI_FIGHT)
+            if p_fight is None or probe.score > p_fight.score:
+                p_fight = probe
+        assert p_fight is not None
         p_victory = self.score(frame, "live_victory_word", ROI_VICTORY)
         # Three dialog styles are known; taking the best match instead of a
         # single template is what made the 「恭喜你得到了N个积累经验」 modal

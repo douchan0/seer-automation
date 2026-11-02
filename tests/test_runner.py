@@ -234,7 +234,7 @@ def test_unknown_is_not_wiped_to_false(tmp_path):
 
 
 def test_preflight_reads_pet_level_and_persists_live_evidence(tmp_path):
-    r = _runner(tmp_path)
+    r = _runner(tmp_path, preflight_pet_panel=True)
     world = r.preflight(r.observe())
     assert world.active is not None
     assert world.active.level == 34
@@ -371,3 +371,12 @@ def test_lock_holder_reports_pid(tmp_path):
         assert f"pid={os.getpid()}" in (lock.holder() or "")
     finally:
         lock.release()
+
+
+def test_preflight_skips_pet_panel_by_default(tmp_path):
+    """The panel path is opt-in: its icon coordinate drifts between scenes."""
+
+    r = _runner(tmp_path)
+    world = r.preflight(r.observe())
+    assert world.active is None
+    assert any("pet panel skipped" in n for n in world.notes)

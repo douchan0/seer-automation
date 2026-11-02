@@ -90,6 +90,8 @@ def _print_summary(summary: dict[str, Any]) -> None:
         if pet:
             print(f"        pet {pet.get('name')} Lv{pet.get('level')} "
                   f"hp {pet.get('hp')}/{pet.get('hp_max')}")
+        if world.get("xp_to_next") is not None:
+            print(f"        xp_to_next {world['xp_to_next']}")
         if world.get("spt_defeated"):
             print(f"        spt defeated: {', '.join(world['spt_defeated'])}")
     nxt = summary.get("next_observations") or []

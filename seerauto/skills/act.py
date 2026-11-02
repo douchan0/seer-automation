@@ -156,20 +156,32 @@ class OpenPanel(_Base):
         if panel not in ICON:
             return SkillResult.fail(self.id, f"unknown panel {panel!r}; known: {sorted(ICON)}")
         ensure_world(ctx)
-        ok, why = self.click_and_check(ctx, ICON[panel], f"open {panel}")
-        if not ok:
-            return SkillResult.blocked(self.id, f"click refused: {why}", escalation="pause")
-        # verify: the panel's own words must show up
-        deadline = time.perf_counter() + 4.0
-        seen = ""
-        tried = 0
-        while time.perf_counter() < deadline:
-            items = _ocr(ctx.session)
-            tried += 1
-            seen = _has_text(items, PANEL_MARKERS.get(panel, ())) or ""
+        # A modal (the plain-text 「恭喜你得到了N个积累经验」 style) swallows the icon
+        # click and the panel then "never appears".  Clear modals first, and give
+        # the whole open one retry before declaring failure.
+        for attempt in range(2):
+            if attempt:
+                _dismiss_dialogs(ctx, limit=3)
+                ensure_world(ctx)
+            ok, why = self.click_and_check(ctx, ICON[panel], f"open {panel}")
+            if not ok:
+                return SkillResult.blocked(self.id, f"click refused: {why}", escalation="pause")
+            deadline = time.perf_counter() + 4.0
+            seen = ""
+            tried = 0
+            while time.perf_counter() < deadline:
+                items = _ocr(ctx.session)
+                tried += 1
+                seen = _has_text(items, PANEL_MARKERS.get(panel, ())) or ""
+                if seen:
+                    break
+                # keep looking, but if a known confirm button shows up, it is
+                # covering the panel we just opened
+                if _find(items, CONFIRM_WORDS) is not None:
+                    _dismiss_dialogs(ctx, limit=2)
+                time.sleep(0.4)
             if seen:
                 break
-            time.sleep(0.4)
         if not seen:
             return SkillResult(
                 skill=self.id, status=Status.FAIL, changed=False,
@@ -511,6 +523,10 @@ class RunBattle(_Base):
 
     MONSTER_TEMPLATES = ("live_monster_moguguai", "live_monster_moguguai_alt")
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._last_xp_to_next: float | None = None
+
     def _best_monster(self, session: Any) -> Any:
         """Best candidate over every known monster sprite (max score)."""
 
@@ -528,10 +544,20 @@ class RunBattle(_Base):
     def _read_battle_hud(session: Any) -> tuple[int | None, tuple[int, int] | None]:
         """Ally level + HP from one OCR of the battle HUD."""
 
-        try:
-            items = session.ocr(min_conf=0.3)
-        except Exception:  # noqa: BLE001
-            return None, None
+        items: list[dict[str, Any]] = []
+        for conf in (0.3, 0.2):
+            try:
+                items = session.ocr(min_conf=conf)
+            except Exception:  # noqa: BLE001
+                return None, None
+            if items:
+                try:
+                    from .parsers import parse_level
+
+                    if parse_level(items, side="ally") is not None:
+                        break
+                except Exception:  # noqa: BLE001
+                    pass
         level = hp = None
         try:
             from .parsers import parse_hp, parse_level
@@ -548,16 +574,21 @@ class RunBattle(_Base):
         s = ctx.session
         items = _ocr(s, min_conf=0.3)
         reward: dict[str, Any] = {}
-        for it in items:
-            text = str(it.get("text") or "")
-            if "积累经验" in text or ("经验" in text and any(ch.isdigit() for ch in text)):
-                import re
+        # Only real payouts count as XP.  「离升级还需经验：N」 looks identical to a
+        # naive regex but means "still missing" — counting it inflated one pass to
+        # 7478 XP when the pet had actually gained 848.  parsers.parse_reward
+        # encodes that distinction (and is tested against real frames).
+        try:
+            from .parsers import parse_reward
 
-                m = re.search(r"(\d+)", text)
-                if m:
-                    reward["xp"] = float(m.group(1))
-                    reward["raw"] = text
+            for entry in parse_reward(items):
+                if entry.get("kind") == "经验" and entry.get("amount") is not None:
+                    reward["xp"] = float(entry["amount"])
+                    reward["raw"] = entry.get("raw", "")
                     break
+        except Exception:  # noqa: BLE001 - parser is optional at runtime
+            pass
+        prev = self._last_xp_to_next
         for it in items:
             text = str(it.get("text") or "")
             if "离升级" in text and any(ch.isdigit() for ch in text):
@@ -565,7 +596,16 @@ class RunBattle(_Base):
 
                 m = _re.search(r"(\d+)", text)
                 if m:
-                    reward["xp_to_next"] = float(m.group(1))
+                    value = float(m.group(1))
+                    reward["xp_to_next"] = value
+                    # 「离升级还需经验」 only ever falls while grinding; a jump *up*
+                    # means the requirement was reset, i.e. the pet levelled up.
+                    # That is an observation, not a guess: it cannot happen for
+                    # any other reason while the pet line is unchanged.
+                    if prev is not None and value > prev + 50:
+                        reward["level_up_detected"] = True
+                        reward["xp_to_next_before"] = prev
+                    self._last_xp_to_next = value
                     break
         # dismiss whatever dialog is still up so the next loop starts clean
         hit = _find(items, CONFIRM_WORDS)
