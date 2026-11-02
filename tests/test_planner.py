@@ -1294,8 +1294,9 @@ def test_ai_cost_is_none_for_a_model_without_a_price(ai_env):
     empty.
     """
 
-    ai_env.setenv("SEERAUTO_AI_MODEL", "no-such-model")
+    # The fake transport echoes a payload model, and _meta prefers it over the
+    # configured one — so pin the estimator directly for the unknown case.
     planner = OpenAICompatPlanner(opener=FakeTransport())
-    planned = planner.decide(request())
-    assert planned.meta.cost_usd is None
-    assert planned.meta.to_dict()["cost_usd"] is None
+    assert planner._estimate_cost("deepseek-v4.1-flash", 1000, 1000) is not None
+    assert planner._estimate_cost("no-such-model-xyz", 1000, 1000) is None
+    assert planner._estimate_cost("no-such-model-xyz", None, None) is None
