@@ -760,6 +760,59 @@ class ConfirmDialog(_Base):
                                  after={"text": hit["text"]}, actions=1)
 
 
+class ClickText(_Base):
+    """OCR a label, click it, and return what the screen says afterwards.
+
+    This is the *exploration* primitive: it lets the agent probe an unknown UI
+    ("is there a 辅导员 here? what does the dialog say?") without hard-coded
+    coordinates, and it always returns the resulting text so the observation is
+    evidence rather than an assumption.
+    """
+
+    spec = SkillSpec(
+        id="game.click_text",
+        kind=SkillKind.ACT,
+        summary="按屏幕文字点击一个标签，并把点击后的整屏文本返回（用于探索未知界面）",
+        inputs={"text": {"type": "str", "required": True},
+                "exact": {"type": "bool", "required": False},
+                "settle_s": {"type": "float", "required": False}},
+        outputs={"clicked": "str", "after_text": "list"},
+        max_duration_s=25.0,
+        max_actions=1,
+        requires_input=True,
+        verified="unverified",
+    )
+
+    def run(self, ctx: SkillContext, text: str = "", exact: bool = False,
+            settle_s: float = 1.6) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        s = ctx.session
+        items = _ocr(s, min_conf=0.3)
+        hit = _find(items, (text,), exact=exact)
+        if hit is None:
+            return SkillResult(
+                skill=self.id, status=Status.BLOCKED, changed=False,
+                reason=f"text {text!r} not on screen",
+                data={"visible": [i["text"] for i in items][:25]},
+                escalation="replan")
+        ok, why = self.click_and_check(ctx, hit["px"], f"click {hit['text']!r}")
+        if not ok:
+            return SkillResult.blocked(self.id, f"click refused: {why}", escalation="pause")
+        time.sleep(settle_s)
+        after = _ocr(s, min_conf=0.3)
+        return SkillResult.pass_(
+            self.id,
+            proof=f"clicked {hit['text']!r}; after: "
+                  f"{' | '.join(i['text'] for i in after[:6])[:120]}",
+            before={"visible": [i["text"] for i in items][:15]},
+            after={"clicked": hit["text"], "after_text": [i["text"] for i in after]},
+            actions=1,
+            data={"after_items": [(round(i["px"][0]), round(i["px"][1]), i["text"]) for i in after]},
+        )
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -768,6 +821,7 @@ def build_act_skills() -> list[Skill]:
         RunBattle(),
         ReadPetLevel(),
         ConfirmDialog(),
+        ClickText(),
     ]
 
 
@@ -778,6 +832,7 @@ __all__ = [
     "RunBattle",
     "ReadPetLevel",
     "ConfirmDialog",
+    "ClickText",
     "build_act_skills",
     "ICON",
     "PANEL_MARKERS",
