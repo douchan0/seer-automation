@@ -82,3 +82,20 @@ def test_hysteresis_keeps_a_flickering_battle_in_battle(classifier):
     from seerauto.live import TH_FIGHT
 
     assert TH_FIGHT - 0.10 < TH_FIGHT
+
+
+def test_blank_page_is_unknown_not_world():
+    """A loading/error page must never be mistaken for the game world.
+
+    Everything scores 0.0 on a blank frame, which used to read as "no fight
+    button, no victory panel, therefore WORLD" — and the agent would go hunting
+    for monsters on an error page.  Measured: real frames sit at std 63-105,
+    a blank/error page at ~11, so 25 is a safe gate.
+    """
+
+    import numpy as np
+
+    white = np.full((1600, 2400, 3), 255, dtype=np.uint8)
+    dark = np.full((1600, 2400, 3), 20, dtype=np.uint8)
+    assert classifier.scene(white).scene is Scene.UNKNOWN
+    assert classifier.scene(dark).scene is Scene.UNKNOWN

@@ -277,6 +277,20 @@ class LiveSession:
 
         if frame is None:
             frame = self.latest()
+        # A blank/white/black page (client still loading, or an HTTP error page) is
+        # NOT the game world.  Template scores on such a frame are meaningless —
+        # everything reads 0.0, which used to be interpreted as "no fight button,
+        # no victory, so we are in the world".  Report UNKNOWN instead.
+        try:
+            spread = float(frame.std())
+        except Exception:  # noqa: BLE001
+            spread = 255.0
+        # Measured: real game frames (world/battle/victory/panels) sit at std 63-105,
+        # a blank or error page at ~11.  The gap is wide enough to be a safe gate.
+        if spread < 25.0:
+            return SceneProbe(scene=Scene.UNKNOWN,
+                              scores={"frame_std": round(spread, 2)},
+                              points={}, frame_seq=0)
         p_fight = None
         for name in FIGHT_TEMPLATES:
             probe = self.score(frame, name, ROI_FIGHT)
