@@ -334,7 +334,12 @@ def test_ready_skips_everything_not_executable(graph: GoalGraph) -> None:
     world = world_with_active_pet(level=15)
     everything = set(graph.capabilities)
     ready = graph.ready(world=world, completed=set(), capabilities=everything)
-    assert [node.id for node in ready] == ["puni.prepare.level_up"]
+    ids = [node.id for node in ready]
+    # Round 5 added a second executable node (the Puni entrance navigation, which
+    # needs no battle at all); the invariant under test is "display-only nodes
+    # never appear", not a frozen list.
+    assert "puni.prepare.level_up" in ids
+    assert "puni.seal.entry_nav" in ids
     assert all(node.executable for node in ready)
 
 
