@@ -247,6 +247,11 @@ class GoalRunner:
             except Exception:  # noqa: BLE001
                 previous = None
         world = previous.copy() if previous is not None else GameWorldState()
+        if previous is not None and previous.run_id != self.run_id:
+            # Facts carry across runs on purpose; narration does not — a note from
+            # yesterday's run ("dry run: pet level not read") is not a statement
+            # about this one.
+            world.notes = []
         world.run_id = self.run_id
         # window + frontmost are free
         raw = getattr(self.session, "window_raw", {}) or {}
