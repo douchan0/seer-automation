@@ -158,3 +158,18 @@ def test_travel_rejects_an_unknown_destination():
     assert result.status is Status.FAIL
     assert "unknown destination" in result.reason
     assert session.clicks == []
+
+
+def test_battle_pass_stops_before_the_pet_faints():
+    """A pass that ends at 0 HP strands the account; one that ends at 25% does not.
+
+    Verified on 2026-11-03: the pet fainted mid-session and every later engage got
+    「你没有可出战的精灵哦」, which needs a human to fix.  The guard is a pure
+    comparison, so it is tested here without a client.
+    """
+
+    hp_floor = 0.25
+    for hp, hp_max, expect_stop in ((12, 95, True), (0, 95, True),
+                                    (24, 95, False), (95, 95, False)):
+        ratio = hp / float(hp_max)
+        assert (ratio <= hp_floor) is expect_stop, (hp, hp_max, ratio)

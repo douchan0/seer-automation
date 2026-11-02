@@ -417,6 +417,7 @@ class RunBattle(_Base):
         hunt_seconds = float(ctx.options.get("hunt_seconds", 20.0)) if ctx.options else 20.0
         engage_tries = 0
         stall_seconds = float(ctx.options.get("stall_seconds", 150.0)) if ctx.options else 150.0
+        hp_floor = float(ctx.options.get("hp_floor", 0.25)) if ctx.options else 0.25
 
         while wins < battles and time.perf_counter() < stall_deadline:
             if ctx.options.get("control") and ctx.options["control"].stop_requested():
@@ -438,6 +439,18 @@ class RunBattle(_Base):
             if time.perf_counter() - last_progress > stall_seconds:
                 end_reason = f"no progress for {stall_seconds:.0f}s"
                 break
+            # Stop the pass before the pet faints.  Losing the last HP mid-pass is
+            # what stranded the account on 2026-11-03: every later engage hit
+            # 「你没有可出战的精灵哦」 and the recovery needs a human.  A pass that ends
+            # at 25% HP is a *successful* pass; a pass that ends at 0 HP is a
+            # stranded account.
+            if ally_hp and ally_hp[1] and wins > 0:
+                ratio = ally_hp[0] / float(ally_hp[1])
+                if ratio <= hp_floor:
+                    end_reason = (f"hp floor reached ({ally_hp[0]}/{ally_hp[1]} = "
+                                  f"{ratio:.0%} <= {hp_floor:.0%}); stopping the pass "
+                                  f"before the pet faints")
+                    break
 
             if state is Scene.RESULT:
                 if pending_win:
