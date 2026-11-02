@@ -46,17 +46,24 @@ def _open_store(args: Any) -> WorldStore:
     return WorldStore(getattr(args, "db", None) or str(ROOT / "data" / "goalrunner.sqlite3"))
 
 
+def _opt(args: Any, name: str, default: Any) -> Any:
+    """argparse gives ``None`` for subcommands that do not define an option."""
+
+    value = getattr(args, name, None)
+    return default if value is None else value
+
+
 def _config_from_args(args: Any, **overrides: Any) -> RunConfig:
     cfg = RunConfig(
         goal=getattr(args, "goal_name", None) or "puni",
         planner=getattr(args, "planner", "deterministic"),
         dry_run=not getattr(args, "allow_input", False),
         allow_input=bool(getattr(args, "allow_input", False)),
-        max_minutes=float(getattr(args, "max_minutes", 60.0)),
-        max_battles=int(getattr(args, "max_battles", 12)),
-        max_actions=int(getattr(args, "max_actions", 400)),
-        max_spend=float(getattr(args, "max_spend", 0.0)),
-        max_errors=int(getattr(args, "max_errors", 3)),
+        max_minutes=float(_opt(args, "max_minutes", 60.0)),
+        max_battles=int(_opt(args, "max_battles", 12)),
+        max_actions=int(_opt(args, "max_actions", 400)),
+        max_spend=float(_opt(args, "max_spend", 0.0)),
+        max_errors=int(_opt(args, "max_errors", 3)),
         db_path=getattr(args, "db", None) or str(ROOT / "data" / "goalrunner.sqlite3"),
         ai_dir=getattr(args, "ai_dir", None) or str(ROOT / "data" / "ai"),
         run_id=getattr(args, "run_id", None),
