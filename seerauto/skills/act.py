@@ -947,6 +947,72 @@ class ReadPetBag(_Base):
         return result
 
 
+class GotoPuniEntrance(_Base):
+    """Navigate to the Puni entrance and prove arrival by reading the scene.
+
+    Path (verified live 2026-11-03): SPT icon -> category 「太空站左翼」 -> the
+    single card 「谱尼 / 勇者之塔神秘领域」 -> 前往.  Arrival is confirmed by OCR
+    seeing the 勇者之塔 portal plus the guard NPC, so a teleport that silently
+    failed cannot be mistaken for success.
+    """
+
+    spec = SkillSpec(
+        id="game.goto_puni_entrance",
+        kind=SkillKind.ACT,
+        summary="SPT→太空站左翼→谱尼→前往，并用画面文字证明真的到了勇者之塔神秘领域",
+        inputs={},
+        outputs={"unlocked": "dict", "scene_text": "list"},
+        preconditions=("scene.world",),
+        max_duration_s=90.0,
+        max_actions=6,
+        requires_input=True,
+        verified="real",
+        evidence=("artifacts/round5/09_puni_entrance.png",),
+    )
+
+    #: Words that can only be seen in 勇者之塔神秘领域.
+    ARRIVAL_MARKERS = ("勇者之塔", "神秘领域", "卫兵")
+
+    def run(self, ctx: SkillContext) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        nav = NavigateSptBoss()(ctx, boss="谱尼", category="太空站左翼")
+        if not nav.ok:
+            return SkillResult.fail(self.id, f"could not reach the Puni card: {nav.reason}",
+                                    data={"navigation": nav.to_dict()})
+        # The 勇者之塔 sign is drawn art, not text: OCR reads nothing there, so
+        # arrival is proved by template-matching the portal itself (self 1.00,
+        # other scenes <=0.46).  OCR text is kept as supporting evidence only.
+        deadline = time.perf_counter() + 20.0
+        seen: list[str] = []
+        matched = 0.0
+        while time.perf_counter() < deadline:
+            frame = ctx.session.latest()
+            probe = ctx.session.score(frame, "live_puni_tower_sign", (200, 340, 2260, 1330))
+            matched = max(matched, probe.score)
+            items = _ocr(ctx.session, min_conf=0.25)
+            texts = [str(i.get("text") or "") for i in items]
+            if probe.score >= 0.85:
+                seen = texts
+                break
+            time.sleep(0.8)
+        if matched < 0.85:
+            return SkillResult.fail(
+                self.id,
+                f"teleport happened but the 勇者之塔 portal was not confirmed "
+                f"(best template score {matched:.2f})",
+                data={"after_nav": nav.to_dict()})
+        return SkillResult.pass_(
+            self.id,
+            proof=f"arrived at 勇者之塔神秘领域 (portal template {matched:.2f})",
+            after={"unlocked": {"puni.entrance.reachable": True},
+                   "scene_text": seen[:20]},
+            actions=3,
+            evidence=[Evidence.live("ocr:勇者之塔神秘领域", detail=", ".join(seen[:6]))],
+        )
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -957,6 +1023,7 @@ def build_act_skills() -> list[Skill]:
         ConfirmDialog(),
         ClickText(),
         ReadPetBag(),
+        GotoPuniEntrance(),
     ]
 
 
@@ -969,6 +1036,7 @@ __all__ = [
     "ConfirmDialog",
     "ClickText",
     "ReadPetBag",
+    "GotoPuniEntrance",
     "build_act_skills",
     "ICON",
     "PANEL_MARKERS",

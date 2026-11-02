@@ -38,6 +38,10 @@ FARM_BOSS = "蘑菇怪"
 
 PLAYBOOKS: dict[str, tuple[Step, ...]] = {
     # 练级：先确保人在刷怪场景（可验证的传送），再连战。
+    # 谱尼入口：纯导航，不需要战斗，因此即使宠物全员 0 血也能完成。
+    "puni.seal.entry_nav": (
+        Step("game.goto_puni_entrance", {}, label="SPT→太空站左翼→谱尼→前往"),
+    ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
              label="传送到已验证的刷怪场景"),

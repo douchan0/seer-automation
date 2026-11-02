@@ -40,7 +40,7 @@ from ..goals.graph import GoalGraph, GoalNode
 from ..planner import (PlanDecision, PlanRequest, Planner, PlannerError,
                        PlannerUnavailable, build_planner)
 from ..skills.base import Budget, SkillContext, SkillRegistry, SkillResult, Status
-from ..world.model import Evidence, GameWorldState, Scene, Source, now_iso
+from ..world.model import Evidence, Fact, GameWorldState, Scene, Source, now_iso
 from ..world.store import WorldStore
 from .control import (DEFAULT_LOCK_FILE, DEFAULT_PAUSE_FILE, DEFAULT_STOP_FILE,
                       InstanceLock, RunControl)
@@ -203,7 +203,7 @@ class GoalRunner:
         cfg = self.config
         if cfg.max_minutes and self.elapsed_s / 60.0 >= cfg.max_minutes:
             return f"time budget {cfg.max_minutes:.0f} min reached"
-        if self._battles >= cfg.max_battles:
+        if cfg.max_battles and self._battles >= cfg.max_battles:
             return f"battle budget {cfg.max_battles} reached"
         if self._actions >= cfg.max_actions:
             return f"action budget {cfg.max_actions} reached"
@@ -641,6 +641,16 @@ class GoalRunner:
                 world.set_fact(f"pets.{name}.level", int(level), evidence)
                 world.set_fact("state.active_pet_level_known", True, evidence)
                 changed = True
+            unlocked = after.get("unlocked")
+            if isinstance(unlocked, Mapping):
+                for key, value in unlocked.items():
+                    world.set_fact(f"unlocked.{key}", value,
+                                   Evidence.live(f"skill {result.skill}",
+                                                 detail=str(result.proof)[:200]))
+                    world.unlocked[str(key)] = Fact(value, Evidence.live(
+                        f"skill {result.skill}", detail=str(result.proof)[:200]))
+                    changed = True
+                    world.notes.append(f"unlocked: {key} = {value}")
             xp_to_next = after.get("xp_to_next")
             if xp_to_next is not None:
                 world.observations["pet_xp_to_next"] = float(xp_to_next)
@@ -772,6 +782,26 @@ class GoalRunner:
                     "battles": self._battles, "actions": self._actions,
                     "errors": self._errors, "loops": self._loops,
                     "elapsed_s": round(self.elapsed_s, 1)})
+
+                # A hard blocker (no usable pet) is not an error to retry: stop
+                # cleanly, record the recovery action, and leave the run resumable.
+                hard = next((r for r in results
+                             if r.status is Status.BLOCKED
+                             and isinstance(r.data, Mapping)
+                             and r.data.get("recovery")), None)
+                if hard is not None:
+                    end_reason = f"blocked: {hard.reason}"
+                    self.store.set_node_state(run_id, node.id, "blocked",
+                                              proof=hard.reason,
+                                              detail={"recovery": hard.data.get("recovery"),
+                                                      "results": last_result["results"]})
+                    self.store.update_run(run_id, next_recovery_action=hard.data.get("recovery"),
+                                          stop_reason=end_reason)
+                    self.store.append_event(run_id, "run.blocked", end_reason,
+                                            {"recovery": hard.data.get("recovery")})
+                    self.log(f"[runner] BLOCKED: {end_reason} "
+                             f"(recovery: {hard.data.get('recovery')})")
+                    break
 
                 if self.config.dry_run or not self.config.allow_input:
                     end_reason = "dry run complete (no input was sent)"

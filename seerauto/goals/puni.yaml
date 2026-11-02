@@ -75,6 +75,10 @@ conventions:
   skills: "skill 字段写的是“该节点应由哪个语义技能执行”，不保证已实现；真机只有 game.run_battle 有原型（tools/battle_run.py）"
 
 capabilities:
+  puni.entrance:
+    summary: SPT→太空站左翼→谱尼→前往 可达勇者之塔神秘领域（2026-11-03 真机验证）
+    verified: real
+    evidence: artifacts/round5/09_puni_entrance.png
   observe.window:
     summary: 查找游戏窗口 + 几何冻结（选面积最大的窗口，忽略 <200px 的辅助窗口）
     verified: real
@@ -709,22 +713,22 @@ nodes:
     description: 打开 SPT → 太空站左翼 → 勇者之塔神秘领域 → 点击谱尼 → 读今日剩余挑战次数。
     phase: P2
     priority: 84
-    prerequisites: [state.logged_in, puni.roster.team_compose]
-    requires_capabilities: [spt.panel, puni.panel, daily.quota]
+    prerequisites: [state.logged_in]
+    requires_capabilities: [spt.panel, puni.entrance]
     completion:
       type: verified_account_state
       predicate: feature_unlocked
-      args: {feature: puni.panel.reachable}
+      args: {feature: puni.entrance.reachable}
     status: partial
-    executable: false
-    skill: game.navigate
-    skill_inputs: {target: puni_seal_panel}
-    budget: {max_minutes: 20, max_battles: 0, max_spend: 0}
+    executable: true
+    skill: game.goto_puni_entrance
+    skill_inputs: {}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
     on_failure: pause_and_replan
     evidence:
       - docs/PUNI_TASK_GRAPH.md#P2-01
-      - docs/state.md#坐标系
-    blocked_reason: 唯一的成功证据是 Round 3 人工按旧坐标（1149×714）到达一次；Round 4 坐标系已变（1200×800），入口路径未重测；「今日剩余次数」读数（CAP-DAILY）未实现
+      - artifacts/round5/09_puni_entrance.png
+    notes_round5: "2026-11-03 真机：SPT→太空站左翼 分类下只有 1 个入口「谱尼 / 勇者之塔神秘领域」，点「前往」后确认到达（画面出现「勇者之塔」传送门与卫兵），证据 artifacts/round5/09_puni_entrance.png。因此把 completion 收敛为「入口可达」这一件事，并新增 puni.entrance 能力（real）。「今日剩余次数」仍未读（CAP-DAILY），由后续节点负责。"
     notes: "文档的 partial 只基于「人工到达过一次」（action-log 18:16:42 / 18:09）。⚠️ 那次用的是已作废的坐标空间（docs/state.md：宽高比 1.609→1.5，旧坐标不可缩放复用）→ 在新坐标下等于从未验证。它是所有封印节点的闸门：决定「今天还能打几次」。⚠️ completion 只证明『面板可达』，不证明『今日次数 > 0』—— 每日额度读数（CAP-DAILY）未实现，这一步没有被 predicate 覆盖。U-A5 失败是否消耗次数、U-C3 次数重置时刻未解。"
   - id: puni.seal.vacuum_1
     legacy_id: P2-02

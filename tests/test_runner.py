@@ -317,7 +317,7 @@ def test_budget_stops_the_loop(tmp_path):
                                        capability="game.run_battle", reason="grind",
                                        expected_observation="level rises",
                                        max_actions=10, max_duration_s=120))
-    r = _runner(tmp_path, planner=planner, session=session, max_battles=0)
+    r = _runner(tmp_path, planner=planner, session=session, max_battles=1)
     summary = r.run()
     assert "battle budget" in (summary["stop_reason"] or "")
 
