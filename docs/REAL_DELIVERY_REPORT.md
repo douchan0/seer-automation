@@ -336,3 +336,27 @@ PYTHONPATH=.pydeps python3 -m seerauto goal resume --allow-input --planner deter
 SEERAUTO_AI_API_KEY=… python3 -m seerauto goal start puni --planner ai \
     --allow-input --max-minutes 40 --max-battles 30
 ```
+
+
+---
+
+## 追加（05:25）：这一轮最后补的三条"不再重演"规则
+
+| 规则 | 触发条件 | 行为 | 验证 |
+|---|---|---|---|
+| **空画面立即停止** | 画面帧对比度 `std < 25`（真实游戏帧实测 63–105，白页/加载页 ~11） | 立刻停机，理由写成 `client is not showing game content (blank / loading / error page)`，**不计 error、不重试技能** | 真机 + 单测（`test_blank_client_stops_instead_of_burning_the_error_budget`） |
+| **血量下限提前收工** | 战斗中 `hp/hp_max ≤ 25%` | 把这一批连战当作**成功**结束（`hp floor reached (12/95 = 13% <= 25%)`），避免精灵战死把账号锁死到需要人工 | 单测（`test_battle_pass_stops_before_the_pet_faints`） |
+| **doctor 报告"客户端到底在不在渲染"** | 每次 `seerauto doctor` | `content: BLANK (frame std 11.5) → 502 标题栏 = 服务端挂了` | 真机（本机当前就是这个状态） |
+
+外加：`goal report` 现在输出 **AI 调用审计**（provider/model/latency/prompt+response 字符数/cost/status），
+`goal ai-check` 一条命令判断 provider 通不通。
+
+**服务端故障的最终定性**（05:26，第 72 次探测）：
+
+```
+api.seerxin.com/file            -> 530   Cloudflare 报"源站不可达"
+119.45.28.34:3000/80/443/8080   -> 000   四个端口全超时
+ping 119.45.28.34               -> 通，~40ms
+```
+
+这是**源站宕机**，不是本机问题，也不是路径问题。恢复后重开客户端即可（`docs/NEXT_SESSION_PLAYBOOK.md` §0 有三步登录命令）。
