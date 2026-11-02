@@ -73,7 +73,7 @@ class RunConfig:
     lock_file: str = DEFAULT_LOCK_FILE
     run_id: str | None = None
     #: Opt-in: open the pet panel during preflight (needs a template-located icon).
-    preflight_pet_panel: bool = False
+    preflight_pet_panel: bool = True
     planner_options: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -128,6 +128,7 @@ class GoalRunner:
         self._planner_degraded: str | None = None
         self._node_attempts: dict[str, int] = {}
         self._next_observations: list[dict[str, Any]] = []
+        self._can_battle: bool | None = None
 
     # -- lifecycle --------------------------------------------------------- #
     def open(self) -> "GoalRunner":
@@ -323,11 +324,16 @@ class GoalRunner:
                 "preflight: pet panel skipped (opt-in); ally level will be read "
                 "from the battle HUD")
             return world
-        if "game.read_active_pet_level" not in self.registry:
+        # Prefer the bag reader: it is template-located (the bottom bar drifts),
+        # and it yields HP as well as level — HP is what decides whether a battle
+        # node can run at all.
+        reader = ("game.read_pet_bag" if "game.read_pet_bag" in self.registry
+                  else "game.read_active_pet_level")
+        if reader not in self.registry:
             return world
         ctx = self._skill_ctx(world, max_duration_s=60.0, max_actions=4)
         try:
-            result = self.registry.get("game.read_active_pet_level")(ctx)
+            result = self.registry.get(reader)(ctx)
         except Exception as exc:  # noqa: BLE001
             world.notes.append(f"preflight pet read failed: {exc}")
             return world
@@ -339,13 +345,22 @@ class GoalRunner:
         name = str(result.after.get("name") or "烈火猴")
         evidence = Evidence.live(f"ocr:{result.proof}", detail=result.proof)
         pet = world.pets.get(name) or PetState(name=name)
-        pet.level = result.after.get("level")
+        if result.after.get("level") is not None:
+            pet.level = result.after.get("level")
         pet.evidence = evidence
         pet.active = True
+        bag = result.after.get("pets") or []
+        if bag:
+            pet.hp = bag[0].get("hp")
+            pet.hp_max = bag[0].get("hp_max")
         world.pets[name] = pet
         world.active_pet = name
         world.set_fact("state.active_pet_level_known", True, evidence)
         world.set_fact(f"pets.{name}.level", pet.level, evidence)
+        can_battle = result.after.get("can_battle")
+        if can_battle is not None:
+            world.set_fact("session.battle_ready", bool(can_battle), evidence)
+            self._can_battle = bool(can_battle)
         if result.after.get("xp_to_next") is not None:
             world.observations["pet_xp_to_next"] = result.after["xp_to_next"]
         world.notes.append(f"preflight: {result.proof}")
@@ -560,6 +575,16 @@ class GoalRunner:
             return results, None
         for step in steps:
             if self.control.stop_requested():
+                break
+            # A battle step must not even be attempted when every pet is at 0 HP:
+            # the client answers 「你没有可出战的精灵哦」 and the pass burns its whole
+            # budget on clicks that cannot start a fight (measured 2026-11-03).
+            if "battle" in step.skill and self._can_battle is False:
+                results.append(SkillResult(
+                    skill=step.skill, status=Status.BLOCKED,
+                    reason="no pet can battle (all pets at 0 HP); healing required",
+                    escalation="pause",
+                    data={"recovery": "heal_pet"}))
                 break
             self.control.wait_while_paused(
                 on_pause=lambda: self.log("[runner] PAUSED (control file)"),
@@ -879,6 +904,7 @@ class GoalRunner:
             "proofs": {k: v.get("proof") for k, v in nodes.items() if v.get("proof")},
             "planner_degraded": self._planner_degraded,
             "next_observations": self._next_observations,
+            "battle_ready": self._can_battle,
             "world": None if self._last_world is None else self._last_world.summary(),
             "notes": [] if self._last_world is None else list(self._last_world.notes)[-6:],
         }

@@ -234,7 +234,7 @@ def test_unknown_is_not_wiped_to_false(tmp_path):
 
 
 def test_preflight_reads_pet_level_and_persists_live_evidence(tmp_path):
-    r = _runner(tmp_path, preflight_pet_panel=True)
+    r = _runner(tmp_path)
     world = r.preflight(r.observe())
     assert world.active is not None
     assert world.active.level == 34
@@ -373,10 +373,27 @@ def test_lock_holder_reports_pid(tmp_path):
         lock.release()
 
 
-def test_preflight_skips_pet_panel_by_default(tmp_path):
-    """The panel path is opt-in: its icon coordinate drifts between scenes."""
+def test_preflight_can_skip_the_pet_panel(tmp_path):
+    """The panel read is defeatable: if the bottom bar ever defeats the
+    template finder, a run must still be startable without it."""
 
-    r = _runner(tmp_path)
+    r = _runner(tmp_path, preflight_pet_panel=False)
     world = r.preflight(r.observe())
     assert world.active is None
     assert any("pet panel skipped" in n for n in world.notes)
+
+
+def test_battle_step_is_blocked_when_no_pet_can_fight(tmp_path):
+    """0 HP must make a battle step BLOCKED with a recovery hint, not retried."""
+
+    r = _runner(tmp_path)
+    r._can_battle = False
+    node = r.graph.node("puni.prepare.level_up")
+    decision = PlanDecision(goal="puni", selected_node=node.id,
+                            capability="game.run_battle", reason="grind",
+                            expected_observation="level rises",
+                            max_actions=10, max_duration_s=120)
+    results, _ = r.execute_node(node, GameWorldState(), decision)
+    assert results, "a blocked battle step must still produce a result"
+    assert results[-1].status is Status.BLOCKED
+    assert "heal" in (results[-1].data.get("recovery") or "")

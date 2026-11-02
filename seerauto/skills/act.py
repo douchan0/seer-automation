@@ -40,16 +40,22 @@ ICON = {
 
 #: Panels are recognised by an OCR word that only that panel has.  `None` means
 #: the panel has no reliable text marker and must be verified another way.
-#: Known full-screen panels and where their close button sits.  The bottom bar
+#: Known full-screen panels and where their close button sits.
+#:
+#: NOTE: the chat 公屏聊天 header is *always* visible in the top-left of the
+#: world view, so it must NOT be a closer marker: matching it made ensure_world
+#: "close" a panel that was not open, three times, while the real 精灵仓库 panel
+#: kept swallowing every click.  The bottom bar
 #: shifts between scenes, but a panel's own close button does not move with the
 #: window size — and every close is *verified* by the marker disappearing, so a
 #: stale entry shows up as a failed close instead of a silent misfire.
 PANEL_CLOSERS: dict[str, tuple[tuple[str, ...], tuple[int, int]]] = {
     "spt": (("星际挑战终端", "挑战入口", "共73个入口"), (2095, 346)),
-    "map": (("全部区域", "帕诺星系", "卡兰星系"), (2006, 474)),
-    "chat": (("公屏聊天",), (2186, 580)),
-    "petbag": (("升级所需经验值", "个体："), (1171, 496)),
+    "map": (("啦公星", "全部区域", "帕诺星系", "卡兰星系"), (2008, 448)),
     "shop": (("商城", "购买"), (2006, 474)),
+    "petpanel": (("升级所需经验值", "精灵仓库", "精英收藏", "放生仓库", "放入背包",
+                  "全部精灵", "个体："), (2072, 312)),
+    "event": (("万圣节活动", "本期回顾", "比巴卜酷滑"), (2113, 309)),
 }
 
 PANEL_MARKERS = {
@@ -60,6 +66,15 @@ PANEL_MARKERS = {
 }
 
 CONFIRM_WORDS = ("确认", "确定", "我已知晓", "我知道了", "关闭")
+
+#: Phrases that identify a centre-screen modal whose 确认 button sits at a fixed
+#: spot.  OCR sometimes misses 「确认」 itself (confidence dips on the small bold
+#: glyph), so the body text is the more reliable detector.
+MODAL_HINTS = ("你没有可出战", "您还没有加入战队", "恭喜你得到了", "请先", "无法",
+               "不足", "已满", "超时", "掉线")
+
+#: The confirmation button of every centre-screen modal measured so far.
+MODAL_CONFIRM_PX = (1200, 980)
 CANCEL_WORDS = ("取消", "返回")
 
 
@@ -74,7 +89,7 @@ def ensure_world(ctx: SkillContext, *, attempts: int = 3) -> bool:
         return False
     for _ in range(attempts):
         try:
-            items = _ocr(ctx.session, min_conf=0.35)
+            items = _ocr(ctx.session, min_conf=0.25)
         except Exception:  # noqa: BLE001
             return False
         text = " ".join(str(i.get("text") or "") for i in items)
@@ -236,7 +251,8 @@ class NavigateSptBoss(_Base):
         id="game.navigate_spt_boss",
         kind=SkillKind.ACT,
         summary="打开 SPT 面板，按首领名字找到它，点击该卡片的「前往」并确认离开主城",
-        inputs={"boss": {"type": "str", "required": True}},
+        inputs={"boss": {"type": "str", "required": True},
+                "category": {"type": "str", "required": False}},
         outputs={"location": "str"},
         preconditions=("scene.world",),
         max_duration_s=40.0,
@@ -246,7 +262,7 @@ class NavigateSptBoss(_Base):
         evidence=("artifacts/round5/01_spt_panel.png",),
     )
 
-    def run(self, ctx: SkillContext, boss: str = "") -> SkillResult:
+    def run(self, ctx: SkillContext, boss: str = "", category: str = "") -> SkillResult:
         guard = self.guard(ctx)
         if guard:
             return guard
@@ -254,6 +270,18 @@ class NavigateSptBoss(_Base):
         if not opened.ok:
             return SkillResult.blocked(self.id, f"cannot open SPT panel: {opened.reason}",
                                        escalation="pause")
+
+        if category:
+            # The panel filters by region; 谱尼 only exists under 太空站左翼, which is
+            # an OCR-clicked category button rather than a coordinate.
+            items0 = _ocr(ctx.session)
+            cat = _find(items0, (category,))
+            if cat is None:
+                return SkillResult.fail(self.id, f"category {category!r} not on the SPT panel")
+            ok, why = self.click_and_check(ctx, cat["px"], f"category {category}")
+            if not ok:
+                return SkillResult.blocked(self.id, f"click refused: {why}", escalation="pause")
+            time.sleep(1.6)
 
         # The panel lists cards as (name, state, 前往) in one row.  Find the row
         # by the boss name's y, then take the nearest 前往 on the same row, and
@@ -687,23 +715,35 @@ class ReadPetLevel(_Base):
         )
 
 
-def _dismiss_dialogs(ctx: SkillContext, *, limit: int = 3) -> int:
-    """Dismiss up to ``limit`` known dialogs, returning how many were clicked."""
+def _dismiss_dialogs(ctx: SkillContext, *, limit: int = 4) -> int:
+    """Dismiss up to ``limit`` known dialogs, returning how many were clicked.
+
+    Two detectors, because either alone is fragile: an OCR'd confirm word, or a
+    known modal *body* phrase plus the fixed button position.  Missing the second
+    one is what left 「您还没有加入战队」 on screen swallowing every later click.
+    """
 
     clicked = 0
     for _ in range(limit):
         try:
-            items = _ocr(ctx.session, min_conf=0.35)
+            items = _ocr(ctx.session, min_conf=0.25)
         except Exception:  # noqa: BLE001
             return clicked
+        text = " ".join(str(i.get("text") or "") for i in items)
         hit = _find(items, CONFIRM_WORDS)
-        if hit is None:
+        if hit is not None:
+            px = hit["px"]
+            why = f"dismiss {hit['text']!r}"
+        elif any(h in text for h in MODAL_HINTS):
+            px = MODAL_CONFIRM_PX
+            why = "dismiss modal by body text"
+        else:
             return clicked
-        ok, _ = _click(ctx, hit["px"], f"dismiss {hit['text']!r}")
+        ok, _ = _click(ctx, px, why)
         if not ok:
             return clicked
         clicked += 1
-        time.sleep(0.7)
+        time.sleep(0.8)
     return clicked
 
 
@@ -813,6 +853,100 @@ class ClickText(_Base):
         )
 
 
+class ReadPetBag(_Base):
+    """Open the pet bag, read every pet's HP/level, then close it.
+
+    This is the *only* reliable way to see whether the account can still fight:
+    the battle HUD shows the ally level but not HP, and a fainted pet makes the
+    client answer 「你没有可出战的精灵哦」 to every engage.  Discovering that
+    after burning a full pass is exactly the kind of waste a long run must not
+    do, so the runner asks this skill first.
+
+    Panel layout was measured live on 2026-11-03: the pet rows sit in the left
+    pane (``烈火猴 0/95``), the detail pane on the right carries
+    ``等级：34`` / ``升级所需经验值：2573``.
+    """
+
+    spec = SkillSpec(
+        id="game.read_pet_bag",
+        kind=SkillKind.OBSERVE,
+        summary="打开精灵背包，读出所有精灵的血量/等级/升级所需经验，再关闭",
+        inputs={},
+        outputs={"pets": "list", "can_battle": "bool"},
+        max_duration_s=30.0,
+        max_actions=3,
+        requires_input=True,
+        verified="real",
+        evidence=("artifacts/round5/08_pet_storage.png", "artifacts/round5/04_pet_panel.png"),
+    )
+
+    def run(self, ctx: SkillContext) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        s = ctx.session
+        ensure_world(ctx)
+        _dismiss_dialogs(ctx, limit=2)
+        opened = False
+        try:
+            probe = s.score(s.latest(), "live_petbag_icon", (300, 1300, 2100, 1450))
+            if probe.score >= 0.75:
+                _click(ctx, probe.point_px, "open pet bag (template)")
+                time.sleep(1.3)
+                opened = True
+        except Exception:  # noqa: BLE001
+            opened = False
+        if not opened:
+            return SkillResult.blocked(self.id, "pet-bag icon not found on screen",
+                                       escalation="replan")
+        items = _ocr(s, min_conf=0.25)
+        text = " ".join(str(i.get("text") or "") for i in items)
+        if "等级" not in text and "升级所需" not in text:
+            return SkillResult.blocked(self.id, "pet panel did not open",
+                                       escalation="replan")
+        import re
+
+        pets: list[dict[str, Any]] = []
+        for it in items:
+            m = re.match(r"^\s*(\d+)\s*/\s*(\d+)\s*$", str(it.get("text") or ""))
+            if m:
+                cur, mx = int(m.group(1)), int(m.group(2))
+                pets.append({"hp": cur, "hp_max": mx,
+                             "px": (round(it["px"][0]), round(it["px"][1]))})
+        level = None
+        xp_to_next = None
+        for it in items:
+            t = str(it.get("text") or "")
+            if t.startswith("等级"):
+                level = _int_after(t)
+            elif "升级所需经验值" in t:
+                xp_to_next = _int_after(t)
+        # close again
+        try:
+            _click(ctx, (2072, 312), "close pet bag")
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(0.6)
+        alive = [p for p in pets if p["hp"] > 0]
+        can_battle = bool(alive)
+        proof = (f"{len(pets)} pets; hp alive={len(alive)}; "
+                 f"level={level}; xp_to_next={xp_to_next}")
+        result = SkillResult(
+            skill=self.id,
+            status=Status.PASS,
+            after={"pets": pets, "can_battle": can_battle,
+                   "level": level, "xp_to_next": xp_to_next},
+            changed=True,
+            proof=proof,
+            actions=2,
+            data={"raw": text[:300]},
+            evidence=[Evidence.live("ocr:精灵背包", detail=proof)],
+        )
+        if not can_battle:
+            result.escalation = "pause"
+        return result
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -822,6 +956,7 @@ def build_act_skills() -> list[Skill]:
         ReadPetLevel(),
         ConfirmDialog(),
         ClickText(),
+        ReadPetBag(),
     ]
 
 
@@ -833,6 +968,7 @@ __all__ = [
     "ReadPetLevel",
     "ConfirmDialog",
     "ClickText",
+    "ReadPetBag",
     "build_act_skills",
     "ICON",
     "PANEL_MARKERS",
