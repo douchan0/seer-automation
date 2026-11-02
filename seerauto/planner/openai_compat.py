@@ -38,6 +38,7 @@ from typing import Any, Callable, Mapping
 
 from .base import (
     PlanDecision,
+    PlanError,
     PlanRequest,
     PlannerError,
     PlannerUnavailable,
@@ -220,6 +221,8 @@ class CallMeta:
     completion_tokens: int | None = None
     finish_reason: str = ""
     call_index: int = 0
+    #: How many schema rejections preceded this successful answer (0 = first try).
+    retries: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -231,6 +234,7 @@ class CallMeta:
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "finish_reason": self.finish_reason,
+            "retries": int(self.retries),
             "call_index": int(self.call_index),
         }
 
@@ -341,19 +345,37 @@ class OpenAICompatPlanner:
         prompt_chars = sum(len(message["content"]) for message in body["messages"])
         payload_text = json.dumps(body, ensure_ascii=False, separators=(",", ":"))
 
-        self._calls += 1
-        index = self._calls
-        started = time.perf_counter()
-        raw = self._post(payload_text.encode("utf-8"))
-        latency_ms = int(round((time.perf_counter() - started) * 1000.0))
-
-        response = self._load_response(raw)
-        choice = response["choice"]
-        content = response["content"]
-        decision = self._decision_from_content(content, choice.get("finish_reason"), req)
-        meta = self._meta(response, choice, content, prompt_chars, latency_ms, index)
-        decision.meta = meta
-        return decision, meta
+        # A model occasionally answers with prose instead of the required object.
+        # One immediate retry is worth it (measured live: the first attempt of a
+        # run came back without any of the eight keys); more than one is not, since
+        # a model that will not follow the schema twice will not follow it thrice.
+        last_error: Exception | None = None
+        attempts = 0
+        for attempts in range(1, 3):
+            if not self.available():
+                raise PlannerUnavailable(
+                    f"{self.name}: call budget exhausted ({self.config.max_calls})")
+            self._calls += 1
+            index = self._calls
+            started = time.perf_counter()
+            raw = self._post(payload_text.encode("utf-8"))
+            latency_ms = int(round((time.perf_counter() - started) * 1000.0))
+            response = self._load_response(raw)
+            choice = response["choice"]
+            content = response["content"]
+            try:
+                decision = self._decision_from_content(
+                    content, choice.get("finish_reason"), req)
+            except PlanError as exc:
+                last_error = exc
+                continue
+            meta = self._meta(response, choice, content, prompt_chars, latency_ms, index,
+                              retries=attempts - 1)
+            decision.meta = meta
+            return decision, meta
+        raise PlanError(
+            f"{self.name}: the model did not return a valid decision after {attempts} "
+            f"attempts: {last_error}")
 
     # -- request building -------------------------------------------------- #
     def _request_body(self, req: PlanRequest) -> dict[str, Any]:
@@ -513,7 +535,7 @@ class OpenAICompatPlanner:
 
     def _meta(self, response: Mapping[str, Any], choice: Mapping[str, Any],
               content: str, prompt_chars: int, latency_ms: int,
-              index: int) -> CallMeta:
+              index: int, *, retries: int = 0) -> CallMeta:
         usage = response.get("usage") or {}
         prompt_tokens = _token_count(usage.get("prompt_tokens"))
         completion_tokens = _token_count(usage.get("completion_tokens"))
@@ -526,6 +548,7 @@ class OpenAICompatPlanner:
             cost_usd=self._estimate_cost(model, prompt_tokens, completion_tokens),
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            retries=retries,
             finish_reason=str(choice.get("finish_reason") or ""),
             call_index=index,
         )
