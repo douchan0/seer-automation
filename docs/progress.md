@@ -512,3 +512,29 @@ SCK 流在已被另一个进程持有时不可靠。测量时请复用同一个�
 `PYTHONPATH=.pydeps python3 -m pytest -q` → 426 passed, 2 skipped（Round 4 结束时是 176）。
 新增：`test_world_store.py`(19) / `test_goal_graph.py`(53) / `test_planner.py`(90) /
 `test_observe_skills.py`(72) / `test_runner.py`(16)。
+
+### Round 5 夜间续跑（02:00–03:00）
+
+**结果：目标图第一次出现 completed 节点（2 个），练级被 0 血硬阻塞。**
+
+`run 988c91ef9ea7`（33.7 s / 7 actions / 0 errors）：
+
+```
+puni.seal.entry_nav      completed  feature 'puni.entrance.reachable' (LIVE_VERIFIED)
+puni.prepare.tutor_room  completed  feature 'training.tutor_room.reachable' (LIVE_VERIFIED)
+puni.prepare.level_up    blocked    no pet can battle (all pets at 0 HP); recovery=heal_pet
+```
+
+真机新验证的通路：
+
+1. `SPT → 太空站左翼 → 谱尼 → 前往` = 勇者之塔神秘领域（到达用模板匹配美术字传送门确认）；
+2. 星图第 3 个（橙色）目的地 = 辅导员房间（初级班/高级班辅导员）。
+
+本轮又修掉 6 个真 bug（详见 `docs/REAL_DELIVERY_REPORT.md` 附录），
+其中最关键的两个是：**战斗按钮的第二套画法**（真机战斗被判成 WORLD）和
+**展开的聊天面板盖住星图目的地图标**（"地图打不开"的真正原因）。
+
+**账号变化**：升级所需经验 3633 → 2573（打进 1060 XP ≈ 10 场胜利）。
+
+**结束时状态**：全员 0 血；客户端在 02:40 重启后卡在"版本检测中"并显示 502
+（服务端故障，见 `docs/BLOCKER_PET_HP.md` §8）。

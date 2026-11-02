@@ -414,12 +414,16 @@ nodes:
     executable: true
     skill: game.run_battle
     skill_inputs: {battles: 6}
-    budget: {max_minutes: 45, max_battles: 15, max_spend: 0}
+    budget: {max_minutes: 50, max_battles: 45, max_spend: 0}
     on_failure: pause_and_replan
     evidence:
       - docs/PUNI_TASK_GRAPH.md#P1-01
       - docs/state.md#精灵
       - docs/progress.md#round-4
+    notes_round5_measured: "2026-11-03 真机测得：野外蘑菇怪每场 106 XP；Lv34→35 需要 2573 XP（约 24 场），
+      35→36 同量级。因此 max_battles 从 15 提到 45（45 场 ≈ 35 分钟），否则每轮都会在升级前撞预算。
+      另：连战约 20 场就会把全员打到 0 血（见 docs/BLOCKER_PET_HP.md），所以真实用法是
+      '打 15~20 场 → 回血 → resume'，而不是一口气 45 场。"
     notes: "这是本图当前唯一 executable 的节点（判据：动作集合完全落在 Round 4 真机验证过的能力里，且场景已可达）：动作集合 = 已验证的 battle.repeat（野外连战）+ observe.* + input.click，且场景已在 Round 4 真机到达过。等级事实已过期：docs/state.md（2026-11-02）看到主力是烈火猴（小火猴已进化），等级只从窗口徽章读到「约 15 级」，此后未复读 → HISTORICAL，predicate 返回 None（历史证据不能完成任务），必须现场重读等级。进化链 小火猴→烈火猴→(36)烈焰猩猩 改用 aliases 覆盖，避免进化改名让节点永远判不完成；「36 级是否本服一致」仍未验证。文档里它属于 P1（docs §4.2），本图归入 P0 因为它是所有阵容节点的公共前置。"
   # ------------------------------------------------------------------ P1 --
   - id: puni.roster.catch_pipi
