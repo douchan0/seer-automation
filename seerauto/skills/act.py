@@ -57,6 +57,9 @@ PANEL_CLOSERS: dict[str, tuple[tuple[str, ...], tuple[int, int]]] = {
                   "全部精灵", "个体："), (2072, 312)),
     "event": (("万圣节活动", "本期回顾", "比巴卜酷滑"), (2113, 309)),
     "training": (("精灵模拟训练", "选择课程"), (1530, 544)),
+    # The chat *header* is always on screen; only the expanded panel shows tabs.
+    "chat_open": (("综合", "世界", "交易", "招募"), (2162, 587)),
+    "promo": (("航行日志", "魔龙王", "立即前往"), (2100, 300)),
 }
 
 PANEL_MARKERS = {
@@ -73,6 +76,10 @@ CONFIRM_WORDS = ("确认", "确定", "我已知晓", "我知道了", "关闭")
 #: glyph), so the body text is the more reliable detector.
 MODAL_HINTS = ("你没有可出战", "您还没有加入战队", "恭喜你得到了", "请先", "无法",
                "不足", "已满", "超时", "掉线")
+
+#: Close button of the pet bag panel (top-right of its list pane).  The storage
+#: tab uses a different panel with a different corner, hence two constants.
+PET_BAG_CLOSE_PX = (1149, 506)
 
 #: The confirmation button of every centre-screen modal measured so far.
 MODAL_CONFIRM_PX = (1200, 980)
@@ -95,6 +102,19 @@ def ensure_world(ctx: SkillContext, *, attempts: int = 3) -> bool:
             return False
         text = " ".join(str(i.get("text") or "") for i in items)
         closed_any = False
+        # The pet bag can render without any of its text markers (the detail pane
+        # is sometimes blank), but it always shows HP rows like "0/95".  Two of
+        # those on screen is the pet panel, and nothing else in this client
+        # prints that shape twice.
+        import re as _re
+
+        hp_rows = [t for t in (str(i.get("text") or "") for i in items)
+                   if _re.fullmatch(r"\s*\d+\s*/\s*\d+\s*", t)]
+        if len(hp_rows) >= 2:
+            ok, _why = _click(ctx, PET_BAG_CLOSE_PX, "close pet panel (hp rows)")
+            if ok:
+                time.sleep(0.8)
+                continue
         for _name, (markers, close_px) in PANEL_CLOSERS.items():
             if any(m in text for m in markers):
                 ok, _why = _click(ctx, close_px, f"close panel {_name}")
@@ -1017,9 +1037,10 @@ class GotoPuniEntrance(_Base):
 class GotoTutorRoom(_Base):
     """Reach the 初级班/高级班辅导员 training room (the 8x-XP prerequisite).
 
-    Measured route (2026-11-03): open the map from the centre button, then the
-    orange destination icon at (1613,1045) — the map layout is fixed while the
-    bottom bar is not.  Arrival is proved by OCR naming either tutor.
+    Delegates to :class:`Travel` so there is exactly one implementation of
+    "open the star map and arrive": the earlier copy drifted out of sync and kept
+    failing for a reason that had already been fixed elsewhere (the chat panel
+    covers the map's destination icons — closing it moved from 0/2 to 2/2).
     """
 
     spec = SkillSpec(
@@ -1028,60 +1049,36 @@ class GotoTutorRoom(_Base):
         summary="地图→橙色调练室，用「初级班辅导员/高级班辅导员」文字确认到达（8倍经验前置）",
         inputs={},
         outputs={"unlocked": "dict", "scene_text": "list"},
-        max_duration_s=60.0,
-        max_actions=4,
+        max_duration_s=90.0,
+        max_actions=6,
         requires_input=True,
         verified="real",
         evidence=("artifacts/round5/10_tutor_dialog.png",),
     )
 
-    MAP_BUTTON_PX = (1185, 1375)
-    TUTOR_ROOM_PX = (1613, 1045)
-    MARKERS = ("初级班辅导员", "高级班辅导员")
-
     def run(self, ctx: SkillContext) -> SkillResult:
         guard = self.guard(ctx)
         if guard:
             return guard
-        ensure_world(ctx)
-        _dismiss_dialogs(ctx, limit=2)
-        for attempt in range(2):
-            ok, why = self.click_and_check(ctx, self.MAP_BUTTON_PX, "open map")
-            if not ok:
-                return SkillResult.blocked(self.id, f"click refused: {why}",
-                                           escalation="pause")
-            time.sleep(2.2)
-            items = _ocr(ctx.session, min_conf=0.25)
-            if _has_text(items, ("啦公星",)) is None:
-                if attempt == 0:
-                    continue
-                return SkillResult.fail(self.id, "map did not open")
-            ok, why = self.click_and_check(ctx, self.TUTOR_ROOM_PX, "goto tutor room")
-            if not ok:
-                return SkillResult.blocked(self.id, f"click refused: {why}",
-                                           escalation="pause")
-            time.sleep(3.0)
-            deadline = time.perf_counter() + 12.0
-            while time.perf_counter() < deadline:
-                items = _ocr(ctx.session, min_conf=0.25)
-                texts = [str(i.get("text") or "") for i in items]
-                if any(m in t for m in self.MARKERS for t in texts):
-                    return SkillResult.pass_(
-                        self.id,
-                        proof="arrived at the tutor room ("
-                              + ", ".join(m for m in self.MARKERS
-                                          if any(m in t for t in texts)) + ")",
-                        after={"unlocked": {"training.tutor_room.reachable": True},
-                               "scene_text": texts[:20]},
-                        actions=2,
-                        evidence=[Evidence.live("ocr:tutor room", detail=", ".join(texts[:6]))])
-                time.sleep(0.8)
-        return SkillResult.fail(self.id, "tutor room not confirmed after two attempts")
+        travelled = Travel()(ctx, destination="tutor_room")
+        if not travelled.ok:
+            return SkillResult.fail(self.id, f"travel failed: {travelled.reason}",
+                                    data={"travel": travelled.to_dict()})
+        return SkillResult.pass_(
+            self.id,
+            proof=travelled.proof,
+            after={"unlocked": {"training.tutor_room.reachable": True},
+                   "scene_text": travelled.after.get("scene_text", [])},
+            actions=travelled.actions,
+            evidence=list(travelled.evidence),
+        )
 
 
 #: The star map's destinations, measured live on 2026-11-03.  The map layout is
 #: fixed (unlike the bottom bar, which drifts ~100 px between scenes), so these
 #: points are stable; every travel is still verified by the OCR text it must show.
+#: NOTE: the expanded chat panel covers the map's destination icons — it must be
+#: closed first (that single miss made travel fail 0/2 before it worked 2/2).
 MAP_DESTINATIONS: dict[str, dict[str, Any]] = {
     "ship_bridge": {"px": (571, 1027), "expect": ("迪恩", "爱丽丝", "探险家"),
                     "label": "赛尔号主控室（迪恩/爱丽丝）"},
@@ -1147,9 +1144,15 @@ class Travel(_Base):
             if not ok:
                 return SkillResult.blocked(self.id, f"click refused: {why}",
                                            escalation="pause")
-            time.sleep(2.2)
-            items = _ocr(ctx.session, min_conf=0.25)
-            if _has_text(items, ("啦公星",)) is None:
+            # wait for the map instead of guessing how long it takes
+            deadline = time.perf_counter() + 8.0
+            opened = False
+            while time.perf_counter() < deadline:
+                time.sleep(0.5)
+                if _has_text(_ocr(ctx.session, min_conf=0.25), ("啦公星",)) is not None:
+                    opened = True
+                    break
+            if not opened:
                 if attempt == 0:
                     continue
                 return SkillResult.fail(self.id, "star map did not open")
