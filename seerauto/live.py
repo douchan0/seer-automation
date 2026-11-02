@@ -110,6 +110,8 @@ class Probe:
 class SceneProbe:
     scene: Scene
     scores: dict[str, float] = field(default_factory=dict)
+    #: True when the frame has no content at all (blank / loading / error page).
+    blank: bool = False
     points: dict[str, tuple[float, float]] = field(default_factory=dict)
     frame_seq: int = 0
     frame_age_ms: float = 0.0
@@ -288,7 +290,7 @@ class LiveSession:
         # Measured: real game frames (world/battle/victory/panels) sit at std 63-105,
         # a blank or error page at ~11.  The gap is wide enough to be a safe gate.
         if spread < 25.0:
-            return SceneProbe(scene=Scene.UNKNOWN,
+            return SceneProbe(scene=Scene.UNKNOWN, blank=True,
                               scores={"frame_std": round(spread, 2)},
                               points={}, frame_seq=0)
         p_fight = None

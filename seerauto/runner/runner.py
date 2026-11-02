@@ -129,6 +129,7 @@ class GoalRunner:
         self._node_attempts: dict[str, int] = {}
         self._next_observations: list[dict[str, Any]] = []
         self._can_battle: bool | None = None
+        self._unknown_streak = 0
 
     # -- lifecycle --------------------------------------------------------- #
     def open(self) -> "GoalRunner":
@@ -296,6 +297,7 @@ class GoalRunner:
             world.set_fact("session.logged_in", sp.scene not in (Scene.LOGIN, Scene.SERVER_LIST),
                            Evidence.live("template:scene"))
             world.observations["scene_scores"] = sp.scores
+            world.observations["frame_blank"] = bool(getattr(sp, "blank", False))
         except Exception as exc:  # noqa: BLE001
             world.notes.append(f"scene probe failed: {exc}")
         world.captured_at = now_iso()
@@ -785,6 +787,22 @@ class GoalRunner:
 
                 self._loops += 1
                 world = self.observe()
+                # A blank / loading / error page is not a state a skill can fix.
+                # Retrying only burns the error budget (measured: 3 skills, 60 s and
+                # three "star map did not open" failures on a client stuck at its
+                # version check), so stop and say what it actually is.
+                blank = bool(world.observations.get("frame_blank"))
+                if blank or str(world.fact("session.scene") or "") == Scene.UNKNOWN.value:
+                    self._unknown_streak += 1
+                    if blank or self._unknown_streak >= 2:
+                        end_reason = ("client is not showing game content (blank / loading / "
+                                      "error page) — check the game window, then restart the run")
+                        self.store.append_event(run_id, "run.client_unavailable", end_reason)
+                        self.store.update_run(run_id, status="blocked", stop_reason=end_reason)
+                        self.log(f"[runner] {end_reason}")
+                        break
+                else:
+                    self._unknown_streak = 0
                 if not self._pet_level_known(world):
                     world = self.preflight(world)
                 self.store.save_world(world, run_id=run_id, note=f"loop {self._loops} observe")

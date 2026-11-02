@@ -418,3 +418,35 @@ def test_observation_cannot_replace_the_pet_with_the_trusted_level(tmp_path):
     fresh.active_pet = "小蘑菇"
     assert not GoalRunner._pet_has_trusted_level(fresh, "烈火猴")
     assert GoalRunner._pet_has_trusted_level(world, "烈火猴")
+
+
+def test_blank_client_stops_instead_of_burning_the_error_budget(tmp_path):
+    """A blank/error page must stop the run with a diagnosis.
+
+    Measured live on 2026-11-03: with the client stuck on its version check the
+    runner spent three skills and 60 s on "star map did not open" before the error
+    budget ended it.  Two UNKNOWN scenes in a row is enough to say what is wrong.
+    """
+
+    class BlankSession(FakeSession):
+        def scene(self, frame=None, previous=None):
+            class _Probe:
+                pass
+
+            p = _Probe()
+            p.scene = Scene.UNKNOWN
+            p.blank = True
+            p.scores = {"frame_std": 3.0}
+            p.points = {}
+            p.frame_seq = 0
+            p.frame_age_ms = 0.0
+            return p
+
+    planner = FakePlanner(PlanDecision(goal="puni", selected_node="puni.prepare.tutor_room",
+                                       capability="game.goto_tutor_room", reason="x",
+                                       expected_observation="room",
+                                       max_actions=5, max_duration_s=60))
+    r = _runner(tmp_path, planner=planner, session=BlankSession())
+    summary = r.run()
+    assert "not showing game content" in (summary["stop_reason"] or "")
+    assert summary["stats"]["errors"] == 0, "a blank client is not a skill error"
