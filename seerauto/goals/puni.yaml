@@ -270,7 +270,7 @@ nodes:
     description: 在精灵太空站与初级班/高级班辅导员对话，打开当日的 8 倍经验与 4 倍学习力。
     phase: P0
     priority: 64
-    prerequisites: [state.logged_in]
+    prerequisites: [state.logged_in, puni.prepare.tutor_room]
     requires_capabilities: [input.click, observe.ocr]
     completion:
       type: verified_account_state
@@ -284,7 +284,7 @@ nodes:
     on_failure: pause_and_replan
     evidence:
       - docs/PUNI_TASK_GRAPH.md#P0-03
-    blocked_reason: 精灵太空站辅导员对话入口在新坐标系（1200×800）下未标定；提示文本「已开启/已耗尽」的读数未验证
+    blocked_reason: 房间已标定（puni.prepare.tutor_room 已完成：星图第 3 个目的地 = 辅导员房间），但两个 NPC 打开的都是「精灵模拟训练」面板；8 倍/4 倍开关本身在任何素材里都没有被捕获，点哪里仍是 UNKNOWN。提示文本「已开启/已耗尽」的读数同样未验证
     notes: "U-C3 每日重置时刻未知；U-A11 每日时长未知。文档标 auto 的是 P0-04 签到，本节点是 semi-auto（需对话导航 + OCR 确认）。"
   - id: puni.prepare.daily_signin
     legacy_id: P0-04
