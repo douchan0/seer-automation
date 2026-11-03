@@ -444,7 +444,7 @@ final class Daemon {
                    "shot", "ocr", "click", "move", "key", "type",
                    // background lane: events posted straight to the game process,
                    // so the cursor never moves and the window need not be frontmost
-                   "clickpid", "movepid", "keypid"]
+                   "clickpid", "movepid", "keypid", "cursorpos"]
         if stream != nil {
             ops += ["capture.latest", "capture.roi", "capture.stop"]
         }
@@ -607,6 +607,9 @@ final class Daemon {
         case "move":
             move(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0)
             return ["ok": true]
+        case "cursorpos":
+            let p = CGEvent(source: nil)?.location ?? .zero
+            return ["x": Double(p.x), "y": Double(p.y)]
         case "clickpid":
             return clickPid(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0,
                             obj["n"] as? Int ?? 1)
