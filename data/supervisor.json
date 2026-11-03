@@ -1,0 +1,23 @@
+{
+ "deadline": "2026-11-04T00:07:41",
+ "batches": 1,
+ "failures": 1,
+ "history": [
+  {
+   "batch": 1,
+   "code": 124,
+   "elapsed_s": 365.0,
+   "tail": [
+    "timeout"
+   ],
+   "status": [
+    "run     b81c591158e2  status=running",
+    "goal    puni  planner=deterministic",
+    "reason  None",
+    "stats   battles=None actions=None errors=None loops=None elapsed=Nones",
+    "world   scene=WORLD source=LIVE_VERIFIED",
+    "        pet 烈火猴 Lv34 hp 76/95"
+   ]
+  }
+ ]
+}
