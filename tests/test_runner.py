@@ -450,3 +450,34 @@ def test_blank_client_stops_instead_of_burning_the_error_budget(tmp_path):
     summary = r.run()
     assert "not showing game content" in (summary["stop_reason"] or "")
     assert summary["stats"]["errors"] == 0, "a blank client is not a skill error"
+
+
+def test_login_screen_stops_the_run(tmp_path):
+    """A login/server-list page must stop the run, not be clicked into."""
+
+    class LoginSession(FakeSession):
+        def scene(self, frame=None, previous=None):
+            class _Probe:
+                pass
+
+            p = _Probe()
+            p.scene = Scene.WORLD          # dark page passes the contrast gate
+            p.blank = False
+            p.scores = {"fight": 0.1, "victory": 0.1, "confirm": 0.1}
+            p.points = {}
+            p.frame_seq = 0
+            p.frame_age_ms = 0.0
+            return p
+
+        def ocr(self, **kw):
+            return [{"text": "选择服务器", "conf": 0.9, "px": (1200.0, 450.0)},
+                    {"text": "请选择服务器编号", "conf": 0.8, "px": (900.0, 460.0)}]
+
+    planner = FakePlanner(PlanDecision(goal="puni", selected_node="puni.prepare.tutor_room",
+                                       capability="game.goto_tutor_room", reason="x",
+                                       expected_observation="room",
+                                       max_actions=5, max_duration_s=60))
+    r = _runner(tmp_path, planner=planner, session=LoginSession())
+    summary = r.run()
+    assert "not in the game world" in (summary["stop_reason"] or "")
+    assert summary["stats"]["errors"] == 0

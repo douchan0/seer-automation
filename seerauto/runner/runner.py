@@ -408,6 +408,30 @@ class GoalRunner:
         self._last_world = world
         return world
 
+    #: Text that only appears before the character is in the game world.
+    LOGIN_MARKERS = ("选择服务器", "航行公告", "快速进入", "开启万圣夜冒险",
+                     "登录，开启", "忘记密码", "下次QQ验证时间")
+
+    def _login_gate(self, world: GameWorldState) -> str | None:
+        """Return a stop reason when the client is not in the game world yet."""
+
+        if self.session is None:
+            return None
+        try:
+            items = self.session.ocr(min_conf=0.3)
+        except Exception:  # noqa: BLE001
+            return None
+        text = " ".join(str(i.get("text") or "") for i in items)
+        for marker in self.LOGIN_MARKERS:
+            if marker in text:
+                scene = ("SERVER_LIST" if "选择服务器" in text
+                         else "LOGIN")
+                world.set_fact("session.scene", scene, Evidence.live(f"ocr:{marker}"))
+                world.observations["login_marker"] = marker
+                return (f"client is at the {scene.lower()} screen ({marker!r}), not in "
+                        f"the game world — log in first, then resume the run")
+        return None
+
     def _settle_pending_battle(self, world: GameWorldState, *, max_dialogs: int = 8) -> GameWorldState:
         """Dismiss victory/XP dialogs left over from an earlier interruption."""
 
@@ -801,6 +825,18 @@ class GoalRunner:
                 # three "star map did not open" failures on a client stuck at its
                 # version check), so stop and say what it actually is.
                 blank = bool(world.observations.get("frame_blank"))
+                # The login / server-list pages are dark enough to pass the contrast
+                # gate, so the template probe calls them WORLD.  Reading them as a
+                # clickable world is how an unattended run ends up typing into a
+                # login form; detect them by their own text and stop instead.
+                if not blank and str(world.fact("session.scene") or "") == Scene.WORLD.value:
+                    gate = self._login_gate(world)
+                    if gate:
+                        end_reason = gate
+                        self.store.append_event(run_id, "run.not_in_game", gate)
+                        self.store.update_run(run_id, status="blocked", stop_reason=gate)
+                        self.log(f"[runner] {gate}")
+                        break
                 if blank or str(world.fact("session.scene") or "") == Scene.UNKNOWN.value:
                     self._unknown_streak += 1
                     if blank or self._unknown_streak >= 2:
