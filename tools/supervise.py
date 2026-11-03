@@ -130,12 +130,19 @@ ctx = SkillContext(session=s, world=GameWorldState(), dry_run=False, allow_input
 ensure_world(ctx); _dismiss_dialogs(ctx, limit=3)
 reg = {k.id: k for k in build_act_skills()}
 bag = reg['game.read_pet_bag'](ctx)
-print('hp alive check:', bag.proof)
-if 'hp alive=0' in (bag.proof or ''):
+proof = bag.proof or ''
+print('hp alive check:', proof)
+# An empty read is NOT "health is fine": it usually means the client was still in a
+# battle when the batch ended, and the run then spends whole batches at 1 battle each
+# because the HP floor fires immediately.  Unknown -> heal.
+unknown = 'hp alive=' not in proof
+if 'hp alive=0' in proof or unknown:
+    print('reason:', 'all pets fainted' if not unknown else 'hp unreadable -> heal anyway')
     r = reg['game.heal_pet'](ctx)
-    print('healed:', r.status.value, r.proof[:120])
+    print('healed:', r.status.value, r.proof[:140])
 else:
-    print('hp fine, no heal needed')
+    hp = proof.split('hp alive=')[1].split(';')[0]
+    print('hp fine (' + hp + ' alive), no heal needed')
 s.close()
 """
 
