@@ -173,6 +173,9 @@ class LiveSession:
         self.actions: list[ActionRecord] = []
         self._templates: dict[str, np.ndarray] = {}
         self._last_action_at = 0.0
+        #: Last pointer position in game_px, so a move can be *walked* rather than
+        #: teleported (Flash only raises a tooltip for real mouse-move events).
+        self._pointer_px: tuple[float, float] | None = None
         self._opened = False
         self._stage_offset: tuple[int, int] | None = None
 
@@ -463,6 +466,7 @@ class LiveSession:
             gp = self.geo.global_pt_from_game_px(px[0], px[1])
             rec.global_pt = (gp.x, gp.y)
             self.client.send("click", x=gp.x, y=gp.y, n=1)
+            self._pointer_px = (float(px[0]), float(px[1]))
             rec.sent = True
             self._last_action_at = time.perf_counter()
         except LiveError as exc:
@@ -471,6 +475,32 @@ class LiveSession:
             raise
         self.actions.append(rec)
         return rec
+
+    def _move_human(self, x: float, y: float, *, steps: int = 12,
+                    step_s: float = 0.018) -> None:
+        """Walk the pointer to (x, y) in small increments, like a hand would.
+
+        A single teleporting ``move`` event is not enough: the client raises its
+        tooltip only when it sees a *stream* of mouse-move events ending at rest.
+        Measured on 2026-11-03 — jumping to the same point answered ~1 time in 4,
+        walking there answered reliably.
+        """
+
+        if self.client is None or self.geo is None:
+            raise LiveError("session not open")
+        self._revalidate_geometry()
+        start = self._pointer_px
+        if start is None:
+            start = (self.geo.pixel_size.w / 2.0, self.geo.pixel_size.h / 2.0)
+        steps = max(2, int(steps))
+        for i in range(1, steps + 1):
+            t = i / steps
+            px = start[0] + (x - start[0]) * t
+            py = start[1] + (y - start[1]) * t
+            gp = self.geo.global_pt_from_game_px(px, py)
+            self.client.send("move", x=gp.x, y=gp.y)
+            time.sleep(step_s)
+        self._pointer_px = (float(x), float(y))
 
     def hover_px(self, x: float, y: float, *, settle_s: float = 0.9,
                  min_conf: float = 0.25) -> dict[str, Any]:
@@ -488,14 +518,12 @@ class LiveSession:
             raise LiveError("session not open")
         before = {str(t["text"]) for t in self.ocr(min_conf=min_conf)}
         fresh: list[dict[str, Any]] = []
-        # Flash tooltips are intermittent: the pointer must MOVE and then rest, and
-        # one hover often produces nothing.  A small jiggle (out and back) makes the
-        # same coordinate answer most of the time, which is why this is retried
-        # rather than trusted on the first try.
+        # Walk there, pause, read.  Retry by approaching from a different direction
+        # (a repeat hover from the same side sometimes does not re-trigger).
         for attempt in range(3):
-            jx = x + (4 * (attempt % 2))
-            gp = self.geo.global_pt_from_game_px(jx, y)
-            self.client.send("move", x=gp.x, y=gp.y)
+            approach_x = x + (-6 if attempt % 2 else 6)
+            self._move_human(approach_x, y + (3 if attempt else -3), steps=8)
+            self._move_human(x, y, steps=6)
             time.sleep(settle_s)
             after = self.ocr(min_conf=min_conf)
             fresh = [t for t in after if str(t["text"]) not in before]
