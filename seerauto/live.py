@@ -487,11 +487,20 @@ class LiveSession:
         if self.client is None or self.geo is None:
             raise LiveError("session not open")
         before = {str(t["text"]) for t in self.ocr(min_conf=min_conf)}
-        gp = self.geo.global_pt_from_game_px(x, y)
-        self.client.send("move", x=gp.x, y=gp.y)
-        time.sleep(settle_s)
-        after = self.ocr(min_conf=min_conf)
-        fresh = [t for t in after if str(t["text"]) not in before]
+        fresh: list[dict[str, Any]] = []
+        # Flash tooltips are intermittent: the pointer must MOVE and then rest, and
+        # one hover often produces nothing.  A small jiggle (out and back) makes the
+        # same coordinate answer most of the time, which is why this is retried
+        # rather than trusted on the first try.
+        for attempt in range(3):
+            jx = x + (4 * (attempt % 2))
+            gp = self.geo.global_pt_from_game_px(jx, y)
+            self.client.send("move", x=gp.x, y=gp.y)
+            time.sleep(settle_s)
+            after = self.ocr(min_conf=min_conf)
+            fresh = [t for t in after if str(t["text"]) not in before]
+            if fresh:
+                break
         return {
             "text": " ".join(str(t["text"]) for t in fresh).strip(),
             "items": fresh,
