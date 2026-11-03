@@ -55,7 +55,7 @@ PANEL_CLOSERS: dict[str, tuple[tuple[str, ...], tuple[int, int]]] = {
     "map": (("啦公星", "全部区域", "帕诺星系", "卡兰星系"), (2008, 448)),
     "shop": (("商城", "购买"), (2006, 474)),
     "petpanel": (("升级所需经验值", "精灵仓库", "精英收藏", "放生仓库", "放入背包",
-                  "全部精灵", "个体："), (2072, 312)),
+                  "全部精灵", "个体："), ((1141, 503), (2072, 312))),
     "event": (("万圣节活动", "本期回顾", "比巴卜酷滑"), (2113, 309)),
     "training": (("精灵模拟训练", "选择课程"), (1530, 544)),
     # The chat *header* is always on screen; only the expanded panel shows tabs.
@@ -112,16 +112,36 @@ def ensure_world(ctx: SkillContext, *, attempts: int = 3) -> bool:
         hp_rows = [t for t in (str(i.get("text") or "") for i in items)
                    if _re.fullmatch(r"\s*\d+\s*/\s*\d+\s*", t)]
         if len(hp_rows) >= 2:
-            ok, _why = _click(ctx, PET_BAG_CLOSE_PX, "close pet panel (hp rows)")
-            if ok:
-                time.sleep(0.8)
+            closed = False
+            for point in (PET_BAG_CLOSE_PX, (1141, 503)):
+                ok, _why = _click(ctx, point, f"close pet panel at {point}")
+                if not ok:
+                    continue
+                time.sleep(0.7)
+                after = _ocr(ctx.session, min_conf=0.25)
+                still = [str(i.get("text") or "") for i in after]
+                if not any(_re.fullmatch(r"\s*\d+\s*/\s*\d+\s*", t) for t in still):
+                    closed = True
+                    break
+            if closed:
                 continue
         for _name, (markers, close_px) in PANEL_CLOSERS.items():
             if any(m in text for m in markers):
-                ok, _why = _click(ctx, close_px, f"close panel {_name}")
-                if ok:
+                # A panel's X moves: the pet panel grew a detail pane and its close
+                # button jumped from (2072,312) to (1141,503).  Try every known point
+                # and stop as soon as the panel markers are gone, instead of trusting
+                # one coordinate forever.
+                points = close_px if isinstance(close_px[0], (tuple, list)) else (close_px,)
+                for point in points:
+                    ok, _why = _click(ctx, point, f"close panel {_name} at {point}")
+                    if not ok:
+                        continue
                     closed_any = True
-                    time.sleep(0.8)
+                    time.sleep(0.7)
+                    after = _ocr(ctx.session, min_conf=0.25)
+                    if not any(m in " ".join(str(i.get("text") or "") for i in after)
+                               for m in markers):
+                        break
                 break
         if not closed_any:
             return True
