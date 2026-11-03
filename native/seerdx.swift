@@ -221,9 +221,17 @@ func findGameWindow() -> (id: Int, x: Double, y: Double, w: Double, h: Double)? 
 }
 
 func gameApp() -> NSRunningApplication? {
-    NSWorkspace.shared.runningApplications.first { app in
+    // Prefer the process that actually OWNS the game window.  The app ships helper
+    // processes ("SeerGame Helper (Renderer)" …) whose names also contain the hint;
+    // activating one of those brings nothing forward and the real window drops off
+    // the window list — which looked like "the client vanished" for a whole session.
+    if let pid = gamePid() ?? nil, let app = NSRunningApplication(processIdentifier: pid) {
+        return app
+    }
+    return NSWorkspace.shared.runningApplications.first { app in
         let s = ((app.bundleIdentifier ?? "") + "|" + (app.localizedName ?? "")).lowercased()
-        return TARGET_HINTS.contains { s.contains($0) }
+        guard TARGET_HINTS.contains(where: { s.contains($0) }) else { return false }
+        return !s.contains("helper")
     }
 }
 
@@ -299,12 +307,29 @@ func gamePid() -> pid_t? {
     return nil
 }
 
+//: Stamp the target window into the event.  Chromium (Electron) routes a posted
+//: event to the window named in these two fields instead of the key window, which
+//: is what makes a background click land while another app holds the focus.
+func stampWindow(_ event: CGEvent?, _ winID: Int) {
+    guard let e = event, winID > 0 else { return }
+    e.setIntegerValueField(.mouseEventWindowUnderMousePointer, value: Int64(winID))
+    e.setIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent,
+                           value: Int64(winID))
+}
+
+func gameWindowID() -> Int {
+    return findGameWindow()?.id ?? 0
+}
+
 func clickPid(_ gx: Double, _ gy: Double, _ n: Int) -> [String: Any] {
     guard let pid = gamePid() else { return ["error": "no window"] }
+    let winID = gameWindowID()
     let src = CGEventSource(stateID: .hidSystemState)
     let p = CGPoint(x: gx, y: gy)
-    CGEvent(mouseEventSource: src, mouseType: .mouseMoved, mouseCursorPosition: p,
-            mouseButton: .left)?.postToPid(pid)
+    let mv = CGEvent(mouseEventSource: src, mouseType: .mouseMoved, mouseCursorPosition: p,
+                     mouseButton: .left)
+    stampWindow(mv, winID)
+    mv?.postToPid(pid)
     usleep(8_000)
     for i in 1...max(1, n) {
         let d = CGEvent(mouseEventSource: src, mouseType: .leftMouseDown,
@@ -313,6 +338,8 @@ func clickPid(_ gx: Double, _ gy: Double, _ n: Int) -> [String: Any] {
                         mouseCursorPosition: p, mouseButton: .left)
         d?.setIntegerValueField(.mouseEventClickState, value: Int64(i))
         u?.setIntegerValueField(.mouseEventClickState, value: Int64(i))
+        stampWindow(d, winID)
+        stampWindow(u, winID)
         d?.postToPid(pid)
         usleep(10_000)
         u?.postToPid(pid)
@@ -324,8 +351,10 @@ func clickPid(_ gx: Double, _ gy: Double, _ n: Int) -> [String: Any] {
 func movePid(_ gx: Double, _ gy: Double) -> [String: Any] {
     guard let pid = gamePid() else { return ["error": "no window"] }
     let src = CGEventSource(stateID: .hidSystemState)
-    CGEvent(mouseEventSource: src, mouseType: .mouseMoved,
-            mouseCursorPosition: CGPoint(x: gx, y: gy), mouseButton: .left)?.postToPid(pid)
+    let e = CGEvent(mouseEventSource: src, mouseType: .mouseMoved,
+                    mouseCursorPosition: CGPoint(x: gx, y: gy), mouseButton: .left)
+    stampWindow(e, gameWindowID())
+    e?.postToPid(pid)
     return ["ok": true]
 }
 

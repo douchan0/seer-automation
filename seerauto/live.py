@@ -206,10 +206,12 @@ class LiveSession:
         if not self.backend.warm:
             self.close()
             raise LiveError("capture session is not warm (capture.start failed)")
-        try:
-            client.send("activate")
-        except Exception:  # noqa: BLE001 - best effort
-            pass
+        # NOTE: deliberately no ``activate`` here.  Raising the game window steals
+        # the user's focus, and this project must be able to run while the machine
+        # is in use.  Input goes through the background lane (``clickpid``) when
+        # ``background=True``; the foreground lane simply assumes the user is not
+        # fighting over the pointer (the ``ensure_frontmost`` guard is skipped in
+        # background mode, geometry is still re-validated).
         self._opened = True
         return self
 

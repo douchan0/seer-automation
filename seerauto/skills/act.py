@@ -1423,9 +1423,9 @@ class DismissStartupPopup(_Base):
         cx = win["x"] + (nx + nw / 2.0) * win["w"]
         cy = win["y"] + (1.0 - (ny + nh / 2.0)) * win["h"]
         try:
-            ctx.session.client.send("activate")
-            time.sleep(0.4)
-            ctx.session.client.send("click", x=cx, y=cy, n=1)
+            # No activate(): the dialog is in front of its own app already, and
+            # raising the app would take focus away from whatever the user is doing.
+            ctx.session.client.send("clickpid", x=cx, y=cy, n=1)
         except Exception as exc:  # noqa: BLE001
             return SkillResult.fail(self.id, f"click on the popup failed: {exc}")
         time.sleep(1.6)
