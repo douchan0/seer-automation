@@ -409,6 +409,7 @@ class RunBattle(_Base):
                 actions += 1
             return ok
 
+        moves_used: list[str] = []
         hunt_started: float | None = None
         last_ocr = 0.0
         ally_level: int | None = None
@@ -515,8 +516,10 @@ class RunBattle(_Base):
                 # --- choose the move instead of letting the timer choose for us ---
                 live_skills = self.read_skills(s)
                 if live_skills:
-                    chosen = self.pick_skill(live_skills)
+                    chosen = self.pick_skill(live_skills, self._power_table(ctx))
                     if chosen is not None:
+                        moves_used.append(f"{chosen['name']}#{chosen.get('slot')}"
+                                          f"(pp{chosen['pp']})")
                         act(chosen["px"], f"use {chosen['name']} "
                                           f"(power {chosen['power']}, pp {chosen['pp']})")
                     else:
@@ -526,8 +529,10 @@ class RunBattle(_Base):
                     act(probe.points["fight"], "open move list")
                     time.sleep(0.45)
                     live_skills = self.read_skills(s)
-                    chosen = self.pick_skill(live_skills)
+                    chosen = self.pick_skill(live_skills, self._power_table(ctx))
                     if chosen is not None:
+                        moves_used.append(f"{chosen['name']}#{chosen.get('slot')}"
+                                          f"(pp{chosen['pp']})")
                         act(chosen["px"], f"use {chosen['name']} "
                                           f"(power {chosen['power']}, pp {chosen['pp']})")
                 before = s.log_signature(frame)
@@ -599,7 +604,8 @@ class RunBattle(_Base):
 
         elapsed = time.perf_counter() - started
         changed = wins > 0
-        proof = f"{wins} 场胜利, {losses} 场失败, 经验 +{xp_total:.0f} ({end_reason})"
+        proof = (f"{wins} 场胜利, {losses} 场失败, 经验 +{xp_total:.0f} ({end_reason}); "
+                 f"moves: {','.join(moves_used[-12:]) or 'none read'}")
         result = SkillResult(
             skill=self.id,
             status=Status.PASS if changed else Status.FAIL,
@@ -637,68 +643,88 @@ class RunBattle(_Base):
                 best = probe
         return best
 
-    _PP_RE = re.compile(r"PP\s*[:：]?\s*(\d+)\s*/\s*(\d+)", re.I)
-    _POWER_RE = re.compile(r"威力\s*[:：]?\s*(\d+)")
+    #: The client labels a move's remaining uses 「使用次数：13/35」.  The battle panel
+    #: is always on screen (no 战斗 press needed) — an earlier version looked for "PP"
+    #: and therefore never found a single move.
+    #: The battle move panel is a fixed 2x2 grid (measured on the 1200x800 client).
+    #: The move NAMES OCR badly (「火花豆」 is 火花 plus its type icon), but the use
+    #: counter 「使用次数：11/35」 reads reliably, so the slot — not the name — is the
+    #: identity, and the name/power come from the pet panel table.
+    SKILL_SLOTS = {1: (1200.0, 1246.0), 2: (1456.0, 1246.0),
+                   3: (1200.0, 1368.0), 4: (1458.0, 1368.0)}
+    #: Damage-first order used until a power table has been learned.
+    DEFAULT_ORDER = (3, 1, 2, 4)
+    _PP_RE = re.compile(r"(?:PP|使用次数)\s*[:：]?\s*(\d+)\s*/\s*(\d+)", re.I)
 
     @classmethod
     def read_skills(cls, session: Any) -> list[dict[str, Any]]:
-        """Read the four skill cells: name, remaining PP, power, and where to click.
+        """Read the four move slots: remaining uses per slot.
 
-        The client shows the move list only after 战斗 is pressed, and by default it
-        waits for the turn timer and then uses whatever sits in the first slot.  That
-        is both slow (every turn costs the full timer) and dumb (it will happily throw
-        a 0-power status move, and a move with no PP).  Reading the cells lets the run
-        pick the hardest-hitting move that still has PP and fire it immediately.
+        Returns ``[{slot, px, pp, pp_max}]``.  Power/name are filled in by
+        :meth:`pick_skill` from the learned table, because the battle panel does not
+        show 威力 at all.
         """
 
-        items = session.ocr(min_conf=0.2)
-        cells: list[dict[str, Any]] = []
+        items = session.ocr(min_conf=0.15)
+        counters = []
         for it in items:
             m = cls._PP_RE.search(str(it.get("text") or ""))
-            if not m:
-                continue
-            px = it["px"]
-            pp, pp_max = int(m.group(1)), int(m.group(2))
-            # neighbours: the move name sits above the PP line, 威力 near it
-            name = None
-            power = 0
+            if m:
+                counters.append((it["px"], int(m.group(1)), int(m.group(2))))
+        cells: list[dict[str, Any]] = []
+        for slot, (sx, sy) in cls.SKILL_SLOTS.items():
+            best = None
             best_d = 1e9
-            for other in items:
-                text = str(other.get("text") or "")
-                ox, oy = other["px"]
-                d = abs(ox - px[0]) + abs(oy - px[1])
-                if d > 420:
-                    continue
-                pm = cls._POWER_RE.search(text)
-                if pm:
-                    power = max(power, int(pm.group(1)))
-                    continue
-                if 2 <= len(text) <= 6 and not any(c.isdigit() for c in text) \
-                        and "PP" not in text.upper() and d < best_d:
-                    if oy < px[1] + 40:      # the name is drawn above/near the PP row
-                        best_d = d
-                        name = text
-            cells.append({"px": (px[0], px[1]), "name": name or "?", "pp": pp,
-                          "pp_max": pp_max, "power": power})
-        # de-duplicate by position (the OCR sometimes reads the same cell twice)
-        uniq: list[dict[str, Any]] = []
-        for c in cells:
-            if any(abs(c["px"][0] - u["px"][0]) < 60 and abs(c["px"][1] - u["px"][1]) < 40
-                   for u in uniq):
+            for (px, pp, pp_max) in counters:
+                # Chebyshev distance: the four slots sit on a 256x122 grid, so a
+                # Manhattan radius loose enough for the wide gap also lets slot 3
+                # steal slot 1's counter (it did).
+                d = max(abs(px[0] - sx), abs(px[1] - sy))
+                if d < best_d and d < 120:
+                    best_d = d
+                    best = (pp, pp_max)
+            if best is None:
                 continue
-            uniq.append(c)
-        return uniq
+            cells.append({"slot": slot, "px": (sx, sy), "pp": best[0],
+                          "pp_max": best[1], "power": 0, "name": f"slot{slot}"})
+        return cells
 
     @staticmethod
-    def pick_skill(cells: list[dict[str, Any]]) -> dict[str, Any] | None:
-        """Highest power with PP left; status moves only when nothing else is usable."""
+    def _power_table(ctx: SkillContext) -> dict[str, int]:
+        """Learned move power per slot, if the run has read the pet panel."""
 
+        table = ((ctx.world.observations or {}).get("skill_power") or {})
+        return {str(k): int(v) for k, v in table.items()} if isinstance(table, dict) else {}
+
+    @classmethod
+    def pick_skill(cls, cells: list[dict[str, Any]], power_table: dict[str, int] | None = None
+                   ) -> dict[str, Any] | None:
+        """Highest-power move that still has uses; status moves only as a last resort.
+
+        ``power_table`` maps a *slot key* ("slot1" … or a learned move name) to 威力.
+        Without it the damage-first slot order is used, which matches the usual
+        赛尔号 layout (slot 1 attack, slot 2 status, slot 3 本系 attack, slot 4 status).
+        """
+
+        if not cells:
+            return None
+        table = {str(k): int(v) for k, v in (power_table or {}).items()}
+        for c in cells:
+            key = str(c.get("name") or f"slot{c.get('slot')}")
+            if not c.get("power"):
+                c["power"] = table.get(key, table.get(f"slot{c.get('slot')}", 0))
         usable = [c for c in cells if c.get("pp", 0) > 0]
         if not usable:
             return None
+        unknown = not any(c.get("power") for c in usable)
+        if unknown:
+            for slot in cls.DEFAULT_ORDER:
+                for c in usable:
+                    if c.get("slot") == slot:
+                        return c
+            return usable[0]
         damaging = [c for c in usable if c.get("power", 0) > 0]
-        pool = damaging or usable
-        return max(pool, key=lambda c: (c.get("power", 0), c.get("pp", 0)))
+        return max(damaging or usable, key=lambda c: (c.get("power", 0), c.get("pp", 0)))
 
     @staticmethod
     def _read_battle_hud(session: Any) -> tuple[int | None, tuple[int, int] | None]:
