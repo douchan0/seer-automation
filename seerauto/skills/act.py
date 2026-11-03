@@ -1174,7 +1174,14 @@ class ReadPetBag(_Base):
         # icon row: probing a closed panel hovers over the world instead)
         if close:
             try:
-                _click(ctx, (2072, 312), "close pet bag")
+                # The bag's X moved when the panel grew a detail pane; try both and
+                # verify the panel is really gone (an open bag blocks every hunt).
+                for point in ((1141, 503), (2072, 312)):
+                    _click(ctx, point, f"close pet bag at {point}")
+                    time.sleep(0.5)
+                    left = [str(i.get("text") or "") for i in _ocr(ctx.session, min_conf=0.25)]
+                    if not any("升级所需经验值" in t or "个体：" in t for t in left):
+                        break
             except Exception:  # noqa: BLE001
                 pass
             time.sleep(0.6)
