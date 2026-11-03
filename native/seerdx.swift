@@ -348,6 +348,39 @@ func clickPid(_ gx: Double, _ gy: Double, _ n: Int) -> [String: Any] {
     return ["ok": true, "pid": Int(pid)]
 }
 
+//: Drag with the pointer posted to the game process and the real cursor untouched.
+//: Scrollbars in this client are draggable thumbs; a click on the track does
+//: nothing, which is why paging a server list needs an actual drag.
+func dragPid(_ x1: Double, _ y1: Double, _ x2: Double, _ y2: Double,
+             _ steps: Int) -> [String: Any] {
+    guard let pid = gamePid() else { return ["error": "no window"] }
+    let winID = gameWindowID()
+    let src = CGEventSource(stateID: .hidSystemState)
+    let a = CGPoint(x: x1, y: y1)
+    let b = CGPoint(x: x2, y: y2)
+    let n = max(2, steps)
+    let down = CGEvent(mouseEventSource: src, mouseType: .leftMouseDown,
+                       mouseCursorPosition: a, mouseButton: .left)
+    stampWindow(down, winID)
+    down?.postToPid(pid)
+    usleep(60_000)
+    for i in 1...n {
+        let t = Double(i) / Double(n)
+        let p = CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+        let mv = CGEvent(mouseEventSource: src, mouseType: .leftMouseDragged,
+                         mouseCursorPosition: p, mouseButton: .left)
+        stampWindow(mv, winID)
+        mv?.postToPid(pid)
+        usleep(28_000)
+    }
+    usleep(60_000)
+    let up = CGEvent(mouseEventSource: src, mouseType: .leftMouseUp,
+                     mouseCursorPosition: b, mouseButton: .left)
+    stampWindow(up, winID)
+    up?.postToPid(pid)
+    return ["ok": true]
+}
+
 func movePid(_ gx: Double, _ gy: Double) -> [String: Any] {
     guard let pid = gamePid() else { return ["error": "no window"] }
     let src = CGEventSource(stateID: .hidSystemState)
@@ -444,7 +477,7 @@ final class Daemon {
                    "shot", "ocr", "click", "move", "key", "type",
                    // background lane: events posted straight to the game process,
                    // so the cursor never moves and the window need not be frontmost
-                   "clickpid", "movepid", "keypid", "cursorpos"]
+                   "clickpid", "movepid", "keypid", "dragpid", "cursorpos"]
         if stream != nil {
             ops += ["capture.latest", "capture.roi", "capture.stop"]
         }
@@ -610,6 +643,10 @@ final class Daemon {
         case "cursorpos":
             let p = CGEvent(source: nil)?.location ?? .zero
             return ["x": Double(p.x), "y": Double(p.y)]
+        case "dragpid":
+            return dragPid(obj["x1"] as? Double ?? 0, obj["y1"] as? Double ?? 0,
+                           obj["x2"] as? Double ?? 0, obj["y2"] as? Double ?? 0,
+                           obj["steps"] as? Int ?? 14)
         case "clickpid":
             return clickPid(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0,
                             obj["n"] as? Int ?? 1)

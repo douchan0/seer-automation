@@ -81,3 +81,50 @@ PYTHONPATH=.pydeps python3 tools/vision_probe.py --capture /tmp/bg_after.png
 | 服务器列表 | 按在线人数排序，1 号服不一定在前 10；`啦公星` 出现时点它的文字即可 |
 | 悬停提示 | 必须**分段移动 + 停住**，一次瞬移基本不出提示（已实现 `_move_human`） |
 | 纯文字弹窗 | 「恭喜你得到了N个积累经验」没有模板，只能 OCR + 固定按钮位 (1200,980) |
+
+---
+
+## 5. 2026-11-03 22:15 结论：**这个客户端无法在后台（不抢光标）被点击**
+
+三条路都试过了，全部否证：
+
+| 方案 | 结果 | 证据 |
+|---|---|---|
+| `CGEvent.postToPid`（`clickpid`，把事件直接投递给游戏进程） | ❌ 到不了 Flash 画布 | 一次真实测试：Flash 里的「确认」弹窗，`clickpid` 后**没有关闭**；同一个坐标用前台 `click` 才会关 |
+| 同上，但走**原生窗口**（美术包弹窗） | ✅ 有效 | 那个弹窗是 Electron 原生 DOM，不是 Flash 画布 |
+| CDP 远程调试端口（`--remote-debugging-port=9222`） | ❌ 客户端主动拒绝 | 直接运行二进制会报 `bad option: --remote-debugging-port=9222` |
+
+**机制解释**：Flash（Pepper）画布在渲染进程里，只接受来自窗口系统命中测试的真实鼠标事件；
+`postToPid` 绕过窗口系统，Chromium 不会把它转发给插件。客户端又显式关掉了调试端口，
+所以没有"从内部注入"的入口。
+
+### 那什么是不抢焦点的？
+
+| 操作 | 抢焦点吗 |
+|---|---|
+| 截屏（ScreenCaptureKit 抓被遮挡窗口） | **不抢** |
+| OCR / 模板匹配 / 视觉分析 | **不抢** |
+| 读写本地 SQLite / 文档 / git | **不抢** |
+| **任何点击** | **抢**（必须真实光标） |
+
+### 因此的用法建议
+
+1. **观察类工作随时可以做**，完全不影响用户；
+2. **点击类工作**只能在下列时机做：
+   - 用户不在用电脑（例如 23:30 之后）；
+   - 或者接受"短脉冲"——连续跑 1~2 分钟就停，期间鼠标被占用，之后归还。
+3. 不要用 `activate`：它不仅抢焦点，之前还会打错进程（打到 Helper）。
+</MARKDOWN
+git add -A && git -c user.name="seerauto-agent" -c user.email="agent@local" commit -q -F - <<'MSG'
+docs(input): the client cannot be clicked in the background — three approaches tested and rejected
+
+- CGEvent.postToPid reaches Electron's native dialogs (the art-pack popup closes) but
+  NOT the PepperFlash canvas: a Flash 确认 dialog stayed open after a pid click at its
+  centre, while the same coordinate in the foreground dismissed it.
+- CDP is refused by the client itself: running the binary with
+  --remote-debugging-port prints "bad option", and the port never listens.
+=> observation (screenshots via SCK, OCR, vision, SQLite) costs the user nothing;
+   every click needs the real cursor.  Recommended usage is written down: observe any
+   time, click only while the machine is idle or in short bounded bursts.
+MSG
+git log --oneline -1; git push origin main 2>&1 | tail -1
