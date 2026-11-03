@@ -547,6 +547,13 @@ class RunBattle(_Base):
                 table = self._power_table(ctx)
                 if live_skills and not table:
                     table = self.learn_power_table(ctx)
+                best_now = self.pick_skill(live_skills, table) if live_skills else None
+                if best_now is not None and best_now.get("pp", 0) <= 2:
+                    # 精灵恢复 refills HP *and* uses for 20 XIN豆, so ending a pass one
+                    # battle early is cheaper than stalling on an empty move list.
+                    end_reason = (f"best move down to {best_now['pp']} uses; stopping the "
+                                  f"pass so HP and PP can be restored together")
+                    break
                 if live_skills and self.pick_skill(live_skills, table) is None:
                     # Every move sits at 0/35 … 0/20.  The client will not advance and
                     # the run used to spin here until its stall timeout (150 s, twice in
