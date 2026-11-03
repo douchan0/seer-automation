@@ -74,6 +74,10 @@ class RunConfig:
     run_id: str | None = None
     #: Opt-in: open the pet panel during preflight (needs a template-located icon).
     preflight_pet_panel: bool = True
+    #: Send input through the background lane (events posted to the game process,
+    #: cursor untouched, window need not be frontmost).  Off by default because the
+    #: Flash plugin's acceptance of posted events is not yet proven.
+    background: bool = False
     planner_options: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -1094,7 +1098,9 @@ def open_runner(config: RunConfig, *, log: Any = print) -> GoalRunner:
             log(f"[runner] startup-popup check failed: {exc}")
     try:
         runner.session = LiveSession(
-            dry_run=config.dry_run, enable_input=config.allow_input and not config.dry_run
+            dry_run=config.dry_run,
+            enable_input=config.allow_input and not config.dry_run,
+            background=config.background,
         ).open()
     except Exception as exc:  # noqa: BLE001 - no game window is a valid dry-run state
         log(f"[runner] no live session ({exc}); running observation-free")

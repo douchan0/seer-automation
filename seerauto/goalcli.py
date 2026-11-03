@@ -67,6 +67,7 @@ def _config_from_args(args: Any, **overrides: Any) -> RunConfig:
         db_path=getattr(args, "db", None) or str(ROOT / "data" / "goalrunner.sqlite3"),
         ai_dir=getattr(args, "ai_dir", None) or str(ROOT / "data" / "ai"),
         run_id=getattr(args, "run_id", None),
+        background=bool(getattr(args, "background", False)),
     )
     for k, v in overrides.items():
         setattr(cfg, k, v)
@@ -419,6 +420,9 @@ def add_goal_subcommand(sub: Any) -> None:
     start.add_argument("--max-actions", type=int, default=400)
     start.add_argument("--max-spend", type=float, default=0.0)
     start.add_argument("--max-errors", type=int, default=3)
+    start.add_argument("--background", action="store_true", default=False,
+                       help="post input straight to the game process: the cursor does "
+                            "not move and the window need not be frontmost")
     start.add_argument("--db", **common_db)
     start.add_argument("--ai-dir", default=None)
     start.add_argument("--pause-file", default=None)
