@@ -429,6 +429,13 @@ class RunBattle(_Base):
                 actions += 1
             return ok
 
+        # A reward dialog from the PREVIOUS pass can still be on screen when this one
+        # starts; the hunt then finds no monster for its whole timeout (observed:
+        # 498 s, one battle, "no engageable monster within 20 s").  Clear first.
+        try:
+            _dismiss_dialogs(ctx, limit=3)
+        except Exception:  # noqa: BLE001
+            pass
         moves_used: list[str] = []
         hunt_started: float | None = None
         last_ocr = 0.0
@@ -520,6 +527,8 @@ class RunBattle(_Base):
             if state is Scene.DIALOG:
                 act(probe.points["confirm"], "dismiss dialog")
                 time.sleep(0.7)
+                if hunt_started is not None:
+                    last_progress = time.perf_counter()   # a dialog is not a stall
                 last_state = None
                 continue
 
