@@ -288,8 +288,11 @@ class LiveSession:
         except Exception:  # noqa: BLE001
             spread = 255.0
         # Measured: real game frames (world/battle/victory/panels) sit at std 63-105,
-        # a blank or error page at ~11.  The gap is wide enough to be a safe gate.
-        if spread < 25.0:
+        # the dark login screen at ~23, and a genuinely blank/error page at ~11.
+        # The gate has to sit between 11 and 23, or a dark-but-real page is called
+        # blank (that false positive happened on 2026-11-03 right after the client
+        # came back).
+        if spread < 16.0:
             return SceneProbe(scene=Scene.UNKNOWN, blank=True,
                               scores={"frame_std": round(spread, 2)},
                               points={}, frame_seq=0)
@@ -469,6 +472,32 @@ class LiveSession:
         self.actions.append(rec)
         return rec
 
+    def hover_px(self, x: float, y: float, *, settle_s: float = 0.9,
+                 min_conf: float = 0.25) -> dict[str, Any]:
+        """Move the pointer over a game_px point and read the tooltip it shows.
+
+        The client draws a tooltip with the button's name ("身边跟随", "恢复体力",
+        …) when the pointer rests on it.  That is the only reliable way to
+        identify an icon whose artwork we have never seen: the picture cannot be
+        OCR'd, but the tooltip can.  Costs two OCR passes, so it belongs to
+        exploration and calibration — never to a combat loop.
+        """
+
+        self._revalidate_geometry()
+        if self.client is None or self.geo is None:
+            raise LiveError("session not open")
+        before = {str(t["text"]) for t in self.ocr(min_conf=min_conf)}
+        gp = self.geo.global_pt_from_game_px(x, y)
+        self.client.send("move", x=gp.x, y=gp.y)
+        time.sleep(settle_s)
+        after = self.ocr(min_conf=min_conf)
+        fresh = [t for t in after if str(t["text"]) not in before]
+        return {
+            "text": " ".join(str(t["text"]) for t in fresh).strip(),
+            "items": fresh,
+            "px": (x, y),
+        }
+
     def move_px(self, x: float, y: float) -> None:
         if not self.allow_input or self.client is None or self.geo is None:
             raise InputRefused("input disabled")
@@ -547,6 +576,52 @@ class LiveSession:
         }
 
 
+#: A game window smaller than this (in points) is an auxiliary/startup popup, not
+#: the playfield.  Measured 2026-11-03: the playfield is 1200x800 while the
+#: 「未检测本地有美术包」 dialog is 260x258.
+AUX_WINDOW_MAX_PT = 500
+
+
+def list_game_windows(seerctl: str | None = None) -> list[dict[str, Any]]:
+    """Every SeerGame window, biggest first.
+
+    The client owns more than one window: the playfield plus, at startup, a small
+    dialog.  The daemon's ``win`` returns only the largest, so a startup popup is
+    invisible to code that trusts it — and while it is up the playfield sits on
+    「版本检测中」 forever (that is exactly what blocked a whole session).
+    """
+
+    import json
+    import subprocess
+
+    cli = seerctl or os.path.join(ROOT, "scripts", "seerctl")
+    if not os.path.exists(cli):
+        return []
+    try:
+        out = subprocess.run([cli, "wl"], capture_output=True, text=True, timeout=6.0).stdout
+        raw = json.loads(out)
+    except Exception:  # noqa: BLE001
+        return []
+    windows = []
+    for w in raw:
+        if str(w.get("owner")) != "SeerGame":
+            continue
+        b = w.get("bounds") or {}
+        if "w" not in b:
+            continue
+        windows.append({
+            "id": w.get("id"),
+            "x": float(b["x"]),
+            "y": float(b["y"]),
+            "w": float(b["w"]),
+            "h": float(b["h"]),
+            "title": w.get("title") or "",
+            "aux": float(b["w"]) < AUX_WINDOW_MAX_PT and float(b["h"]) < AUX_WINDOW_MAX_PT,
+        })
+    windows.sort(key=lambda v: v["w"] * v["h"], reverse=True)
+    return windows
+
+
 def _frontmost_via_seerctl() -> bool:
     """Ask the legacy one-shot CLI which layer-0 window is in front."""
 
@@ -567,6 +642,8 @@ def _frontmost_via_seerctl() -> bool:
 
 
 __all__ = [
+    "list_game_windows",
+    "AUX_WINDOW_MAX_PT",
     "LiveSession",
     "LiveError",
     "NotFrontmost",

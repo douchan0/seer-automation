@@ -1188,6 +1188,256 @@ class Travel(_Base):
         return SkillResult.fail(self.id, f"destination {destination!r} not confirmed")
 
 
+class ProbeButtons(_Base):
+    """Identify a row of icon buttons by hovering each one and reading its tooltip.
+
+    Icons have no OCR-able text, so template matching is the only other option and
+    it breaks whenever the artwork or the bar position changes.  Hovering is how a
+    human tells them apart, and the client answers with a tooltip naming the
+    button ("身边跟随", "恢复体力", …) — that text *is* machine-readable.
+
+    Costs two OCR passes per button (~1 s each), so this is a calibration skill,
+    not something to call in a loop.
+    """
+
+    spec = SkillSpec(
+        id="game.probe_buttons",
+        kind=SkillKind.OBSERVE,
+        summary="沿一行按钮逐个悬停，读取每个按钮的提示文字（用于识别没有文字图标的按钮）",
+        inputs={"x0": {"type": "int", "required": True},
+                "x1": {"type": "int", "required": True},
+                "y": {"type": "int", "required": True},
+                "count": {"type": "int", "required": True},
+                "settle_s": {"type": "float", "required": False}},
+        outputs={"buttons": "list"},
+        max_duration_s=90.0,
+        max_actions=0,
+        requires_input=True,
+        verified="unverified",
+    )
+
+    def run(self, ctx: SkillContext, x0: int = 0, x1: int = 0, y: int = 0,
+            count: int = 1, settle_s: float = 0.9) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        if count < 1 or x1 <= x0:
+            return SkillResult.fail(self.id, f"bad row {x0}..{x1} count={count}")
+        step = (x1 - x0) / max(1, count - 1)
+        found: list[dict[str, Any]] = []
+        for i in range(count):
+            x = int(round(x0 + i * step))
+            try:
+                probe = ctx.session.hover_px(x, y, settle_s=settle_s)
+            except Exception as exc:  # noqa: BLE001
+                found.append({"px": (x, y), "text": "", "error": str(exc)})
+                continue
+            found.append({"px": (x, y), "text": probe.get("text", "")})
+        named = [b for b in found if b.get("text")]
+        return SkillResult.pass_(
+            self.id,
+            proof=f"probed {len(found)} buttons, {len(named)} had a tooltip: "
+                  + "; ".join(f"({b['px'][0]}){b['text'][:12]}" for b in named[:6]),
+            after={"buttons": found},
+            changed=False,
+            actions=0,
+        )
+
+
+class HealPet(_Base):
+    """Restore pet HP using the bag's heal icon, identified by its tooltip.
+
+    The icon is the right-most one in the bag's action row (the pet head with a red
+    cross).  Its position drifts and its artwork is not recognisable by template,
+    so the button is found the way a human finds it: hover the row, read the
+    tooltips, click the one that says 恢复 / 治疗 / 体力 / 回血.
+    """
+
+    spec = SkillSpec(
+        id="game.heal_pet",
+        kind=SkillKind.ACT,
+        summary="打开精灵背包，用悬停提示找到「恢复体力」按钮并点击，再复读血量确认",
+        inputs={"row_y": {"type": "int", "required": False},
+                "row_x0": {"type": "int", "required": False},
+                "row_x1": {"type": "int", "required": False},
+                "row_count": {"type": "int", "required": False}},
+        outputs={"hp_before": "list", "hp_after": "list", "healed": "bool"},
+        max_duration_s=120.0,
+        max_actions=6,
+        requires_input=True,
+        verified="unverified",
+        evidence=("artifacts/round5/13_pet_bag_full.png",),
+    )
+
+    #: Measured on the 1200x800 client: the bag's action row sits at y≈1131 with
+    #: five icons between x≈660 and x≈1060; the heal icon is the next one right.
+    ROW = {"y": 1131, "x0": 640, "x1": 1160, "count": 6}
+    HEAL_WORDS = ("恢复", "治疗", "体力", "回血", "补")
+
+    def run(self, ctx: SkillContext, row_y: int = 0, row_x0: int = 0,
+            row_x1: int = 0, row_count: int = 0) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        s = ctx.session
+        row = dict(self.ROW)
+        if row_y:
+            row["y"] = int(row_y)
+        if row_x0:
+            row["x0"] = int(row_x0)
+        if row_x1:
+            row["x1"] = int(row_x1)
+        if row_count:
+            row["count"] = int(row_count)
+
+        before = ReadPetBag()(ctx)
+        if not before.ok:
+            return SkillResult.fail(self.id, f"cannot read the pet bag: {before.reason}")
+        hp_before = before.after.get("pets") or []
+
+        found = ProbeButtons()(ctx, x0=row["x0"], x1=row["x1"], y=row["y"],
+                               count=row["count"])
+        buttons = (found.after or {}).get("buttons") or []
+        target = next((b for b in buttons
+                       if any(w in str(b.get("text") or "") for w in self.HEAL_WORDS)), None)
+        if target is None:
+            return SkillResult.fail(
+                self.id,
+                "no heal button found by tooltip; probed: "
+                + "; ".join(f"({b['px'][0]}){b.get('text') or '-'}" for b in buttons[:8]),
+                data={"buttons": buttons})
+
+        ok, why = self.click_and_check(ctx, target["px"], f"heal via {target['text']!r}")
+        if not ok:
+            return SkillResult.blocked(self.id, f"click refused: {why}", escalation="pause")
+        time.sleep(1.2)
+        _dismiss_dialogs(ctx, limit=2)
+
+        after = ReadPetBag()(ctx)
+        hp_after = (after.after or {}).get("pets") or []
+        healed = any(a.get("hp", 0) > b.get("hp", 0)
+                     for a, b in zip(hp_after, hp_before))
+        return SkillResult(
+            skill=self.id,
+            status=Status.PASS if healed else Status.FAIL,
+            reason="" if healed else "hp did not increase after clicking the heal button",
+            after={"hp_before": hp_before, "hp_after": hp_after, "healed": healed,
+                   "button": target},
+            changed=healed,
+            proof=(f"clicked {target['text']!r} at {target['px']}; hp "
+                   f"{[p.get('hp') for p in hp_before]} -> {[p.get('hp') for p in hp_after]}"),
+            actions=2,
+            escalation=None if healed else "pause",
+        )
+
+
+class DismissStartupPopup(_Base):
+    """Close the client's auxiliary startup dialog (e.g. the art-pack prompt).
+
+    The client owns a second, small window that is invisible to everything which
+    only looks at the playfield: while it is open the playfield sits on
+    「版本检测中」 and every later skill fails with a misleading reason.  This skill
+    finds that window by size, OCRs *its own* pixels, and clicks the safe choice by
+    text — no hard-coded coordinates, because the dialog moves between launches.
+
+    Preference order is deliberately "do nothing irreversible": 暂不导入 before
+    立即导入 before 前往下载.
+    """
+
+    spec = SkillSpec(
+        id="game.dismiss_startup_popup",
+        kind=SkillKind.ACT,
+        summary="识别并关闭客户端的小窗口启动弹窗（美术包导入等），优先选可逆选项",
+        inputs={"prefer": {"type": "list", "required": False}},
+        outputs={"dismissed": "bool", "text": "list"},
+        max_duration_s=45.0,
+        max_actions=3,
+        requires_input=True,
+        verified="real",
+        evidence=("artifacts/round5/17_artpack_popup.png",),
+    )
+
+    #: Safe-first.  Never auto-choose a download unless told to.
+    DEFAULT_PREFERENCE = ("暂不导入", "取消", "关闭", "我知道了", "暂不", "确定")
+
+    def run(self, ctx: SkillContext, prefer: Any = None) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        from ..live import list_game_windows
+
+        order = tuple(prefer or self.DEFAULT_PREFERENCE)
+        windows = list_game_windows()
+        aux = [w for w in windows if w["aux"]]
+        if not aux:
+            return SkillResult(skill=self.id, status=Status.SKIPPED, changed=False,
+                               reason="no auxiliary game window present")
+        win = aux[0]
+        path = "/tmp/seerauto_aux_window.png"
+        try:
+            import subprocess
+
+            subprocess.run(
+                ["screencapture", "-x", f"-R{int(win['x'])},{int(win['y'])},"
+                                         f"{int(win['w'])},{int(win['h'])}", path],
+                check=True, capture_output=True, timeout=10)
+        except Exception as exc:  # noqa: BLE001
+            return SkillResult.fail(self.id, f"cannot capture the popup window: {exc}")
+        items = _ocr_path(ctx, path)
+        texts = [str(i.get("text") or "") for i in items]
+        chosen = None
+        for word in order:
+            for it in items:
+                if word in str(it.get("text") or ""):
+                    chosen = it
+                    break
+            if chosen is not None:
+                break
+        if chosen is None:
+            return SkillResult.fail(
+                self.id, "popup has no known button", data={"text": texts[:12]})
+        # OCR boxes are normalised to the captured image, which is the window at
+        # 2x: convert to window-local points, then to global points for the click.
+        w_px = int(win["w"])
+        h_px = int(win["h"])
+        cx = win["x"] + chosen["px"][0] / 2.0
+        cy = win["y"] + chosen["px"][1] / 2.0
+        try:
+            ctx.session.client.send("activate")
+            time.sleep(0.4)
+            ctx.session.client.send("click", x=cx, y=cy, n=1)
+        except Exception as exc:  # noqa: BLE001
+            return SkillResult.fail(self.id, f"click on the popup failed: {exc}")
+        time.sleep(1.6)
+        remaining = [w for w in list_game_windows() if w["aux"]]
+        return SkillResult(
+            skill=self.id,
+            status=Status.PASS if not remaining else Status.FAIL,
+            after={"dismissed": not remaining, "text": texts[:12],
+                   "button": chosen.get("text")},
+            changed=not remaining,
+            proof=(f"clicked {chosen.get('text')!r} on the {w_px}x{h_px} auxiliary "
+                   f"window at ({cx:.0f},{cy:.0f}); popup still open={bool(remaining)}"),
+            actions=1,
+        )
+
+
+def _ocr_path(ctx: SkillContext, path: str) -> list[dict[str, Any]]:
+    """OCR an image file through the daemon and return game-px points."""
+
+    client = getattr(ctx.session, "client", None)
+    if client is None:
+        return []
+    raw = client.send("ocr", path=path, min=0.25).get("items", [])
+    w, h = ctx.session.pixel_size if hasattr(ctx.session, "pixel_size") else (0, 0)
+    out = []
+    for it in raw:
+        cx = (it["x"] + it["w"] / 2.0) * w
+        cy = (1.0 - (it["y"] + it["h"] / 2.0)) * h
+        out.append({"text": it["text"], "conf": it.get("conf", 0.0), "px": (cx, cy)})
+    return out
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -1201,6 +1451,9 @@ def build_act_skills() -> list[Skill]:
         GotoPuniEntrance(),
         GotoTutorRoom(),
         Travel(),
+        ProbeButtons(),
+        HealPet(),
+        DismissStartupPopup(),
     ]
 
 
@@ -1216,6 +1469,9 @@ __all__ = [
     "GotoPuniEntrance",
     "GotoTutorRoom",
     "Travel",
+    "ProbeButtons",
+    "HealPet",
+    "DismissStartupPopup",
     "MAP_DESTINATIONS",
     "build_act_skills",
     "ICON",

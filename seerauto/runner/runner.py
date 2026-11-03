@@ -1068,6 +1068,30 @@ def open_runner(config: RunConfig, *, log: Any = print) -> GoalRunner:
     # Observation is always allowed (it is read-only screenshots); input is not.
     # A dry run that could not even look would be useless: the whole point is to
     # show what the agent *would* decide from the real account state.
+    # The client's auxiliary startup dialog (the art-pack prompt) blocks the
+    # playfield on 「版本检测中」 while being invisible to a "largest window" lookup.
+    # Clear it before anything tries to look at the game.
+    if config.allow_input and not config.dry_run:
+        try:
+            from ..live import list_game_windows
+
+            if any(w["aux"] for w in list_game_windows()):
+                log("[runner] auxiliary game window detected — clearing the startup popup")
+                session_probe = LiveSession(dry_run=False, enable_input=True)
+                try:
+                    session_probe.open()
+                except Exception:  # noqa: BLE001 - the popup may be the only window
+                    pass
+                if session_probe.opened:
+                    registry = runner.registry
+                    if registry is not None and "game.dismiss_startup_popup" in registry:
+                        ctx = runner._skill_ctx(GameWorldState(), max_duration_s=45.0,
+                                                max_actions=3)
+                        res = registry.get("game.dismiss_startup_popup")(ctx)
+                        log(f"[runner] startup popup: {res.status.value} {res.proof[:120]}")
+                session_probe.close()
+        except Exception as exc:  # noqa: BLE001 - never block startup on this
+            log(f"[runner] startup-popup check failed: {exc}")
     try:
         runner.session = LiveSession(
             dry_run=config.dry_run, enable_input=config.allow_input and not config.dry_run
