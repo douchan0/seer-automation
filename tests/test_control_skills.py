@@ -173,3 +173,38 @@ def test_battle_pass_stops_before_the_pet_faints():
                                     (24, 95, False), (95, 95, False)):
         ratio = hp / float(hp_max)
         assert (ratio <= hp_floor) is expect_stop, (hp, hp_max, ratio)
+
+
+def test_skill_picker_prefers_power_and_skips_empty_pp():
+    """The client's default is "first slot when the timer expires" — always wrong.
+
+    抓 with 0/35 PP, 瞪眼 is a 0-power status move, 火花 hits for 40.  The picker has
+    to take 火花, and it must fall back to a status move only when nothing damaging
+    has PP left.
+    """
+
+    from seerauto.skills.act import RunBattle
+
+    cells = [
+        {"px": (1, 1), "name": "抓", "pp": 0, "pp_max": 35, "power": 40},
+        {"px": (2, 2), "name": "瞪眼", "pp": 30, "pp_max": 30, "power": 0},
+        {"px": (3, 3), "name": "火花", "pp": 16, "pp_max": 25, "power": 40},
+        {"px": (4, 4), "name": "挑拨", "pp": 20, "pp_max": 20, "power": 0},
+    ]
+    assert RunBattle.pick_skill(cells)["name"] == "火花"
+
+    # a stronger move wins when both have PP
+    cells.append({"px": (5, 5), "name": "火焰漩涡", "pp": 5, "pp_max": 5, "power": 90})
+    assert RunBattle.pick_skill(cells)["name"] == "火焰漩涡"
+
+    # nothing damaging left -> use whatever still has PP
+    for c in cells:
+        if c["power"]:
+            c["pp"] = 0
+    picked = RunBattle.pick_skill(cells)
+    assert picked is not None and picked["power"] == 0
+
+    # nothing usable at all
+    for c in cells:
+        c["pp"] = 0
+    assert RunBattle.pick_skill(cells) is None

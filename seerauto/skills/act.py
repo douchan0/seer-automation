@@ -16,6 +16,7 @@ observing the panel it is supposed to open.
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -463,6 +464,23 @@ class RunBattle(_Base):
                     lambda f: s.score(f, "live_victory_word", (980, 640, 1430, 790)).score < TH_VICTORY,
                     timeout_s=8.0)
                 if not gone:
+                    # The victory panel's 确认 drifts: it can sit at the bottom of the
+                    # panel, inside a drop-list, or behind a second 「获得物品」 popup.
+                    # Click what the OCR actually says before declaring a dead end.
+                    for attempt in range(3):
+                        items = s.ocr(min_conf=0.25)
+                        btn = s.find_text(items, ("确认", "确定", "我知道了", "关闭"))
+                        if btn:
+                            act(btn["px"], "confirm victory (by text)")
+                        else:
+                            act((1200.0, 980.0 + 40 * attempt), "confirm victory (grid)")
+                        if s.wait_for(
+                                lambda f: s.score(f, "live_victory_word",
+                                                  (980, 640, 1430, 790)).score < TH_VICTORY,
+                                timeout_s=4.0):
+                            gone = True
+                            break
+                if not gone:
                     end_reason = "victory panel would not dismiss (confirm click had no effect)"
                     pending_win = False
                     break
@@ -494,7 +512,24 @@ class RunBattle(_Base):
                     lvl, hp = self._read_battle_hud(s)
                     ally_level = lvl or ally_level
                     ally_hp = hp or ally_hp
-                act(probe.points["fight"], "attack")
+                # --- choose the move instead of letting the timer choose for us ---
+                live_skills = self.read_skills(s)
+                if live_skills:
+                    chosen = self.pick_skill(live_skills)
+                    if chosen is not None:
+                        act(chosen["px"], f"use {chosen['name']} "
+                                          f"(power {chosen['power']}, pp {chosen['pp']})")
+                    else:
+                        act(probe.points["fight"], "attack (no usable move)")
+                else:
+                    # the command menu is showing: 战斗 opens the move list
+                    act(probe.points["fight"], "open move list")
+                    time.sleep(0.45)
+                    live_skills = self.read_skills(s)
+                    chosen = self.pick_skill(live_skills)
+                    if chosen is not None:
+                        act(chosen["px"], f"use {chosen['name']} "
+                                          f"(power {chosen['power']}, pp {chosen['pp']})")
                 before = s.log_signature(frame)
                 advanced = s.wait_log_change(before, timeout_s=8.0) or s.wait_for(
                     lambda f: s.score(f, "live_victory_word", (980, 640, 1430, 790)).score >= TH_VICTORY,
@@ -601,6 +636,69 @@ class RunBattle(_Base):
             if best is None or probe.score > best.score:
                 best = probe
         return best
+
+    _PP_RE = re.compile(r"PP\s*[:：]?\s*(\d+)\s*/\s*(\d+)", re.I)
+    _POWER_RE = re.compile(r"威力\s*[:：]?\s*(\d+)")
+
+    @classmethod
+    def read_skills(cls, session: Any) -> list[dict[str, Any]]:
+        """Read the four skill cells: name, remaining PP, power, and where to click.
+
+        The client shows the move list only after 战斗 is pressed, and by default it
+        waits for the turn timer and then uses whatever sits in the first slot.  That
+        is both slow (every turn costs the full timer) and dumb (it will happily throw
+        a 0-power status move, and a move with no PP).  Reading the cells lets the run
+        pick the hardest-hitting move that still has PP and fire it immediately.
+        """
+
+        items = session.ocr(min_conf=0.2)
+        cells: list[dict[str, Any]] = []
+        for it in items:
+            m = cls._PP_RE.search(str(it.get("text") or ""))
+            if not m:
+                continue
+            px = it["px"]
+            pp, pp_max = int(m.group(1)), int(m.group(2))
+            # neighbours: the move name sits above the PP line, 威力 near it
+            name = None
+            power = 0
+            best_d = 1e9
+            for other in items:
+                text = str(other.get("text") or "")
+                ox, oy = other["px"]
+                d = abs(ox - px[0]) + abs(oy - px[1])
+                if d > 420:
+                    continue
+                pm = cls._POWER_RE.search(text)
+                if pm:
+                    power = max(power, int(pm.group(1)))
+                    continue
+                if 2 <= len(text) <= 6 and not any(c.isdigit() for c in text) \
+                        and "PP" not in text.upper() and d < best_d:
+                    if oy < px[1] + 40:      # the name is drawn above/near the PP row
+                        best_d = d
+                        name = text
+            cells.append({"px": (px[0], px[1]), "name": name or "?", "pp": pp,
+                          "pp_max": pp_max, "power": power})
+        # de-duplicate by position (the OCR sometimes reads the same cell twice)
+        uniq: list[dict[str, Any]] = []
+        for c in cells:
+            if any(abs(c["px"][0] - u["px"][0]) < 60 and abs(c["px"][1] - u["px"][1]) < 40
+                   for u in uniq):
+                continue
+            uniq.append(c)
+        return uniq
+
+    @staticmethod
+    def pick_skill(cells: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """Highest power with PP left; status moves only when nothing else is usable."""
+
+        usable = [c for c in cells if c.get("pp", 0) > 0]
+        if not usable:
+            return None
+        damaging = [c for c in usable if c.get("power", 0) > 0]
+        pool = damaging or usable
+        return max(pool, key=lambda c: (c.get("power", 0), c.get("pp", 0)))
 
     @staticmethod
     def _read_battle_hud(session: Any) -> tuple[int | None, tuple[int, int] | None]:

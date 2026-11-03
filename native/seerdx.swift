@@ -400,6 +400,32 @@ func keyPid(_ code: UInt16) -> [String: Any] {
     return ["ok": true]
 }
 
+//: Drag with REAL events (HID tap): the cursor moves, the app sees a genuine press/
+//: move/release stream.  This is what a Flash scrollbar needs — the posted variant
+//: never reaches the plugin.
+func drag(_ x1: Double, _ y1: Double, _ x2: Double, _ y2: Double, _ steps: Int) {
+    let src = CGEventSource(stateID: .hidSystemState)
+    let a = CGPoint(x: x1, y: y1)
+    let b = CGPoint(x: x2, y: y2)
+    let n = max(2, steps)
+    CGEvent(mouseEventSource: src, mouseType: .mouseMoved, mouseCursorPosition: a,
+            mouseButton: .left)?.post(tap: .cghidEventTap)
+    usleep(80_000)
+    CGEvent(mouseEventSource: src, mouseType: .leftMouseDown, mouseCursorPosition: a,
+            mouseButton: .left)?.post(tap: .cghidEventTap)
+    usleep(80_000)
+    for i in 1...n {
+        let t = Double(i) / Double(n)
+        let p = CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+        CGEvent(mouseEventSource: src, mouseType: .leftMouseDragged, mouseCursorPosition: p,
+                mouseButton: .left)?.post(tap: .cghidEventTap)
+        usleep(25_000)
+    }
+    usleep(60_000)
+    CGEvent(mouseEventSource: src, mouseType: .leftMouseUp, mouseCursorPosition: b,
+            mouseButton: .left)?.post(tap: .cghidEventTap)
+}
+
 func move(_ gx: Double, _ gy: Double) {
     let src = CGEventSource(stateID: .hidSystemState)
     CGEvent(mouseEventSource: src, mouseType: .mouseMoved,
@@ -477,7 +503,7 @@ final class Daemon {
                    "shot", "ocr", "click", "move", "key", "type",
                    // background lane: events posted straight to the game process,
                    // so the cursor never moves and the window need not be frontmost
-                   "clickpid", "movepid", "keypid", "dragpid", "cursorpos"]
+                   "clickpid", "movepid", "keypid", "drag", "dragpid", "cursorpos"]
         if stream != nil {
             ops += ["capture.latest", "capture.roi", "capture.stop"]
         }
@@ -643,6 +669,11 @@ final class Daemon {
         case "cursorpos":
             let p = CGEvent(source: nil)?.location ?? .zero
             return ["x": Double(p.x), "y": Double(p.y)]
+        case "drag":
+            drag(obj["x1"] as? Double ?? 0, obj["y1"] as? Double ?? 0,
+                 obj["x2"] as? Double ?? 0, obj["y2"] as? Double ?? 0,
+                 obj["steps"] as? Int ?? 14)
+            return ["ok": true]
         case "dragpid":
             return dragPid(obj["x1"] as? Double ?? 0, obj["y1"] as? Double ?? 0,
                            obj["x2"] as? Double ?? 0, obj["y2"] as? Double ?? 0,
