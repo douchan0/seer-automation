@@ -515,8 +515,11 @@ class RunBattle(_Base):
                     ally_hp = hp or ally_hp
                 # --- choose the move instead of letting the timer choose for us ---
                 live_skills = self.read_skills(s)
+                table = self._power_table(ctx)
+                if live_skills and not table:
+                    table = self.learn_power_table(ctx)
                 if live_skills:
-                    chosen = self.pick_skill(live_skills, self._power_table(ctx))
+                    chosen = self.pick_skill(live_skills, table)
                     if chosen is not None:
                         moves_used.append(f"{chosen['name']}#{chosen.get('slot')}"
                                           f"(pp{chosen['pp']})")
@@ -688,6 +691,65 @@ class RunBattle(_Base):
             cells.append({"slot": slot, "px": (sx, sy), "pp": best[0],
                           "pp_max": best[1], "power": 0, "name": f"slot{slot}"})
         return cells
+
+    @classmethod
+    def learn_power_table(cls, ctx: SkillContext) -> dict[str, int]:
+        """Ask a vision model to read the four move cells, once per run.
+
+        The battle panel prints only 「使用次数」; the move name merges into its type
+        icon (火花 OCRs as 火花豆) and 威力 is not shown at all.  A local rule therefore
+        cannot rank the moves — but this is exactly the kind of reading a VLM is good
+        at, and it happens once per run, not once per click.  Clicks stay in the local
+        state machine; only this single reading is delegated.
+        """
+
+        import json as _json
+        import subprocess as _sp
+
+        session = ctx.session
+        frame = session.latest()
+        path = "/tmp/seerauto_skill_panel.png"
+        try:
+            # export the raw frame (the daemon's shot is blank while a stream is warm)
+            from PIL import Image  # type: ignore
+            Image.fromarray(frame).save(path)
+        except Exception:  # noqa: BLE001
+            try:
+                session.export_png(path)
+            except Exception:  # noqa: BLE001
+                return {}
+        prompt = ("这是赛尔号战斗界面的四个技能格（2x2）。请只输出 JSON："
+                  '{"skills":[{"slot":1,"name":"技能名","power":85}, ...]}'
+                  "，slot 按 左上=1 右上=2 左下=3 右下=4，power 是威力（属性技能为 0）。"
+                  "只输出 JSON，不要解释。")
+        try:
+            out = _sp.run(["mmx", "vision", "describe", "--image", path,
+                           "--prompt", prompt, "--output", "json", "--quiet"],
+                          capture_output=True, text=True, timeout=90)
+            raw = out.stdout or ""
+            # mmx wraps the answer in its own envelope: {"content": "```json {...}```"}
+            # so look inside `content` first; the naive first-{-to-last-} slice parsed
+            # the envelope and found no "skills" key.
+            try:
+                envelope = _json.loads(raw)
+            except Exception:  # noqa: BLE001
+                envelope = {}
+            text = str(envelope.get("content") or raw)
+            start, end = text.find("{"), text.rfind("}")
+            if start < 0 or end < 0:
+                return {}
+            data = _json.loads(text[start:end + 1])
+        except Exception:  # noqa: BLE001
+            return {}
+        table: dict[str, int] = {}
+        for item in data.get("skills") or []:
+            try:
+                table[f"slot{int(item['slot'])}"] = int(item.get("power") or 0)
+            except Exception:  # noqa: BLE001
+                continue
+        if table:
+            ctx.world.observations["skill_power"] = table
+        return table
 
     @staticmethod
     def _power_table(ctx: SkillContext) -> dict[str, int]:
