@@ -126,5 +126,3 @@ docs(input): the client cannot be clicked in the background — three approaches
 => observation (screenshots via SCK, OCR, vision, SQLite) costs the user nothing;
    every click needs the real cursor.  Recommended usage is written down: observe any
    time, click only while the machine is idle or in short bounded bursts.
-MSG
-git log --oneline -1; git push origin main 2>&1 | tail -1
