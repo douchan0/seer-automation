@@ -1109,6 +1109,18 @@ MAP_DESTINATIONS: dict[str, dict[str, Any]] = {
                        "label": "传送舱/发明室"},
     "fortress": {"px": (813, 1120), "expect": ("要塞", "保卫战"),
                  "label": "要塞"},
+    # The four remaining grid slots were never named.  Expectations come from the
+    # narration each room showed when visited on 2026-11-03.
+    "hall_a": {"px": (450, 1027), "expect": ("精灵是XIN", "精灵", "伙伴"),
+               "label": "星图第 1 格（精灵伙伴大厅）"},
+    "chatter_room": {"px": (691, 1027), "expect": ("唔喱哇啦", "叽哩呱啦", "哇啦"),
+                     "label": "星图第 3 格（唔喱哇啦/叽哩呱啦）"},
+    "hall_b": {"px": (813, 1027), "expect": ("小XIN", "冲动"),
+               "label": "星图第 4 格（小XIN 聚集地）"},
+    "rank_room": {"px": (935, 1027), "expect": ("军阶", "万圣", "等级"),
+                  "label": "星图第 5 格（军阶/活动）"},
+    "guard_room": {"px": (691, 1120), "expect": ("卫兵",),
+                   "label": "星图第 8 格（卫兵）"},
 }
 
 

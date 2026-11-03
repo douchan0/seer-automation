@@ -158,6 +158,7 @@ class LiveSession:
         min_action_gap_ms: float = 700.0,
         geometry_tolerance_pt: float = 4.0,
         timeout_s: float = 30.0,
+        background: bool = False,
     ):
         self.binary = binary or DEFAULT_BINARY
         self.dry_run = bool(dry_run)
@@ -165,6 +166,10 @@ class LiveSession:
         self.min_action_gap_ms = float(min_action_gap_ms)
         self.geometry_tolerance_pt = float(geometry_tolerance_pt)
         self.timeout_s = float(timeout_s)
+        #: Background lane: post input straight to the game process
+        #: (``clickpid``).  The system cursor does not move and the window does not
+        #: need to be frontmost, so a run can co-exist with the user's work.
+        self.background = bool(background)
 
         self.client: C.DaemonClient | None = None
         self.backend: C.DaemonCapture | None = None
@@ -460,12 +465,15 @@ class LiveSession:
             gap = self.min_action_gap_ms - (time.perf_counter() - self._last_action_at) * 1000.0
             if gap > 0:
                 time.sleep(gap / 1000.0)
-            if require_frontmost and not self.ensure_frontmost():
+            if require_frontmost and not self.background and not self.ensure_frontmost():
                 raise NotFrontmost("game window is not frontmost")
             self._revalidate_geometry()
             gp = self.geo.global_pt_from_game_px(px[0], px[1])
             rec.global_pt = (gp.x, gp.y)
-            self.client.send("click", x=gp.x, y=gp.y, n=1)
+            if self.background:
+                self.client.send("clickpid", x=gp.x, y=gp.y, n=1)
+            else:
+                self.client.send("click", x=gp.x, y=gp.y, n=1)
             self._pointer_px = (float(px[0]), float(px[1]))
             rec.sent = True
             self._last_action_at = time.perf_counter()
@@ -498,7 +506,8 @@ class LiveSession:
             px = start[0] + (x - start[0]) * t
             py = start[1] + (y - start[1]) * t
             gp = self.geo.global_pt_from_game_px(px, py)
-            self.client.send("move", x=gp.x, y=gp.y)
+            self.client.send("movepid" if self.background else "move",
+                             x=gp.x, y=gp.y)
             time.sleep(step_s)
         self._pointer_px = (float(x), float(y))
 

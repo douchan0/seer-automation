@@ -281,6 +281,63 @@ func click(_ gx: Double, _ gy: Double, _ n: Int) {
     }
 }
 
+// MARK: - background input (no cursor movement, window may be occluded)
+
+//: CGEventPostToPid delivers the event to the target process only: the system
+//: cursor never moves and the app does not have to be frontmost, so a run can
+//: continue while the machine is used for something else.  Whether the Flash
+//: plugin inside Electron accepts such events is an empirical question — verified
+//: by clicking a known button and looking for its effect (see tools/ctl.py).
+func gamePid() -> pid_t? {
+    for w in listWindows() {
+        let owner = (w[kCGWindowOwnerName as String] as? String ?? "").lowercased()
+        guard TARGET_HINTS.contains(where: { owner.contains($0) }) else { continue }
+        if let pid = w[kCGWindowOwnerPID as String] as? Int, pid > 0 {
+            return pid_t(pid)
+        }
+    }
+    return nil
+}
+
+func clickPid(_ gx: Double, _ gy: Double, _ n: Int) -> [String: Any] {
+    guard let pid = gamePid() else { return ["error": "no window"] }
+    let src = CGEventSource(stateID: .hidSystemState)
+    let p = CGPoint(x: gx, y: gy)
+    CGEvent(mouseEventSource: src, mouseType: .mouseMoved, mouseCursorPosition: p,
+            mouseButton: .left)?.postToPid(pid)
+    usleep(8_000)
+    for i in 1...max(1, n) {
+        let d = CGEvent(mouseEventSource: src, mouseType: .leftMouseDown,
+                        mouseCursorPosition: p, mouseButton: .left)
+        let u = CGEvent(mouseEventSource: src, mouseType: .leftMouseUp,
+                        mouseCursorPosition: p, mouseButton: .left)
+        d?.setIntegerValueField(.mouseEventClickState, value: Int64(i))
+        u?.setIntegerValueField(.mouseEventClickState, value: Int64(i))
+        d?.postToPid(pid)
+        usleep(10_000)
+        u?.postToPid(pid)
+        usleep(12_000)
+    }
+    return ["ok": true, "pid": Int(pid)]
+}
+
+func movePid(_ gx: Double, _ gy: Double) -> [String: Any] {
+    guard let pid = gamePid() else { return ["error": "no window"] }
+    let src = CGEventSource(stateID: .hidSystemState)
+    CGEvent(mouseEventSource: src, mouseType: .mouseMoved,
+            mouseCursorPosition: CGPoint(x: gx, y: gy), mouseButton: .left)?.postToPid(pid)
+    return ["ok": true]
+}
+
+func keyPid(_ code: UInt16) -> [String: Any] {
+    guard let pid = gamePid() else { return ["error": "no window"] }
+    let src = CGEventSource(stateID: .hidSystemState)
+    CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: true)?.postToPid(pid)
+    usleep(10_000)
+    CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: false)?.postToPid(pid)
+    return ["ok": true]
+}
+
 func move(_ gx: Double, _ gy: Double) {
     let src = CGEventSource(stateID: .hidSystemState)
     CGEvent(mouseEventSource: src, mouseType: .mouseMoved,
@@ -355,7 +412,10 @@ final class Daemon {
 
     func caps() -> [String] {
         var ops = ["ping", "caps", "win", "pin", "activate", "quit",
-                   "shot", "ocr", "click", "move", "key", "type"]
+                   "shot", "ocr", "click", "move", "key", "type",
+                   // background lane: events posted straight to the game process,
+                   // so the cursor never moves and the window need not be frontmost
+                   "clickpid", "movepid", "keypid"]
         if stream != nil {
             ops += ["capture.latest", "capture.roi", "capture.stop"]
         }
@@ -518,6 +578,13 @@ final class Daemon {
         case "move":
             move(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0)
             return ["ok": true]
+        case "clickpid":
+            return clickPid(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0,
+                            obj["n"] as? Int ?? 1)
+        case "movepid":
+            return movePid(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0)
+        case "keypid":
+            return keyPid(UInt16(obj["code"] as? Int ?? 53))
         case "key":
             keyPress(UInt16(obj["code"] as? Int ?? 53))
             return ["ok": true]
