@@ -1284,15 +1284,12 @@ class HealPet(_Base):
         if guard:
             return guard
         s = ctx.session
-        row = dict(self.ROW)
-        if row_y:
-            row["y"] = int(row_y)
-        if row_x0:
-            row["x0"] = int(row_x0)
-        if row_x1:
-            row["x1"] = int(row_x1)
-        if row_count:
-            row["count"] = int(row_count)
+        row: dict[str, int] = {}
+        if row_y or row_x0 or row_x1 or row_count:
+            row = {"y": int(row_y) or self.ROWS[0][0],
+                   "x0": int(row_x0) or self.ROWS[0][1],
+                   "x1": int(row_x1) or self.ROWS[0][2],
+                   "count": int(row_count) or self.ROWS[0][3]}
 
         before = ReadPetBag()(ctx, close=False)
         if not before.ok:
