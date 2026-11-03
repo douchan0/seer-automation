@@ -547,6 +547,14 @@ class RunBattle(_Base):
                 table = self._power_table(ctx)
                 if live_skills and not table:
                     table = self.learn_power_table(ctx)
+                if live_skills and self.pick_skill(live_skills, table) is None:
+                    # Every move sits at 0/35 … 0/20.  The client will not advance and
+                    # the run used to spin here until its stall timeout (150 s, twice in
+                    # one night).  PP is restored by the same 精灵恢复 that heals HP, so
+                    # end the pass and let the recovery step run.
+                    end_reason = ("all moves out of uses (PP exhausted); stopping the "
+                                  "pass so PP can be restored")
+                    break
                 if live_skills:
                     chosen = self.pick_skill(live_skills, table)
                     if chosen is not None:

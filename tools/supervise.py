@@ -177,6 +177,9 @@ def main() -> int:
             time.sleep(30)
             continue
         heal_if_needed()
+        # PP exhaustion looks like "everything is 0/NN": the same 精灵恢复 that refills
+        # HP refills uses, so treat a PP-stop as a reason to heal before the next batch.
+
         batches += 1
         log(f"batch {batches}: goal run, {args.batch_minutes:.0f} min / "
             f"{args.batch_battles} battles")
@@ -189,6 +192,9 @@ def main() -> int:
                         timeout=args.batch_minutes * 60 + 480)
         tail = [ln for ln in out.strip().splitlines() if ln.strip()][-4:]
         log(f"batch {batches} exited {code}: {' | '.join(tail)}")
+        if any("out of uses" in t or "PP exhausted" in t for t in tail):
+            log("PP exhausted in that batch -> healing before the next one")
+            heal_if_needed()
         entry = {"batch": batches, "code": code, "elapsed_s": round(time.time() - started, 1),
                  "tail": tail}
         code2, status = run([sys.executable, "-m", "seerauto", "goal", "status"], timeout=90)

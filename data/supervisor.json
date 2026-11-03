@@ -1,6 +1,6 @@
 {
  "deadline": "2026-11-04T06:20:00",
- "batches": 2,
+ "batches": 4,
  "failures": 0,
  "history": [
   {
@@ -39,6 +39,44 @@
     "stats   battles=0 actions=16 errors=3 loops=3 elapsed=95.3s",
     "world   scene=WORLD source=LIVE_VERIFIED",
     "        pet 烈火猴 Lv35 hp 67/95"
+   ]
+  },
+  {
+   "batch": 3,
+   "code": 0,
+   "elapsed_s": 209.4,
+   "tail": [
+    "note    level verified from battle HUD: 35",
+    "note    level verified from battle HUD: 35",
+    "nodes",
+    "  - puni.prepare.level_up: attempted  [pet 烈火猴 level 35 < 36 (LIVE_VERIFIED); pet 小火猴 level UNKNOWN (not observed); pet 烈焰猩猩 level UNKNOWN (not observed)]"
+   ],
+   "status": [
+    "run     8302fb74ca78  status=finished",
+    "goal    puni  planner=deterministic",
+    "reason  error budget 3 reached",
+    "stats   battles=0 actions=47 errors=3 loops=3 elapsed=205.9s",
+    "world   scene=BATTLE source=LIVE_VERIFIED",
+    "        pet 烈火猴 Lv35 hp 67/95"
+   ]
+  },
+  {
+   "batch": 4,
+   "code": 0,
+   "elapsed_s": 594.2,
+   "tail": [
+    "note    level verified from battle HUD: 35",
+    "note    level verified from battle HUD: 35",
+    "nodes",
+    "  - puni.prepare.level_up: attempted  [pet 烈火猴 level 35 < 36 (LIVE_VERIFIED); pet 小火猴 level UNKNOWN (not observed); pet 烈焰猩猩 level UNKNOWN (not observed)]"
+   ],
+   "status": [
+    "run     55c2e42616c1  status=finished",
+    "goal    puni  planner=deterministic",
+    "reason  error budget 3 reached",
+    "stats   battles=0 actions=134 errors=3 loops=3 elapsed=590.8s",
+    "world   scene=BATTLE source=LIVE_VERIFIED",
+    "        pet 烈火猴 Lv35 hp 27/97"
    ]
   }
  ]
