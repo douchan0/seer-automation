@@ -45,6 +45,11 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
     "puni.prepare.tutor_room": (
         Step("game.goto_tutor_room", {}, label="地图→辅导员训练室"),
     ),
+    # 刷塔：先到辅导员训练室，再进塔读层数。读到的就是可验证的进度证据。
+    "puni.prepare.tower_farm": (
+        Step("game.travel", {"destination": "tutor_room"}, label="地图→辅导员训练室"),
+        Step("game.tower_status", {}, label="进试炼之塔读「你当前到达第N层」"),
+    ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
              label="传送到已验证的刷怪场景"),

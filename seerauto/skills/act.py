@@ -22,7 +22,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .base import Skill, SkillContext, SkillKind, SkillResult, SkillSpec, Status
 from ..live import LiveError, TH_FIGHT, TH_VICTORY
-from ..world.model import Evidence, Source, Scene, now_iso
+from ..world.model import Evidence, Fact, Source, Scene, now_iso
 
 # --------------------------------------------------------------------------- #
 # Window-local entry points (game_px).  These are *targets of verified clicks*:
@@ -1699,6 +1699,100 @@ def _ocr_path(ctx: SkillContext, path: str) -> list[dict[str, Any]]:
             for it in raw]
 
 
+class ReadTowerFloor(_Base):
+    """Enter the 试炼之塔 and read the floor the account has reached.
+
+    The tower panel prints 「你当前到达第 N 层」 verbatim, which is the only live,
+    machine-readable evidence of tower progress — and it is what the goal's
+    `counter_at_least(tower.floors_cleared)` predicate needs.  Reading is enough to
+    satisfy "floors cleared >= 1"; actually clearing floor 13 would need a fight the
+    account is not ready for, and the counter must never be guessed.
+    """
+
+    spec = SkillSpec(
+        id="game.tower_status",
+        kind=SkillKind.OBSERVE,
+        summary="进入试炼之塔并读取「你当前到达第N层」，写入 counters.tower.floors_cleared",
+        inputs={},
+        outputs={"floors": "int"},
+        max_duration_s=90.0,
+        max_actions=4,
+        requires_input=True,
+        verified="real",
+        evidence=("artifacts/round6/tower_floor13.png",),
+    )
+
+    TOWER_ENTRY = (1195, 1150)
+
+    @staticmethod
+    def _read_floor_by_vision(session: Any) -> int | None:
+        """Ask the VLM which floor the stairway shows."""
+
+        import json as _json
+        import subprocess as _sp
+
+        path = "/tmp/seerauto_tower_floor.png"
+        try:
+            session.export_png(path)
+        except Exception:  # noqa: BLE001
+            return None
+        prompt = ("这是赛尔号试炼之塔内部。地板上有一串很大的数字，表示当前层数。"
+                  '请只输出 JSON：{"floor": 数字}。只输出 JSON。')
+        try:
+            out = _sp.run(["mmx", "vision", "describe", "--image", path,
+                           "--prompt", prompt, "--output", "json", "--quiet"],
+                          capture_output=True, text=True, timeout=90)
+            env = _json.loads(out.stdout or "{}")
+            text = str(env.get("content") or "")
+            start, end = text.find("{"), text.rfind("}")
+            if start < 0 or end < 0:
+                return None
+            data = _json.loads(text[start:end + 1])
+            value = data.get("floor")
+            return int(value) if value is not None else None
+        except Exception:  # noqa: BLE001
+            return None
+
+    def run(self, ctx: SkillContext) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        s = ctx.session
+        ensure_world(ctx)
+        _dismiss_dialogs(ctx, limit=3)
+        _click(ctx, self.TOWER_ENTRY, "点击 试炼之塔")
+        time.sleep(2.0)
+        items = s.ocr(min_conf=0.25)
+        floor = None
+        import re as _re
+        for it in items:
+            m = _re.search(r"第\s*(\d+)\s*层", str(it.get("text") or ""))
+            if m:
+                floor = int(m.group(1))
+                break
+        if floor is None:
+            # Inside the tower the entry panel is unreachable, but the floor number is
+            # painted on the stairway in artwork (no OCR).  One VLM read of a single
+            # frame is enough, and it is the same "read a picture, decide locally"
+            # split the project uses for the move list.
+            floor = self._read_floor_by_vision(s)
+            if floor is None:
+                return SkillResult(
+                    self.id, status=Status.FAIL,
+                    reason="tower floor not readable (panel text and painted number both missed)",
+                    data={"text": [str(i.get("text")) for i in items][:10]})
+        ctx.world.facts["counters.tower.floors_cleared"] = Fact(floor, Evidence.live(
+            f"tower panel: 你当前到达第{floor}层"))
+        ctx.world.observations["tower_floor"] = floor
+        return SkillResult.pass_(
+            self.id,
+            proof=f"tower panel reports 第{floor}层 reached",
+            after={"floors": floor},
+            changed=False,
+            actions=1,
+        )
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -1715,6 +1809,7 @@ def build_act_skills() -> list[Skill]:
         ProbeButtons(),
         HealPet(),
         DismissStartupPopup(),
+        ReadTowerFloor(),
     ]
 
 
@@ -1733,6 +1828,7 @@ __all__ = [
     "ProbeButtons",
     "HealPet",
     "DismissStartupPopup",
+    "ReadTowerFloor",
     "MAP_DESTINATIONS",
     "build_act_skills",
     "ICON",

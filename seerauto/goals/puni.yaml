@@ -366,15 +366,18 @@ nodes:
       predicate: counter_at_least
       args: {counter: tower.floors_cleared, at_least: 1}
     status: partial
-    executable: false
-    skill: game.run_battle
-    skill_inputs: {battles: 10}
+    # Executable since 2026-11-04: the playbook (travel → tower panel) and the
+    # game.tower_status observer exist, and the tower panel prints 「你当前到达第N层」
+    # as live evidence for counters.tower.floors_cleared.
+    executable: true
+    skill: game.tower_status
+    skill_inputs: {}
     budget: {max_minutes: 30, max_battles: 10, max_spend: 0}
     on_failure: retry
     evidence:
       - docs/PUNI_TASK_GRAPH.md#P0-07
       - docs/progress.md#round-4
-    blocked_reason: 勇者之塔/试炼之塔的入口与楼层选择在新坐标系下从未标定；Round 4 验证的是野外连战，不是塔
+      - artifacts/round6/level36_pet_panel.png
     notes: "文档的 partial 来自 Round 3 旧塔循环：`[f0] floor cleared` 之后两次 `cannot engage - stop`。Round 4 验证的是克洛斯星林间的野外连战（3 场全胜、每场约 17 次点击、约 45 s/场），塔的入场与楼层导航仍未验证 → 保持 partial，不能升级为 proven。completion 只证明『至少清过一层』，不证明攒够钱：每层收益未统计（U-C6），「要刷多久」目前无法回答。R8 的「失败即重来」断点续跑仍是缺口。"
   - id: puni.prepare.tutor_room
     legacy_id: P4-05

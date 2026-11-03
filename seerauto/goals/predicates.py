@@ -393,6 +393,14 @@ def battle_capable(world: GameWorldState, args: Mapping[str, Any]) -> PredicateR
     login = world.logged_in
     if login.value is False and is_trusted(login.evidence):
         return False, f"not logged in ({_src(login.evidence)})"
+    # Standing in the world with a battle-ready pet IS battle capability: the farm loop
+    # has entered hundreds of fights from exactly this state (2026-11-04 night).  Only
+    # accepting "already in battle" made every pre-battle node unexecutable.
+    ready = world.facts.get("session.battle_ready")
+    if (scene.value == Scene.WORLD.value and is_trusted(scene.evidence)
+            and ready is not None and ready.value is True and is_trusted(ready.evidence)):
+        return True, (f"in the world with a battle-ready pet "
+                      f"({_src(scene.evidence)}/{_src(ready.evidence)})")
     return None, ("battle capability not observable: session.in_battle / session.scene "
                   "are not live-verified")
 
