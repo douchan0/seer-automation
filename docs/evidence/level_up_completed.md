@@ -25,13 +25,28 @@ unlocked.puni.entrance.reachable      = True
 unlocked.training.tutor_room.reachable = True
 ```
 
-图谱求解结果：
+图谱求解结果（2026-11-04 05:05）：
 
 ```
 puni.seal.entry_nav      -> completed
 puni.prepare.tutor_room  -> completed
-puni.prepare.level_up    -> completed     <-- 本轮目标
+puni.prepare.level_up    -> completed     <-- 本轮目标（Lv34 -> 36 并进化）
+puni.prepare.tower_farm  -> completed     <-- 05:05 追加：塔层 14 (LIVE_VERIFIED)
 ```
+
+## 追加：试炼之塔（效率答案）
+
+用户指出"打蘑菇怪太笨"，于是去了塔：
+
+| 项 | 野外 蘑菇怪 | 试炼之塔 |
+|---|---|---|
+| 单场积累经验 | 52 | **1300**（25 倍） |
+| 进入方式 | SPT → 克洛斯星林间 | 辅导员训练室 → 试炼之塔 → 守护者 |
+| 层数进度 | 无 | 打赢 13 层守护者「贝拉米」→ 地板数字 13 → **14** |
+| 证据 | — | `artifacts/round6/tower_floor14.png`、弹窗「恭喜你得到了1300个积累经验」 |
+
+塔内没有底栏、地图也点不开，所以层数靠**视觉模型读地板上的大数字**（`game.tower_status`
+的 fallback），读到的值写入 `counters.tower.floors_cleared`，节点据此完成。
 
 ---
 
