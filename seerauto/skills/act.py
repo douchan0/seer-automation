@@ -905,7 +905,7 @@ class ReadPetBag(_Base):
         id="game.read_pet_bag",
         kind=SkillKind.OBSERVE,
         summary="打开精灵背包，读出所有精灵的血量/等级/升级所需经验，再关闭",
-        inputs={},
+        inputs={"close": {"type": "bool", "required": False}},
         outputs={"pets": "list", "can_battle": "bool"},
         max_duration_s=30.0,
         max_actions=3,
@@ -914,7 +914,7 @@ class ReadPetBag(_Base):
         evidence=("artifacts/round5/08_pet_storage.png", "artifacts/round5/04_pet_panel.png"),
     )
 
-    def run(self, ctx: SkillContext) -> SkillResult:
+    def run(self, ctx: SkillContext, close: bool = True) -> SkillResult:
         guard = self.guard(ctx)
         if guard:
             return guard
@@ -955,12 +955,14 @@ class ReadPetBag(_Base):
                 level = _int_after(t)
             elif "升级所需经验值" in t:
                 xp_to_next = _int_after(t)
-        # close again
-        try:
-            _click(ctx, (2072, 312), "close pet bag")
-        except Exception:  # noqa: BLE001
-            pass
-        time.sleep(0.6)
+        # close again unless the caller still needs the panel (e.g. to hover the
+        # icon row: probing a closed panel hovers over the world instead)
+        if close:
+            try:
+                _click(ctx, (2072, 312), "close pet bag")
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(0.6)
         alive = [p for p in pets if p["hp"] > 0]
         can_battle = bool(alive)
         proof = (f"{len(pets)} pets; hp alive={len(alive)}; "
@@ -1269,10 +1271,12 @@ class HealPet(_Base):
         evidence=("artifacts/round5/13_pet_bag_full.png",),
     )
 
-    #: Measured on the 1200x800 client: the bag's action row sits at y≈1131 with
-    #: five icons between x≈660 and x≈1060; the heal icon is the next one right.
-    ROW = {"y": 1131, "x0": 640, "x1": 1160, "count": 6}
-    HEAL_WORDS = ("恢复", "治疗", "体力", "回血", "补")
+    #: Measured live 2026-11-03 on the 1200x800 client: the heal icon's tooltip
+    #: 「精灵恢复」 answers at (1145,1115) and the neighbouring icons at
+    #: 680=身边跟随, 860=放回仓库, 980=精灵图鉴.  The row is scanned at two heights
+    #: because the tooltip only appears inside a ~20 px band.
+    ROWS = ((1115, 640, 1180, 9), (1131, 660, 1160, 7))
+    HEAL_WORDS = ("精灵恢复", "恢复", "治疗")
 
     def run(self, ctx: SkillContext, row_y: int = 0, row_x0: int = 0,
             row_x1: int = 0, row_count: int = 0) -> SkillResult:
@@ -1290,16 +1294,22 @@ class HealPet(_Base):
         if row_count:
             row["count"] = int(row_count)
 
-        before = ReadPetBag()(ctx)
+        before = ReadPetBag()(ctx, close=False)
         if not before.ok:
             return SkillResult.fail(self.id, f"cannot read the pet bag: {before.reason}")
         hp_before = before.after.get("pets") or []
 
-        found = ProbeButtons()(ctx, x0=row["x0"], x1=row["x1"], y=row["y"],
-                               count=row["count"])
-        buttons = (found.after or {}).get("buttons") or []
-        target = next((b for b in buttons
-                       if any(w in str(b.get("text") or "") for w in self.HEAL_WORDS)), None)
+        buttons: list[dict[str, Any]] = []
+        target = None
+        rows = [(row["y"], row["x0"], row["x1"], row["count"])] if row_y else self.ROWS
+        for (ry, rx0, rx1, rcount) in rows:
+            found = ProbeButtons()(ctx, x0=rx0, x1=rx1, y=ry, count=rcount)
+            buttons.extend((found.after or {}).get("buttons") or [])
+            target = next((b for b in buttons
+                           if any(w in str(b.get("text") or "") for w in self.HEAL_WORDS)),
+                          None)
+            if target is not None:
+                break
         if target is None:
             return SkillResult.fail(
                 self.id,
@@ -1396,12 +1406,13 @@ class DismissStartupPopup(_Base):
         if chosen is None:
             return SkillResult.fail(
                 self.id, "popup has no known button", data={"text": texts[:12]})
-        # OCR boxes are normalised to the captured image, which is the window at
-        # 2x: convert to window-local points, then to global points for the click.
+        # Vision boxes are normalised with a bottom-left origin, so they map
+        # straight onto the window's logical rect regardless of the capture scale.
+        nx, ny, nw, nh = chosen["norm"]
         w_px = int(win["w"])
         h_px = int(win["h"])
-        cx = win["x"] + chosen["px"][0] / 2.0
-        cy = win["y"] + chosen["px"][1] / 2.0
+        cx = win["x"] + (nx + nw / 2.0) * win["w"]
+        cy = win["y"] + (1.0 - (ny + nh / 2.0)) * win["h"]
         try:
             ctx.session.client.send("activate")
             time.sleep(0.4)
@@ -1423,19 +1434,23 @@ class DismissStartupPopup(_Base):
 
 
 def _ocr_path(ctx: SkillContext, path: str) -> list[dict[str, Any]]:
-    """OCR an image file through the daemon and return game-px points."""
+    """OCR an arbitrary image through the daemon; keep Vision-normalised boxes.
+
+    ``norm`` is (x, y, w, h) with a bottom-left origin — the same space the client
+    itself uses — so a caller can map it onto *any* window without knowing the
+    capture's pixel size.  Converting to pixels here would be wrong for an
+    auxiliary window whose size differs from the playfield (that bug put the first
+    live popup click 500 pt off; it only looked right because the dialog had
+    already closed).
+    """
 
     client = getattr(ctx.session, "client", None)
     if client is None:
         return []
     raw = client.send("ocr", path=path, min=0.25).get("items", [])
-    w, h = ctx.session.pixel_size if hasattr(ctx.session, "pixel_size") else (0, 0)
-    out = []
-    for it in raw:
-        cx = (it["x"] + it["w"] / 2.0) * w
-        cy = (1.0 - (it["y"] + it["h"] / 2.0)) * h
-        out.append({"text": it["text"], "conf": it.get("conf", 0.0), "px": (cx, cy)})
-    return out
+    return [{"text": it["text"], "conf": it.get("conf", 0.0),
+             "norm": (float(it["x"]), float(it["y"]), float(it["w"]), float(it["h"]))}
+            for it in raw]
 
 
 def build_act_skills() -> list[Skill]:
