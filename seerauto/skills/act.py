@@ -1699,6 +1699,15 @@ def _ocr_path(ctx: SkillContext, path: str) -> list[dict[str, Any]]:
             for it in raw]
 
 
+def _trusted(evidence: Any) -> bool:
+    """Local copy of the trust rule: LIVE/REPLAY detail counts, inference does not."""
+
+    try:
+        return evidence.rank >= 2     # LIVE_VERIFIED=3, REPLAY_VERIFIED=2
+    except Exception:  # noqa: BLE001
+        return False
+
+
 class ReadTowerFloor(_Base):
     """Enter the 试炼之塔 and read the floor the account has reached.
 
@@ -1764,6 +1773,7 @@ class ReadTowerFloor(_Base):
         time.sleep(2.0)
         items = s.ocr(min_conf=0.25)
         floor = None
+        vision_only = False
         import re as _re
         for it in items:
             m = _re.search(r"第\s*(\d+)\s*层", str(it.get("text") or ""))
@@ -1776,13 +1786,20 @@ class ReadTowerFloor(_Base):
             # frame is enough, and it is the same "read a picture, decide locally"
             # split the project uses for the move list.
             floor = self._read_floor_by_vision(s)
+            vision_only = floor is not None
             if floor is None:
                 return SkillResult(
                     self.id, status=Status.FAIL,
                     reason="tower floor not readable (panel text and painted number both missed)",
                     data={"text": [str(i.get("text")) for i in items][:10]})
-        ctx.world.facts["counters.tower.floors_cleared"] = Fact(floor, Evidence.live(
-            f"tower panel: 你当前到达第{floor}层"))
+        if vision_only:
+            ctx.world.observations["tower_floor_vlm"] = floor
+            ctx.world.facts["counters.tower.floors_cleared"] = Fact(
+                floor, Evidence(Source.INFERRED,
+                                f"vision read of the painted floor number: {floor}"))
+        else:
+            ctx.world.facts["counters.tower.floors_cleared"] = Fact(floor, Evidence.live(
+                f"tower panel: 你当前到达第{floor}层"))
         ctx.world.observations["tower_floor"] = floor
         return SkillResult.pass_(
             self.id,
@@ -1790,6 +1807,82 @@ class ReadTowerFloor(_Base):
             after={"floors": floor},
             changed=False,
             actions=1,
+        )
+
+
+class FarmTower(_Base):
+    """Fight the 试炼之塔 floor guardian repeatedly — the 25x experience route.
+
+    Measured 2026-11-04: one tower floor pays **1300 积累经验**; a wild 蘑菇怪 pays 52.
+    The tower has no bottom bar and no map, so the loop is purely: click the guardian,
+    fight it out with the normal turn loop, clear the reward dialog, repeat.  Each win
+    advances the painted floor number, which is read back with a VLM pass.
+    """
+
+    spec = SkillSpec(
+        id="game.farm_tower",
+        kind=SkillKind.ACT,
+        summary="试炼之塔连战：点守护者→打完→清弹窗→读新层数，循环 N 层",
+        inputs={"floors": {"type": "int", "required": False},
+                "max_seconds": {"type": "float", "required": False}},
+        outputs={"floors_won": "int", "tower_floor": "int"},
+        max_duration_s=900.0,
+        max_actions=400,
+        requires_input=True,
+        verified="real",
+        evidence=("artifacts/round6/tower_floor14.png",),
+    )
+
+    GUARDIAN = (1205, 789)
+
+    def run(self, ctx: SkillContext, floors: int = 3, max_seconds: float = 600.0) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        s = ctx.session
+        won = 0
+        started = time.perf_counter()
+        notes: list[str] = []
+        while won < floors and time.perf_counter() - started < max_seconds:
+            if ctx.options.get("control") and ctx.options["control"].stop_requested():
+                notes.append("stop requested")
+                break
+            scene = s.scene().scene
+            if scene is not Scene.BATTLE:
+                _dismiss_dialogs(ctx, limit=2)
+                _click(ctx, self.GUARDIAN, "点击塔层守护者")
+                entered = s.wait_for(lambda f: s.scene(f).scene is Scene.BATTLE, timeout_s=12.0)
+                if not entered:
+                    notes.append("guardian click did not start a battle")
+                    break
+            battle = RunBattle()(ctx, battles=1, max_seconds=240.0)
+            if battle.ok:
+                won += 1
+                notes.append(f"floor win #{won}")
+            else:
+                notes.append(f"fight failed: {battle.reason[:60]}")
+                break
+            _dismiss_dialogs(ctx, limit=3)
+            time.sleep(0.8)
+        floor = ReadTowerFloor._read_floor_by_vision(s)
+        if floor is not None:
+            # A VLM read of a painted number is NOT live-verified instrumentation: it
+            # misread 14 as 7 on 2026-11-04.  Record it as INFERRED and keep whatever
+            # the tower panel (real OCR) reported as the authoritative counter.
+            ctx.world.observations["tower_floor_vlm"] = floor
+            prior = ctx.world.facts.get("counters.tower.floors_cleared")
+            if prior is None or not _trusted(prior.evidence):
+                ctx.world.facts["counters.tower.floors_cleared"] = Fact(
+                    floor, Evidence(Source.INFERRED,
+                                    f"vision read of the painted floor number: {floor}"))
+        return SkillResult(
+            skill=self.id,
+            status=Status.PASS if won else Status.FAIL,
+            reason="" if won else "; ".join(notes) or "no floor won",
+            after={"floors_won": won, "tower_floor": floor},
+            changed=bool(won),
+            proof=(f"{won} 层通关; 当前第 {floor} 层; " + "; ".join(notes[-4:])),
+            actions=won * 2,
         )
 
 
@@ -1810,6 +1903,7 @@ def build_act_skills() -> list[Skill]:
         HealPet(),
         DismissStartupPopup(),
         ReadTowerFloor(),
+        FarmTower(),
     ]
 
 
@@ -1829,6 +1923,7 @@ __all__ = [
     "HealPet",
     "DismissStartupPopup",
     "ReadTowerFloor",
+    "FarmTower",
     "MAP_DESTINATIONS",
     "build_act_skills",
     "ICON",
