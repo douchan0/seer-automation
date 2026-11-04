@@ -1,500 +1,97 @@
 {
- "deadline": "2026-11-04T06:15:00",
- "batches": 26,
+ "deadline": "2026-11-04T23:45:17",
+ "stopped_at": "2026-11-04T23:40:18",
+ "stop_reason": "2 consecutive batches had no schedulable work (last: planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more)",
+ "guards": {
+  "max_no_work_streak": 2,
+  "max_failures": 4,
+  "max_idle_minutes": 90.0,
+  "max_batches": 0,
+  "min_battles_for_work": 1
+ },
+ "ledger": {
+  "batches": 2,
+  "effective_batches": 0,
+  "no_work_batches": 2,
+  "failed_batches": 0,
+  "timeout_batches": 0,
+  "paused_batches": 0,
+  "blocked_batches": 0,
+  "verified_progress": 0,
+  "total_battles": 0,
+  "total_actions": 0,
+  "consecutive_no_work": 2,
+  "consecutive_failures": 0,
+  "last_progress_at": null,
+  "last_verified_at": null,
+  "last_selected_node": null,
+  "last_stop_reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more",
+  "last_outcome": "NO_WORK",
+  "completed_nodes": []
+ },
+ "batches": 2,
  "failures": 0,
  "history": [
   {
    "batch": 1,
-   "code": 0,
-   "elapsed_s": 15.9,
+   "outcome": "NO_WORK",
+   "reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more",
+   "exit_code": 3,
+   "elapsed_s": 0.4,
+   "stats": {
+    "actions": 0,
+    "battles": 0,
+    "elapsed_s": 0.0,
+    "errors": 0,
+    "loops": 1
+   },
+   "new_completed_nodes": [],
+   "diff": {
+    "new_completed_nodes": [],
+    "dropped_completed_nodes": [],
+    "battles_delta": 0,
+    "actions_delta": 0,
+    "errors_delta": 0,
+    "run_changed": true,
+    "before_status": "finished",
+    "after_status": "finished",
+    "after_stop_reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more"
+   },
    "tail": [
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689",
-    "note    preflight: 5 pets; hp alive=5; level=36; xp_to_next=4689"
-   ],
-   "status": [
-    "run     cb4bbd774349  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=5.9s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
+    "  - puni.prepare.tutor_room: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
+    "  - puni.seal.entry_nav: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
+    "outcome NO_WORK (exit 3): planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more"
    ]
   },
   {
    "batch": 2,
-   "code": 0,
-   "elapsed_s": 7.2,
+   "outcome": "NO_WORK",
+   "reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more",
+   "exit_code": 3,
+   "elapsed_s": 0.4,
+   "stats": {
+    "actions": 0,
+    "battles": 0,
+    "elapsed_s": 0.0,
+    "errors": 0,
+    "loops": 1
+   },
+   "new_completed_nodes": [],
+   "diff": {
+    "new_completed_nodes": [],
+    "dropped_completed_nodes": [],
+    "battles_delta": 0,
+    "actions_delta": 0,
+    "errors_delta": 0,
+    "run_changed": true,
+    "before_status": "finished",
+    "after_status": "finished",
+    "after_stop_reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more"
+   },
    "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     455986754e0e  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 3,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     07dc98a40de4  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 4,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     209ddee082f0  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 5,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     3f6ac52d0ad4  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 6,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     82efa4399c65  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 7,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     5100747f0319  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 8,
-   "code": 0,
-   "elapsed_s": 7.3,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     19a299b07cd7  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 9,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     27a1f0064ef7  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 10,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     699a95cb1c0f  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 11,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     4ef725e2f33a  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 12,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     eee0e4567e71  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 13,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     6f24465ec5ea  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 14,
-   "code": 0,
-   "elapsed_s": 7.3,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     bee61d696f2e  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 15,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     a440f859eee0  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 16,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     162607156371  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 17,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     b3ca494045a4  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 18,
-   "code": 0,
-   "elapsed_s": 7.1,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     0930ccc19745  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 19,
-   "code": 0,
-   "elapsed_s": 7.3,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     3ecd2b3d0d02  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 20,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     8c725bfa5a93  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 21,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     702ce4ea1118  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 22,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     a6f1dd725c84  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 23,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     7a9f34f763cd  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 24,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     56d96561877a  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 25,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     de8c541d1625  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
-   ]
-  },
-  {
-   "batch": 26,
-   "code": 0,
-   "elapsed_s": 7.2,
-   "tail": [
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108",
-    "        xp_to_next 4689"
-   ],
-   "status": [
-    "run     b1689a249250  status=finished",
-    "goal    puni  planner=deterministic",
-    "reason  planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown; puni.prepare.tower_farm: not ready - status=not_executable: state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.seal.boss_pp_empty: not ready - status=not_executable: missing capability 'battle.log_read' (verified=unverified); ... 36 more",
-    "stats   battles=0 actions=0 errors=0 loops=1 elapsed=1.0s",
-    "world   scene=WORLD source=LIVE_VERIFIED",
-    "        pet 烈火猴 Lv36 hp 108/108"
+    "  - puni.prepare.tutor_room: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
+    "  - puni.seal.entry_nav: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
+    "outcome NO_WORK (exit 3): planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.tower_status drives the mouse/keyboard but constraints.allow_input is false; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; puni.prepare.tutor_room: input disabled - game.goto_tutor_room drives the mouse/keyboard but constraints.allow_input is false; ... 39 more"
    ]
   }
  ]
