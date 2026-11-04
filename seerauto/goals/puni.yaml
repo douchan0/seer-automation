@@ -76,6 +76,22 @@ conventions:
   skills: "skill 字段写的是“该节点应由哪个语义技能执行”，不保证已实现；真机只有 game.run_battle 有原型（tools/battle_run.py）"
 
 capabilities:
+  battle.attribute_reverse:
+    summary: 纳多雷「属性反转」与谱尼交换属性（圣灵→地面），并用战报确认生效；6/7 封印与真身 3/5 命的公共机制
+    verified: unverified
+    evidence: docs/research/PUNI_CURRENT_VERSION_GUIDE.md
+  battle.pp_drain:
+    summary: 用「回避 / 相位移动」把谱尼有限的 PP 耗光，以「圣光气」出现作为空 PP 判据
+    verified: unverified
+    evidence: docs/research/PUNI_CURRENT_VERSION_GUIDE.md
+  observe.truebody_life:
+    summary: 读真身战斗画面正中的「谱尼真身 / 第N命 / （X封印）」大字，得到当前命数
+    verified: unverified
+    evidence: frames/07_truebody_s/f_00004.png
+  observe.battle_log_event:
+    summary: 解析「当前战报」滚动文本（被击败了 / 致命一击 / 使用了X / 圣光气）成结构化事件
+    verified: unverified
+    evidence: frames/_ocr.json
   map.open:
     summary: 打开星际地图并点选目的地（地图图标在屏幕中央，位置稳定）
     verified: real
@@ -343,7 +359,7 @@ nodes:
     completion:
       type: verified_account_state
       predicate: resource_at_least
-      args: {resource: 高级体力药剂, amount: 1}
+      args: {resource: 高级体力药剂, amount: 100}
     status: unknown
     executable: false
     skill: game.buy_items
@@ -353,6 +369,7 @@ nodes:
     evidence:
       - docs/PUNI_TASK_GRAPH.md#P0-06
     blocked_reason: 货币余额与药剂价格本轮都未观测；CAP-SHOP 从未成功购买过任何商品 → 也不能断言「买不起」
+    notes: "amount 从 1 提到 100：教程视频在 10:58 明确「高级体力药剂 ×100」。但 100 是**别人的数量**，本账号需要多少、买不买得起仍然 UNKNOWN —— 判据只是把可观测下界提到视频量级，不代表余额够。" 
     notes: "文档把本节点标 blocked，依据是 §0.1 的「赛尔豆 0 / 金豆 0 / XIN豆 5,000 / 积累经验 5,000」。这些是 Round 2 的历史读数，Round 4 从未重新读货币栏或背包 → 余额未知，故本图改为 unknown，不再复述「0」。另一个事实：17:35 只 OCR 读过 141 件商品，从未真正购买（CAP-SHOP ⚠️）。completion 里的 amount=1 只是可观测下界，真实目标数量未知（U-A12：买高级还是特级×100；U-C1 三种货币图标对应关系）。"
   - id: puni.prepare.tower_farm
     legacy_id: P0-07
@@ -522,6 +539,7 @@ nodes:
     blocked_reason: 交易行资格未确认解锁（见 puni.prepare.market_unlock）；余额与挂单存量未观测，故不允许花钱（max_spend=0）
     notes: "关键缺口：文档称萨帕克是封印 1 与真身第一命的唯一解，缺萨帕克 = 这两处无解。门槛更正见 puni.prepare.market_unlock（击败 SPT 首领，不是「注册满 3 天」）。文档写「赛尔豆 0」是 Round 2 历史值，本轮未重读；价格单位（U-C1）与挂单存量（U-C2）、是否仍有萨拉在售（U-A2）均未验证。"
   - id: puni.roster.buy_flash_pipi
+    notes_speed_gate: "第五封印轮回的硬门槛：闪光波克尔**速度必须 ≥ 319**，否则快不过谱尼（S1 视频简介 + S4 2026-06-08 文章）。现有谓词只能判『存在』，判不了六维 → 需要 pet_stat_at_least 谓词，见 PUNI_GOAL_GAP_ANALYSIS.md §2.2。" 
     legacy_id: P1-06
     title: 交易行买闪光皮皮 → 闪光波克尔
     description: 交易行买高个体加速性格的闪光皮皮，练到 99，速度学习力刷满，得到带「同生共死」的闪光波克尔。
@@ -768,7 +786,7 @@ nodes:
     notes: "文档的 partial 只基于「人工到达过一次」（action-log 18:16:42 / 18:09）。⚠️ 那次用的是已作废的坐标空间（docs/state.md：宽高比 1.609→1.5，旧坐标不可缩放复用）→ 在新坐标下等于从未验证。它是所有封印节点的闸门：决定「今天还能打几次」。⚠️ completion 只证明『面板可达』，不证明『今日次数 > 0』—— 每日额度读数（CAP-DAILY）未实现，这一步没有被 predicate 覆盖。U-A5 失败是否消耗次数、U-C3 次数重置时刻未解。"
   - id: puni.seal.vacuum_1
     legacy_id: P2-02
-    title: 封印 1 虚无（萨帕克单挑，约 21 回合）
+    title: 封印 1 虚无（萨帕克单挑，约 30 回合）
     description: 只带萨帕克进场；开局连点「感应」叠特防，叠够后「精神强化」，用「七彩龙息」输出，HP 低于阈值就嗑超级体力药剂。
     phase: P2
     priority: 82
@@ -787,7 +805,8 @@ nodes:
     evidence:
       - docs/PUNI_TASK_GRAPH.md#P2-02
     blocked_reason: 需要按名选招 + 读 HP/PP + 战斗内用药，四项能力全部未实现；且缺萨帕克（唯一解，交易行未解锁）
-    notes: "文档把本节点列为「第 3 高价值」：状态空间最小的真实谱尼战斗（单精灵、4 技能、约 21 回合、无换人），是验证整套框架的第一关。未验证：感应 PP=30 是否本版本一致、buff 层数能否用图标数读出、HP 阈值取 1/3 是否最优。"
+    notes_round: "回合数由 21 修正为 30：2026-08-23 教程视频 11:16→12:40（1 分 20 秒）打完，作者自述约 30 回合。另：闪光波克尔速度 ≥319 才能快过第五封印轮回（S1 简介），说明本服速度线是硬门槛，虚无这一关则是萨帕克特防线。"
+    notes: "文档把本节点列为「第 3 高价值」：状态空间最小的真实谱尼战斗（单精灵、4 技能、约 30 回合、无换人），是验证整套框架的第一关。未验证：感应 PP=30 是否本版本一致、buff 层数能否用图标数读出、HP 阈值取 1/3 是否最优。"
   - id: puni.seal.element_2
     legacy_id: P2-03
     title: 封印 2 元素（哈莫耗 PP + 魔焰烧伤）
@@ -887,7 +906,7 @@ nodes:
     notes: "human-only 的原因不是难度，而是逐回合预判（见文档读图要点 3）。U-B6：对方 buff 剩余回合是否可读，决定换人时机能不能自动化 —— 不可读则本节点无法自动化。4 条命在同一场战斗内（回合计数连续）。"
   - id: puni.seal.eternity_6
     legacy_id: P2-07
-    title: 封印 6 永恒（打 60 次）
+    title: 封印 6 永恒（「打 60 次」，含义 UNKNOWN）
     description: 猩猩压迫→纳多雷属性反转→哈莫龙之意志→回避耗到「圣光气」→龙王波连续输出 60 次，注意别被反伤反死。
     phase: P2
     priority: 65
@@ -1213,3 +1232,70 @@ nodes:
       - docs/progress.md#round-4
     blocked_reason: 165 回合长战从未跑过；弹窗（成就/活动/公告）识别与断线重连恢复都未实现/未构造
     notes: "状态已从 todo 升为 partial（依据 Round 4 真机）：次数/时长预算（`budget reached`）、无进展停滞守卫（`no progress for Ns`）、暂停/恢复/SIGINT 停止、点击落空后 8 s 带原因安全停止 —— 全部实测触发过。⚠️ 仍未验证：165 回合长战、弹窗识别、断线恢复。文档的 P8 缺口因此是「部分关闭」，不是关闭。"
+  - id: puni.crosscut.attribute_reverse
+    legacy_id: P4-06
+    title: 属性反转（纳多雷）—— 6/7 封印与真身 3/5 命的公共机制【横切】
+    description: 纳多雷上场放「属性反转」与谱尼交换属性（圣灵→地面），使龙系输出不再被克；随后用战报确认生效。
+    phase: P4
+    priority: 90
+    prerequisites: [puni.roster.spt_naduolei, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.switch_pet, battle.log_read]
+    completion:
+      type: capability_demonstrated
+      predicate: capability_demonstrated
+      args: {capability: battle.attribute_reverse}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {}
+    budget: {max_minutes: 20, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/research/PUNI_CURRENT_VERSION_GUIDE.md
+    blocked_reason: 缺纳多雷本体；且「属性反转是否生效」目前只能靠战报文字判断，battle.log_read 仍是 unverified
+    notes: "2026-08-23 教程视频里，属性反转出现在第六、第七封印与真身第三/第五命，作者原话「属性反转还是非常有必要的」（25:52）。它此前只作为封印节点的隐含步骤存在，没有任何节点/能力覆盖 → 无法归因「这关过了是因为反转生效还是因为运气」。新增本节点只为把这一机制显式化，不代表已实现。"
+  - id: puni.crosscut.pp_drain
+    legacy_id: P4-07
+    title: 耗 PP（回避/相位移动）—— 所有谱尼战斗的共同前提【横切】
+    description: 用哈莫「回避」或萨帕克「相位移动」持续躲闪，把谱尼有限的 PP 耗光；以它开始重复「圣光气」作为空 PP 判据，再进入输出窗口。
+    phase: P4
+    priority: 89
+    prerequisites: [puni.roster.spt_hamoleite, state.battle_capable]
+    requires_capabilities: [battle.skill_select, battle.pp_read, battle.log_read]
+    completion:
+      type: capability_demonstrated
+      predicate: capability_demonstrated
+      args: {capability: battle.pp_drain}
+    status: todo
+    executable: false
+    skill: game.run_battle
+    skill_inputs: {}
+    budget: {max_minutes: 60, max_battles: 1, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/research/PUNI_CURRENT_VERSION_GUIDE.md
+    blocked_reason: 需要「按名选招 + 读己方 PP + 解析战报」三件事，前两项有原型、第三项未实现
+    notes: "整套攻略的第一性原理：谱尼招式 PP 有限，耗光后只会放圣光气（空 PP 标志），此时它只是沙包。现有 puni.seal.boss_pp_empty 只做「空 PP 窗口识别」，缺「主动耗 PP」这个动作本身，故新增本节点。"
+  - id: puni.truebody.detect_life
+    legacy_id: P3-08
+    title: 真身命数检测（读「第N命」）
+    description: 真身战斗中读画面正中的「谱尼真身 / 第N命 / （X封印）」，写入 counters.truebody.life，作为断点恢复与逐命策略的依据。
+    phase: P3
+    priority: 88
+    prerequisites: [puni.truebody.enter]
+    requires_capabilities: [observe.truebody_life, observe.ocr]
+    completion:
+      type: verified_account_state
+      predicate: feature_unlocked
+      args: {feature: puni.truebody.life_tracked}
+    status: todo
+    executable: false
+    skill: game.observe_truebody_life
+    skill_inputs: {}
+    budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/research/PUNI_CURRENT_VERSION_GUIDE.md
+      - frames/07_truebody_s/f_00004.png
+    blocked_reason: 观察技能尚未实现（game.observe_truebody_life 不存在），但 UI 信号已确认存在
+    notes: "本轮最重要的 UI 发现：真身开战时客户端在画面正中打「谱尼真身 / 第N命 /（X封印）」，白字黑描边、居中、高对比；frames/_ocr.json 的 104 帧真身画面里都能读出「第N命（X封印）」。敌方血条只有 LV:?? 与纯色条（没有数字），所以**命数检测是判断真身进度的唯一可靠信号**。节点保持 todo：素材已确认，代码没写。"
