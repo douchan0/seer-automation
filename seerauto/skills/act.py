@@ -22,6 +22,8 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .base import Skill, SkillContext, SkillKind, SkillResult, SkillSpec, Status
 from ..live import LiveError, TH_FIGHT, TH_VICTORY
+from ..runner.battle_watch import (BattleLimits, BattleSnapshot, BattleWatchdog,
+                                   append_snapshot)
 from ..world.model import Evidence, Fact, Source, Scene, now_iso
 
 # --------------------------------------------------------------------------- #
@@ -447,6 +449,17 @@ class RunBattle(_Base):
         engage_tries = 0
         stall_seconds = float(ctx.options.get("stall_seconds", 150.0)) if ctx.options else 150.0
         hp_floor = float(ctx.options.get("hp_floor", 0.25)) if ctx.options else 0.25
+        # Long-battle guards.  A truebody fight is 300-600 turns; a wild fight is 20
+        # seconds.  Both run through this loop, so the budget is configurable and
+        # defaults to "no turn cap" for the short fights that already work.
+        opts = ctx.options or {}
+        watch = BattleWatchdog(BattleLimits(
+            max_turns=int(opts.get("battle_max_turns", 0) or 0),
+            max_seconds=float(opts.get("battle_max_seconds", 0) or 0),
+            max_stuck_turns=int(opts.get("battle_max_stuck_turns", 8) or 8),
+            max_failures=int(opts.get("battle_max_failures", 3) or 3),
+        ))
+        battle_log = opts.get("battle_log_path")
 
         while wins < battles and time.perf_counter() < stall_deadline:
             if ctx.options.get("control") and ctx.options["control"].stop_requested():
@@ -588,6 +601,25 @@ class RunBattle(_Base):
                     timeout_s=0.1)
                 if advanced:
                     s.wait_settle(stable_ms=220.0, timeout_s=3.0)
+                # One snapshot per turn: this is the resume point if the process
+                # dies mid-battle, and the evidence for "was this fight stuck?".
+                snap = BattleSnapshot(
+                    turn=watch.turns + 1,
+                    scene=getattr(state, "value", str(state)),
+                    ally_pet=ctx.world.active_pet,
+                    ally_hp=ally_hp,
+                    ally_level=ally_level,
+                    last_move=moves_used[-1] if moves_used else None,
+                    wins=wins,
+                    losses=losses,
+                    log_sig=str(before),
+                )
+                verdict = watch.observe(snap)
+                if battle_log:
+                    append_snapshot(str(battle_log), snap)
+                if verdict.stop:
+                    end_reason = verdict.reason
+                    break
                 last_state = state
                 continue
 
