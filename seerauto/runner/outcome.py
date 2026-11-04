@@ -31,6 +31,7 @@ __all__ = [
     "RunVerdict",
     "classify_run",
     "classify_reason",
+    "completed_with_proof",
     "exit_code_for",
     "EXIT_CODES",
 ]
@@ -55,13 +56,32 @@ EXIT_CODES: dict[Outcome, int] = {
     Outcome.FAILED: 1,
     Outcome.NO_WORK: 3,
     Outcome.TIMEOUT: 124,   # matches coreutils `timeout`, which scripts already know
-    Outcome.PAUSED: 0,
+    # 130 = "terminated by Ctrl-C", the convention scripts already read as
+    # "a human stopped this".  Sharing SUCCESS's 0 made a human pause look healthy.
+    Outcome.PAUSED: 130,
     Outcome.BLOCKED: 7,
 }
 
 
 def exit_code_for(outcome: Outcome) -> int:
     return EXIT_CODES[outcome]
+
+
+def completed_with_proof(nodes: Mapping[str, Any] | None,
+                         proofs: Mapping[str, Any] | None) -> tuple[str, ...]:
+    """Node ids that are `completed` *and* carry a proof string.
+
+    One definition, used by both the classifier and the supervisor.  The two used to
+    disagree: the classifier demanded a proof, the supervisor took the status string
+    at face value, so the same node counted as verified progress in one place and not
+    in the other (found by the 2026-11-05 independent review).
+    """
+
+    proof_map = proofs or {}
+    return tuple(sorted(
+        node_id for node_id, status in (nodes or {}).items()
+        if str(status) == "completed" and proof_map.get(node_id)
+    ))
 
 
 # Reason prefixes the runner actually emits (seerauto/runner/runner.py).  Matching
@@ -114,7 +134,9 @@ def classify_reason(reason: str | None) -> Outcome:
         return Outcome.TIMEOUT
     if low.startswith("dry run complete"):
         # A dry run that planned something is a successful dry run; it never
-        # counts as verified progress because it sent no input.
+        # counts as verified progress because it sent no input.  `classify_run`
+        # exempts this outcome from the SUCCESS->NO_WORK downgrade, otherwise this
+        # branch is dead code.
         return Outcome.SUCCESS
     return Outcome.FAILED
 
@@ -198,17 +220,16 @@ def classify_run(summary: Mapping[str, Any] | None) -> RunVerdict:
     nodes = summary.get("nodes") or {}
     proofs = summary.get("proofs") or {}
 
-    completed = tuple(sorted(
-        node_id for node_id, status in nodes.items()
-        # A completion predicate must have produced a proof string.  A bare
-        # "completed" status is a claim, not evidence (AGENTS.md §5.3).
-        if str(status) == "completed" and proofs.get(node_id)
-    ))
+    # A completion predicate must have produced a proof string.  A bare
+    # "completed" status is a claim, not evidence (AGENTS.md §5.3).
+    completed = completed_with_proof(nodes, proofs)
     # A node marked completed without a proof string is not evidence.  Fall back to
     # the stop reason so a genuine completion is not thrown away.
     outcome = classify_reason(reason)
-    if outcome is Outcome.SUCCESS and not completed and reason != "goal progressed: node completed" \
-            and "all executable nodes complete" not in reason:
+    dry_run_ok = reason.lower().startswith("dry run complete")
+    if (outcome is Outcome.SUCCESS and not completed and not dry_run_ok
+            and reason != "goal progressed: node completed"
+            and "all executable nodes complete" not in reason):
         outcome = Outcome.NO_WORK
 
     return RunVerdict(

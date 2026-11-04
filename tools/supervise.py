@@ -51,7 +51,8 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from seerauto.runner.outcome import Outcome, classify_run, exit_code_for  # noqa: E402
+from seerauto.runner.outcome import (Outcome, RunVerdict, completed_with_proof,  # noqa: E402
+                                     exit_code_for)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_PATH = os.path.join(ROOT, "data", "supervisor.log")
@@ -118,7 +119,8 @@ class Ledger:
     last_outcome: str | None = None
     completed_nodes: list[str] = field(default_factory=list)
 
-    def record(self, verdict: Any, *, new_nodes: list[str], now: datetime) -> None:
+    def record(self, verdict: Any, *, new_nodes: list[str], now: datetime,
+               min_battles: int = 1) -> None:
         """Fold one batch into the totals.  `verdict` is a RunVerdict."""
 
         self.batches += 1
@@ -155,7 +157,8 @@ class Ledger:
                 if node not in self.completed_nodes:
                     self.completed_nodes.append(node)
 
-        effective = bool(getattr(verdict, "battles", 0)) or bool(new_nodes)
+        effective = (int(getattr(verdict, "battles", 0) or 0) >= min_battles
+                     or bool(new_nodes))
         if effective:
             self.effective_batches += 1
             self.last_progress_at = now.isoformat(timespec="seconds")
@@ -247,24 +250,27 @@ def verdict_from_batch(code: int, out: str, *, new_nodes: list[str],
             outcome, reason = Outcome.TIMEOUT, reason or "batch subprocess timed out"
         elif code == 3:
             outcome, reason = Outcome.NO_WORK, reason or "nothing schedulable"
-        elif code != 0:
-            outcome, reason = Outcome.FAILED, reason or f"goal start exited {code}"
+        elif code == 4:
+            outcome, reason = Outcome.FAILED, reason or "another run holds the lock"
+        elif code == 5:
+            outcome, reason = Outcome.FAILED, reason or "goal start could not open a session"
         else:
-            outcome, reason = Outcome.SUCCESS, reason or "exited 0"
+            # Exit 0 with no outcome line is exactly the ambiguity this rewrite
+            # exists to remove.  "I cannot establish what happened" is FAILED.
+            outcome = Outcome.FAILED
+            reason = reason or (f"no outcome reported (exit {code}) — cannot "
+                                f"establish what this batch did")
 
-    class _V:  # minimal duck-typed verdict; RunVerdict stays the canonical type
-        pass
-
-    v = _V()
-    v.outcome = outcome
-    v.reason = reason
-    v.battles = int(stats.get("battles") or 0)
-    v.actions = int(stats.get("actions") or 0)
-    v.errors = int(stats.get("errors") or 0)
-    v.loops = int(stats.get("loops") or 0)
-    v.elapsed_s = float(stats.get("elapsed_s") or 0.0)
-    v.completed_nodes = tuple(new_nodes)
-    return v
+    return RunVerdict(
+        outcome=outcome,
+        reason=reason,
+        battles=max(0, int(stats.get("battles") or 0)),
+        actions=max(0, int(stats.get("actions") or 0)),
+        errors=max(0, int(stats.get("errors") or 0)),
+        loops=max(0, int(stats.get("loops") or 0)),
+        elapsed_s=float(stats.get("elapsed_s") or 0.0),
+        completed_nodes=tuple(new_nodes),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -394,8 +400,12 @@ def snapshot() -> dict[str, Any]:
             "stop_reason": latest.get("stop_reason"),
             "current_node": latest.get("current_node"),
             "stats": latest.get("stats") or {},
-            "completed": sorted(k for k, v in nodes.items()
-                                if str(v.get("status")) == "completed"),
+            # Same rule as outcome.classify_run: a bare "completed" status is a
+            # claim, not evidence.  These two used to disagree, which let the
+            # supervisor count a proof-less completion as verified progress.
+            "completed": list(completed_with_proof(
+                {k: v.get("status") for k, v in nodes.items()},
+                {k: v.get("proof") for k, v in nodes.items() if v.get("proof")})),
             "proofs": {k: v.get("proof") for k, v in nodes.items() if v.get("proof")},
         }
     except Exception as exc:  # noqa: BLE001
@@ -513,11 +523,11 @@ def main(argv: list[str] | None = None) -> int:
             break
 
         if not args.dry_run and not ensure_in_game():
-            ledger.batches += 1
-            ledger.failed_batches += 1
-            ledger.consecutive_failures += 1
-            ledger.last_stop_reason = "client unreachable"
-            ledger.last_outcome = Outcome.FAILED.value
+            # Go through record() so the batch counter has one owner and the
+            # no-work streak is reset on a different failure mode.
+            unreachable = RunVerdict(outcome=Outcome.FAILED, reason="client unreachable")
+            ledger.record(unreachable, new_nodes=[], now=datetime.now(),
+                          min_battles=guards.min_battles_for_work)
             log(f"cannot reach the world (failure {ledger.consecutive_failures}"
                 f"/{guards.max_failures})")
             history.append({"batch": ledger.batches, "outcome": "FAILED",
@@ -553,11 +563,16 @@ def main(argv: list[str] | None = None) -> int:
         diff = diff_snapshots(before, after)
         new_nodes = diff["new_completed_nodes"]
 
-        # Prefer the batch's own stats; fall back to the store diff.
-        stats = dict((after.get("stats") or {}))
+        # `after` is the store's latest run, which is only *this* batch's run when
+        # the run id changed (or when this is the first batch).  Otherwise the
+        # batch never started a run (exit 4/5) and those stats belong to someone
+        # else — using them made a failed batch look productive.
+        owns_run = (not before.get("run_id")) or diff["run_changed"]
+        stats = dict((after.get("stats") or {})) if owns_run else {}
         if not stats:
-            stats = {"battles": diff["battles_delta"], "actions": diff["actions_delta"],
-                     "errors": diff["errors_delta"]}
+            stats = {"battles": max(0, diff["battles_delta"]),
+                     "actions": max(0, diff["actions_delta"]),
+                     "errors": max(0, diff["errors_delta"])}
         verdict = verdict_from_batch(code, out, new_nodes=new_nodes, stats=stats)
 
         tail = [ln for ln in out.strip().splitlines() if ln.strip()][-3:]
@@ -566,7 +581,8 @@ def main(argv: list[str] | None = None) -> int:
         if tail:
             log(f"  tail: {' | '.join(tail)}")
 
-        ledger.record(verdict, new_nodes=new_nodes, now=datetime.now())
+        ledger.record(verdict, new_nodes=new_nodes, now=datetime.now(),
+                      min_battles=guards.min_battles_for_work)
         ledger.last_selected_node = (after.get("current_node")
                                      or before.get("current_node")
                                      or ledger.last_selected_node)
@@ -607,6 +623,8 @@ def main(argv: list[str] | None = None) -> int:
     write_report(deadline=deadline, guards=guards, ledger=ledger, history=history,
                  stop_reason=stop_reason)
     # Exit code of the supervisor itself: 0 only when something actually moved.
+    if stop_reason and stop_reason.startswith("paused"):
+        return exit_code_for(Outcome.PAUSED)
     if stop_reason and stop_reason.startswith("blocked"):
         return exit_code_for(Outcome.BLOCKED)
     if stop_reason and ("no schedulable work" in stop_reason

@@ -50,3 +50,10 @@ data/*.sqlite3-wal
 data/reports/
 data/ai/
 data/live_run.log
+
+# MiniMax raw provider transcripts (2.6 MB of JSONL, not a deliverable; the
+# human-readable results live in docs/research/mmx/*.md)
+docs/research/mmx/logs/
+
+# Battle watchdog snapshots are runtime state (resume points), not source
+data/battle/

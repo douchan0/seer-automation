@@ -46,9 +46,17 @@ class BattleLimits:
     max_turns: int = 0
     max_seconds: float = 0.0
     #: Consecutive turns with an unchanged fingerprint before we call it stuck.
-    max_stuck_turns: int = 8
-    #: Consecutive fights that ended without a win.
-    max_failures: int = 3
+    #:
+    #: **Off by default on purpose.**  The live loop can only refresh ally HP a few
+    #: times per battle and never fills `enemy_life`, so the fingerprint is coarse;
+    #: a false "stuck" aborts a fight, and an aborted fight with no wins returns
+    #: FAIL+pause, which stops the whole night.  Enable it per fight type (truebody),
+    #: where the log genuinely does not move when the battle is frozen.
+    max_stuck_turns: int = 0
+    #: Consecutive fights that ended without a win (0 = no limit).  Off by default:
+    #: nothing in the live loop reports a loss yet, so a non-zero default would be a
+    #: limit that can never fire.
+    max_failures: int = 0
 
 
 @dataclass(frozen=True)
@@ -90,6 +98,8 @@ class BattleSnapshot:
             "last_move": self.last_move,
             "wins": self.wins,
             "losses": self.losses,
+            # part of `fingerprint`, so without it the file cannot explain a stop
+            "log_sig": self.log_sig,
             "at": round(self.at, 3),
         }
 
@@ -139,7 +149,7 @@ class BattleWatchdog:
 
     def _decide(self, now: float) -> BattleVerdict:
         lim = self.limits
-        if lim.max_turns and self.turns > lim.max_turns:
+        if lim.max_turns and self.turns >= lim.max_turns:
             return BattleVerdict(True, f"turn budget {lim.max_turns} exceeded "
                                       f"({self.turns} turns)")
         if lim.max_seconds and (now - self.started) > lim.max_seconds:
@@ -200,8 +210,14 @@ def load_snapshots(path: str) -> list[dict[str, Any]]:
         with open(path, encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
-                if line:
+                if not line:
+                    continue
+                try:
                     out.append(json.loads(line))
+                except json.JSONDecodeError:
+                    # A process killed mid-write leaves a partial last line.  The
+                    # resume path must not raise on exactly the crash it exists for.
+                    continue
     except FileNotFoundError:
         return []
     return out

@@ -1,5 +1,52 @@
 # NEXT_ACTIONS — 下一轮执行计划
 
+## 【2026-11-05 夜】本轮结束后的下一轮计划（最新，优先读这一段）
+
+> 本轮做了什么、证据在哪：`docs/OVERNIGHT_REPORT_2026_11_05.md`。
+> 谱尼机制：`docs/research/PUNI_CURRENT_VERSION_GUIDE.md`；缺口：`docs/research/PUNI_GOAL_GAP_ANALYSIS.md`。
+
+### 一句话状态
+
+**长程执行器不再是"空转也算成功"了**：`goal start` 现在把「无事可做」返回 exit 3，
+supervisor 连续 2 批无任务就停机；刷塔节点真正接上了连战；谱尼机制研究有 B 级来源支撑。
+**但谱尼进度仍然只有 1 个节点（tower_farm）是真机完成的**，其余全靠没解锁的 UI。
+
+### P0 · 一次「只读采样」就能解锁 7 个节点（30 分钟，不打任何一场）
+
+| 任务 | 做什么 | 验收 |
+|---|---|---|
+| 0.1 | 打开 SPT → 太空站左翼 → 谱尼，截「七封印选择面板」 | 得到 `artifacts/round7/seal_panel.png`，能读出 7 个封印名与通过状态 |
+| 0.2 | 同一面板上读「今日剩余挑战次数」 | 得到一个数字 + 证据字符串，写入 `unlocked.puni.daily_attempts` |
+| 0.3 | 打开交易行搜「萨拉」（**只看不买**） | 读到价格 + 是否可购买，解锁 `market.buy` 的 unverified 状态 |
+| 0.4 | 打开商城读「高级体力药剂」价格与货币余额 | 写入 `resources.*`，解锁 `buy_potions` |
+
+> 为什么排第一：这 4 张截图能把 `puni.seal.*`（7 个）、`buy_*`（4 个）、`buy_potions` 从
+> 「没有 UI 就只能猜坐标」变成「可以写模板」。**在拿到之前不要写任何封印相关的点击代码。**
+
+### P1 · 真身命数检测（不需要新采样）
+
+| 任务 | 文件 | 验收 |
+|---|---|---|
+| 1.1 | 实现 `game.observe_truebody_life`：OCR/模板读画面正中「谱尼真身 / 第N命 /（X封印）」 | 用 `frames/07_truebody_s/` 的 104 帧做离线回放，≥95% 帧读对 |
+| 1.2 | 写入 `counters.truebody.life`（LIVE），并让 `puni.truebody.detect_life` 的谓词消费它 | 节点可完成；离线回放测试 |
+| 1.3 | 接 `BattleWatchdog`：真身用 `battle_max_turns=600`、`battle_log_path=data/battle/<run>.jsonl` | 单测 + 回放 |
+
+### P2 · 战报事件解析（所有分支判断的公共依赖）
+
+| 任务 | 文件 | 验收 |
+|---|---|---|
+| 2.1 | `game.observe_battle_log`：解析「当前战报」→ `被击败了/致命一击/使用了X/圣光气` | 离线用 `frames/_ocr.json` 做回放 |
+| 2.2 | 用「圣光气」出现判空 PP，喂给 `puni.seal.boss_pp_empty` | 谓词可判 |
+
+### P3 · 补谓词（现在表达不了攻略的门槛）
+
+`pet_stat_at_least`（闪光波克尔速度≥319）、`pet_stat_equals`（克罗达特防=6）、
+`pet_skill_known`（哈莫带回避/塞维尔带锁敌）、`daily_attempts_left`（每日 4 次）。
+
+---
+
+## 【历史】Round 5 及之前的计划（保留，勿删）
+
 > 给**下一个接手的 Agent**。每条都有：做什么、改哪个文件、怎么验收、卡在哪。
 > Round 5 的真机结果见 `docs/REAL_DELIVERY_REPORT.md`；本轮 FAIL 的那一项写在最前面。
 

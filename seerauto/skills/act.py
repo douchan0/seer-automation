@@ -456,8 +456,12 @@ class RunBattle(_Base):
         watch = BattleWatchdog(BattleLimits(
             max_turns=int(opts.get("battle_max_turns", 0) or 0),
             max_seconds=float(opts.get("battle_max_seconds", 0) or 0),
-            max_stuck_turns=int(opts.get("battle_max_stuck_turns", 8) or 8),
-            max_failures=int(opts.get("battle_max_failures", 3) or 3),
+            # 0 = off.  The live fingerprint is coarse (ally HP is sampled a few
+            # times, enemy_life is never filled), so a default stuck limit could
+            # abort a verified-good fight and pause the night.  Truebody nodes turn
+            # it on explicitly.
+            max_stuck_turns=int(opts.get("battle_max_stuck_turns", 0) or 0),
+            max_failures=int(opts.get("battle_max_failures", 0) or 0),
         ))
         battle_log = opts.get("battle_log_path")
 
@@ -550,7 +554,11 @@ class RunBattle(_Base):
                 # `LV:33` sits at (556,261) next to the HP bar.  The HUD animates
                 # in, so the first OCR can miss it — retry while we stay in the
                 # same battle instead of giving up on the whole fight.
-                if ally_level is None and hud_attempts < 3:
+                # The HUD used to be read at most three times and then frozen for the
+                # rest of the pass, so the watchdog's "ally HP changed" signal never
+                # fired and the HP-floor check worked off a stale number.  Re-read it
+                # periodically (an OCR every 5 turns is cheap next to a 3 s turn).
+                if (ally_level is None and hud_attempts < 3) or (watch.turns % 5 == 0):
                     hud_attempts += 1
                     lvl, hp = self._read_battle_hud(s)
                     ally_level = lvl or ally_level

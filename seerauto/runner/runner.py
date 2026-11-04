@@ -610,8 +610,17 @@ class GoalRunner:
             budget=Budget(max_duration_s=max_duration_s, max_actions=max_actions),
             dry_run=self.config.dry_run, allow_input=self.config.allow_input,
             max_spend=self.config.max_spend,
-            options={"control": self.control, "run_id": self.run_id},
+            options={"control": self.control, "run_id": self.run_id,
+                     # Long-battle audit trail, on by default: a 600-round truebody
+                     # that dies mid-fight should leave a resume point behind rather
+                     # than an empty "I was somewhere in a battle".
+                     "battle_log_path": self._battle_log_path()},
         )
+
+    def _battle_log_path(self) -> str:
+        root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))), "data", "battle")
+        return os.path.join(root, f"{self.run_id or 'run'}.jsonl")
 
     def _scene_has_monster(self) -> bool:
         if self.session is None:

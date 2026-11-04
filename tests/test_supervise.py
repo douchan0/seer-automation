@@ -316,3 +316,110 @@ def test_main_stops_on_a_hard_blocker(monkeypatch, tmp_path):
     report = json.loads((tmp_path / "supervisor.json").read_text())
     assert report["ledger"]["batches"] == 1   # the blocker stopped it immediately
     assert "blocked" in (report["stop_reason"] or "")
+
+
+# --------------------------------------------------------------------------- #
+# regressions found by the 2026-11-05 independent review
+# --------------------------------------------------------------------------- #
+def test_a_completed_node_without_a_proof_is_not_verified_progress():
+    """Blocker: the supervisor and outcome.classify_run disagreed on "completed".
+
+    A bare `completed` status is a claim, not evidence (AGENTS.md 5.3).  The
+    supervisor used to take it at face value and count it as verified progress.
+    """
+
+    from seerauto.runner.outcome import completed_with_proof
+
+    nodes = {"puni.a": "completed", "puni.b": "completed"}
+    proofs = {"puni.a": "counter x=1 (LIVE)"}
+    assert completed_with_proof(nodes, proofs) == ("puni.a",)
+    assert completed_with_proof(nodes, {}) == ()
+    assert completed_with_proof({}, {}) == ()
+
+
+def test_exit_zero_without_an_outcome_line_is_failed():
+    """Blocker: a missing outcome line used to be read as SUCCESS."""
+
+    v = sup.verdict_from_batch(0, "no outcome line here", new_nodes=[], stats={})
+    assert v.outcome is Outcome.FAILED
+    assert "cannot establish" in v.reason
+
+
+def test_lock_held_and_cannot_start_are_failures_not_success():
+    assert sup.verdict_from_batch(4, "", new_nodes=[], stats={}).outcome is Outcome.FAILED
+    assert sup.verdict_from_batch(5, "", new_nodes=[], stats={}).outcome is Outcome.FAILED
+
+
+def test_negative_stats_are_clamped():
+    v = sup.verdict_from_batch(124, "", new_nodes=[], stats={"battles": -3, "actions": -1})
+    assert v.battles == 0
+    assert v.actions == 0
+
+
+def test_paused_has_its_own_exit_code():
+    from seerauto.runner.outcome import EXIT_CODES
+    assert EXIT_CODES[Outcome.PAUSED] != EXIT_CODES[Outcome.SUCCESS]
+    assert EXIT_CODES[Outcome.PAUSED] == 130
+
+
+def test_min_battles_threshold_is_honoured():
+    ledger = sup.Ledger()
+    guards = sup.Guards(min_battles_for_work=3)
+    ledger.record(_verdict(Outcome.TIMEOUT, battles=1), new_nodes=[], now=NOW,
+                  min_battles=guards.min_battles_for_work)
+    assert ledger.effective_batches == 0          # 1 battle is below the threshold
+    ledger.record(_verdict(Outcome.TIMEOUT, battles=3), new_nodes=[], now=NOW,
+                  min_battles=guards.min_battles_for_work)
+    assert ledger.effective_batches == 1
+
+
+def test_a_batch_that_started_no_run_does_not_inherit_battles(monkeypatch, tmp_path):
+    """Major: `after.stats` belongs to the previous run when the batch never started one.
+
+    A failed batch (lock held / cannot start) used to inherit the last run's battle
+    count, look "effective", and disarm the idle guard.
+    """
+
+    import json
+
+    monkeypatch.setattr(sup, "LOG_PATH", str(tmp_path / "s.log"))
+    monkeypatch.setattr(sup, "REPORT", str(tmp_path / "s.json"))
+    monkeypatch.setattr(sup, "ensure_in_game", lambda: True)
+    monkeypatch.setattr(sup, "heal_if_needed", lambda **kw: True)
+    monkeypatch.setattr(sup, "run", lambda cmd, timeout: (4, ""))   # lock held
+
+    prev = {"run_id": "old", "stats": {"battles": 9, "actions": 99}, "completed": []}
+    same = {"run_id": "old", "stats": {"battles": 9, "actions": 99}, "completed": []}
+    monkeypatch.setattr(sup, "snapshot", lambda: same)
+
+    code = sup.main(["--dry-run", "--minutes", "30", "--batch-minutes", "1",
+                     "--batch-battles", "2", "--max-batches", "1"])
+    report = json.loads((tmp_path / "s.json").read_text())
+    assert report["ledger"]["total_battles"] == 0     # did NOT inherit 9
+    assert report["ledger"]["effective_batches"] == 0
+    assert code != 0
+
+
+def test_yaml_has_no_duplicate_node_keys():
+    """The review found two `notes:` on buy_potions; yaml silently keeps the last."""
+
+    import re
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "seerauto" / "goals" / "puni.yaml"
+    node = None
+    seen: dict[str, int] = {}
+    dupes = []
+    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        m = re.match(r"^  - id: (\S+)", line)
+        if m:
+            node, seen = m.group(1), {}
+            continue
+        m = re.match(r"^    ([A-Za-z_]\w*):", line)
+        if m and node:
+            key = m.group(1)
+            if key in seen:
+                dupes.append((node, key, seen[key], i))
+            else:
+                seen[key] = i
+    assert dupes == [], f"duplicate keys (node, key, first_line, dup_line): {dupes}"

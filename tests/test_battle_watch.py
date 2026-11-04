@@ -50,7 +50,7 @@ def test_turn_budget_stops_a_truebody_that_would_run_forever():
             break
     assert verdict.stop
     assert "turn budget 400" in verdict.reason
-    assert w.turns == 401          # stopped on the first turn past the budget
+    assert w.turns == 400          # the budget is inclusive: at most 400 turns
 
 
 def test_time_budget():
