@@ -66,6 +66,7 @@ conventions:
 
   counters:
     tower.floors_cleared: 塔内已清的楼层数（只在观测到层数推进后 +1，不记意图）
+    tower.floors_reached: 塔面板显示「你当前到达第N层」的 N（读数，不等于已清层数）
 
   predicates:
     completion: "pet_level_at_least / pet_exists / spt_defeated / spt_defeated_count_at_least / resource_at_least / feature_unlocked / counter_at_least / capability_demonstrated"
@@ -366,19 +367,21 @@ nodes:
       predicate: counter_at_least
       args: {counter: tower.floors_cleared, at_least: 1}
     status: partial
-    # Executable since 2026-11-04: the playbook (travel → tower panel) and the
-    # game.tower_status observer exist, and the tower panel prints 「你当前到达第N层」
-    # as live evidence for counters.tower.floors_cleared.
+    # Executable since 2026-11-04, and since the 2026-11-05 fix the playbook runs
+    # the real farm loop: travel -> read floor -> game.farm_tower (guardian battles).
+    # Reading the floor alone never advanced anything, which is why the node used to
+    # look finished while no extra floor had been fought.
     executable: true
-    skill: game.tower_status
-    skill_inputs: {}
+    skill: game.farm_tower
+    skill_inputs: {floors: 3}
     budget: {max_minutes: 30, max_battles: 10, max_spend: 0}
     on_failure: retry
     evidence:
       - docs/PUNI_TASK_GRAPH.md#P0-07
       - docs/progress.md#round-4
       - artifacts/round6/level36_pet_panel.png
-    notes: "文档的 partial 来自 Round 3 旧塔循环：`[f0] floor cleared` 之后两次 `cannot engage - stop`。Round 4 验证的是克洛斯星林间的野外连战（3 场全胜、每场约 17 次点击、约 45 s/场），塔的入场与楼层导航仍未验证 → 保持 partial，不能升级为 proven。completion 只证明『至少清过一层』，不证明攒够钱：每层收益未统计（U-C6），「要刷多久」目前无法回答。R8 的「失败即重来」断点续跑仍是缺口。"
+      - artifacts/round6/tower_floor14.png
+    notes: "文档的 partial 来自 Round 3 旧塔循环：`[f0] floor cleared` 之后两次 `cannot engage - stop`。Round 4 验证的是克洛斯星林间的野外连战（3 场全胜、每场约 17 次点击、约 45 s/场）。2026-11-04 真机：塔层守护者一战 1300 积累经验（野外 52，约 25 倍），塔层 14 由面板「你当前到达第14层」读到。⚠️ 计数器语义已于 2026-11-05 修正：`tower.floors_cleared` 现在只在『真的打赢守护者』或『面板到达第N层 ⇒ N-1 层已清』时推进，不再直接写层号；VLM 读到的层数只进 `tower.floors_reached`（INFERRED）。completion 只证明『至少清过一层』，不证明攒够钱：每层收益未统计（U-C6），「要刷多久」仍无法回答。塔内 PP 恢复仍是缺口。"
   - id: puni.prepare.tutor_room
     legacy_id: P4-05
     title: 到达辅导员训练室（8 倍经验的前置）

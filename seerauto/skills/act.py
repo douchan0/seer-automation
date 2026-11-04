@@ -1700,10 +1700,17 @@ def _ocr_path(ctx: SkillContext, path: str) -> list[dict[str, Any]]:
 
 
 def _trusted(evidence: Any) -> bool:
-    """Local copy of the trust rule: LIVE/REPLAY detail counts, inference does not."""
+    """Local copy of the trust rule: LIVE/REPLAY detail counts, inference does not.
+
+    `rank` lives on `Source`, not on `Evidence`.  The previous version asked
+    `evidence.rank`, which raised, was swallowed, and returned False for
+    everything — so a verified prior reading was never protected and every VLM
+    guess overwrote it.  Source ranks here are LIVE=4, REPLAY=3, INFERRED=2,
+    HISTORICAL=1, UNKNOWN=0.
+    """
 
     try:
-        return evidence.rank >= 2     # LIVE_VERIFIED=3, REPLAY_VERIFIED=2
+        return evidence.source.rank >= 3     # LIVE_VERIFIED or REPLAY_VERIFIED
     except Exception:  # noqa: BLE001
         return False
 
@@ -1794,16 +1801,33 @@ class ReadTowerFloor(_Base):
                     data={"text": [str(i.get("text")) for i in items][:10]})
         if vision_only:
             ctx.world.observations["tower_floor_vlm"] = floor
-            ctx.world.facts["counters.tower.floors_cleared"] = Fact(
+            # A VLM read of a painted number is an inference, not instrumentation.
+            # It may record what floor *appears* to be reached; it must never
+            # advance the cleared counter (it misread 14 as 7 on 2026-11-04).
+            ctx.world.facts["counters.tower.floors_reached"] = Fact(
                 floor, Evidence(Source.INFERRED,
                                 f"vision read of the painted floor number: {floor}"))
         else:
-            ctx.world.facts["counters.tower.floors_cleared"] = Fact(floor, Evidence.live(
+            ctx.world.facts["counters.tower.floors_reached"] = Fact(floor, Evidence.live(
                 f"tower panel: 你当前到达第{floor}层"))
+            # The yaml defines tower.floors_cleared as a *count* of floors cleared.
+            # Standing on floor N means N-1 are behind you, so the counter must be
+            # N-1 — not N.  Writing N here is how "reached floor 14" was recorded
+            # as "cleared 14" and made the completion predicate look satisfied for
+            # the wrong reason.
+            derived = max(0, floor - 1)
+            prior = ctx.world.facts.get("counters.tower.floors_cleared")
+            prior_value = int(prior.value) if prior is not None and prior.value is not None else -1
+            if derived > prior_value:
+                ctx.world.facts["counters.tower.floors_cleared"] = Fact(
+                    derived, Evidence.live(
+                        f"tower panel: reached 第{floor}层 => {derived} cleared"))
         ctx.world.observations["tower_floor"] = floor
+        cleared = ctx.world.facts.get("counters.tower.floors_cleared")
+        cleared_txt = f"{cleared.value} cleared" if cleared is not None else "cleared unknown"
         return SkillResult.pass_(
             self.id,
-            proof=f"tower panel reports 第{floor}层 reached",
+            proof=f"tower panel reports 第{floor}层 reached ({cleared_txt})",
             after={"floors": floor},
             changed=False,
             actions=1,
@@ -1864,24 +1888,35 @@ class FarmTower(_Base):
                 break
             _dismiss_dialogs(ctx, limit=3)
             time.sleep(0.8)
+        # Clearing a floor is observed directly (a won battle), so it is the only
+        # thing allowed to advance tower.floors_cleared.  The painted floor number
+        # is read separately and only ever feeds "reached", because the VLM misread
+        # 14 as 7 on 2026-11-04.
+        prior = ctx.world.facts.get("counters.tower.floors_cleared")
+        prior_value = int(prior.value) if prior is not None and prior.value is not None else 0
+        if won:
+            ctx.world.facts["counters.tower.floors_cleared"] = Fact(
+                prior_value + won,
+                Evidence.live(f"won {won} 塔层守护者 battle(s) in this pass"))
         floor = ReadTowerFloor._read_floor_by_vision(s)
         if floor is not None:
-            # A VLM read of a painted number is NOT live-verified instrumentation: it
-            # misread 14 as 7 on 2026-11-04.  Record it as INFERRED and keep whatever
-            # the tower panel (real OCR) reported as the authoritative counter.
             ctx.world.observations["tower_floor_vlm"] = floor
-            prior = ctx.world.facts.get("counters.tower.floors_cleared")
-            if prior is None or not _trusted(prior.evidence):
-                ctx.world.facts["counters.tower.floors_cleared"] = Fact(
+            prior_reached = ctx.world.facts.get("counters.tower.floors_reached")
+            if prior_reached is None or not _trusted(prior_reached.evidence):
+                ctx.world.facts["counters.tower.floors_reached"] = Fact(
                     floor, Evidence(Source.INFERRED,
                                     f"vision read of the painted floor number: {floor}"))
+        cleared = ctx.world.facts.get("counters.tower.floors_cleared")
+        cleared_txt = f"{cleared.value} cleared" if cleared is not None else "cleared unknown"
         return SkillResult(
             skill=self.id,
             status=Status.PASS if won else Status.FAIL,
             reason="" if won else "; ".join(notes) or "no floor won",
-            after={"floors_won": won, "tower_floor": floor},
+            after={"floors_won": won, "wins": won, "tower_floor": floor,
+                   "floors_cleared": prior_value + won},
             changed=bool(won),
-            proof=(f"{won} 层通关; 当前第 {floor} 层; " + "; ".join(notes[-4:])),
+            proof=(f"{won} 层通关 ({cleared_txt}); 当前第 {floor} 层; "
+                   + "; ".join(notes[-4:])),
             actions=won * 2,
         )
 

@@ -45,10 +45,14 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
     "puni.prepare.tutor_room": (
         Step("game.goto_tutor_room", {}, label="地图→辅导员训练室"),
     ),
-    # 刷塔：先到辅导员训练室，再进塔读层数。读到的就是可验证的进度证据。
+    # 刷塔：先到辅导员训练室，进塔读层数（这是可验证的进度证据），然后**真的打**守护者。
+    # 2026-11-04 的 playbook 只调了 game.tower_status —— 只读层数不会推进任何东西，
+    # 于是节点"完成"了而一层也没多打。现在第三步是真正的连战循环。
     "puni.prepare.tower_farm": (
         Step("game.travel", {"destination": "tutor_room"}, label="地图→辅导员训练室"),
         Step("game.tower_status", {}, label="进试炼之塔读「你当前到达第N层」"),
+        Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
+             label="点守护者连战→清弹窗→读新层数"),
     ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",

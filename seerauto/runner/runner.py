@@ -707,6 +707,15 @@ class GoalRunner:
                 if remaining <= 0:
                     break
                 inputs["battles"] = min(int(inputs.get("battles", 1)), max(1, remaining))
+            elif step.skill == "game.farm_tower":
+                # The tower loop fights one guardian per floor, so a floor *is* a
+                # battle and must consume the same budget.  Without this clamp the
+                # tower skill could out-fight --max-battles and the run would report
+                # a battle count it never spent.
+                remaining = self.config.max_battles - self._battles
+                if remaining <= 0:
+                    break
+                inputs["floors"] = min(int(inputs.get("floors", 1)), max(1, remaining))
             ctx = self._skill_ctx(world, max_duration_s=float(decision.max_duration_s or 600),
                                   max_actions=int(decision.max_actions or 200))
             self.log(f"[runner]   -> {step.skill} {inputs}")
@@ -714,8 +723,10 @@ class GoalRunner:
             results.append(result)
             last = result
             self._actions += int(result.actions or 0)
-            if result.after.get("wins"):
-                self._battles += int(result.after["wins"])
+            # `wins` is the canonical key; tower skills report `floors_won`.
+            wins = result.after.get("wins") or result.after.get("floors_won")
+            if wins:
+                self._battles += int(wins)
             if result.escalation == "pause" or result.status is Status.BLOCKED:
                 if step.required:
                     break
