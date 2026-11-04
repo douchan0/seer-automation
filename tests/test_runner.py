@@ -481,3 +481,36 @@ def test_login_screen_stops_the_run(tmp_path):
     summary = r.run()
     assert "not in the game world" in (summary["stop_reason"] or "")
     assert summary["stats"]["errors"] == 0
+
+
+def test_a_sessionless_run_does_not_blank_the_last_real_world(tmp_path):
+    """A dry run with no client observes nothing -- and must not persist that nothing.
+
+    Regression: running `goal start --dry-run` against the production DB appended an
+    empty world snapshot, which moved `latest_world()` past the last real observation
+    and hid the tower counter the account had actually earned.
+    """
+
+    from seerauto.world.model import Evidence, GameWorldState
+    from seerauto.world.store import WorldStore
+
+    cfg = RunConfig(db_path=str(tmp_path / "r.sqlite3"), dry_run=True,
+                    allow_input=False, max_minutes=1, max_battles=1)
+    store = WorldStore(cfg.db_path)
+    graph = GoalGraph.load()
+    r = GoalRunner(cfg, store=store, graph=graph,
+                   registry=SkillRegistry([RunBattleStub()]),
+                   planner=FakePlanner(PlanDecision(stop=True,
+                                                     stop_reason="nothing schedulable")),
+                   session=None,
+                   control=RunControl(str(tmp_path / "p"), str(tmp_path / "s")))
+
+    seeded = GameWorldState()
+    seeded.set_fact("counters.tower.floors_cleared", 14, Evidence.live("tower panel"))
+    store.save_world(seeded)
+
+    r.run()
+
+    stored = store.latest_world()
+    assert stored is not None
+    assert stored.fact("counters.tower.floors_cleared") == 14

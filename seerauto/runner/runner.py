@@ -870,7 +870,14 @@ class GoalRunner:
                     self._unknown_streak = 0
                 if not self._pet_level_known(world):
                     world = self.preflight(world)
-                self.store.save_world(world, run_id=run_id, note=f"loop {self._loops} observe")
+                # A run with no session (a dry run without a client) observes
+                # nothing at all.  Persisting that empty world moves
+                # `latest_world()` past the last real observation and hides facts
+                # the account already paid for -- running a dry run against the
+                # production DB used to blank the tower counter that way.
+                if world.observations or world.facts:
+                    self.store.save_world(world, run_id=run_id,
+                                          note=f"loop {self._loops} observe")
                 self.store.update_run(run_id, node_state="observed",
                                       current_node=str(world.fact("session.scene") or ""))
                 events = list(reversed(self.store.events(run_id, limit=8)))

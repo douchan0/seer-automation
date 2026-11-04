@@ -1850,18 +1850,11 @@ class ReadTowerFloor(_Base):
         else:
             ctx.world.facts["counters.tower.floors_reached"] = Fact(floor, Evidence.live(
                 f"tower panel: 你当前到达第{floor}层"))
-            # The yaml defines tower.floors_cleared as a *count* of floors cleared.
-            # Standing on floor N means N-1 are behind you, so the counter must be
-            # N-1 — not N.  Writing N here is how "reached floor 14" was recorded
-            # as "cleared 14" and made the completion predicate look satisfied for
-            # the wrong reason.
-            derived = max(0, floor - 1)
-            prior = ctx.world.facts.get("counters.tower.floors_cleared")
-            prior_value = int(prior.value) if prior is not None and prior.value is not None else -1
-            if derived > prior_value:
-                ctx.world.facts["counters.tower.floors_cleared"] = Fact(
-                    derived, Evidence.live(
-                        f"tower panel: reached 第{floor}层 => {derived} cleared"))
+            # `tower.floors_cleared` has exactly ONE writer: game.farm_tower, which
+            # increments it per won guardian battle.  Reading the panel must not
+            # advance it, or the completion predicate becomes satisfiable by merely
+            # standing on a floor -- which is the "reached 14 => cleared 14" bug in
+            # a different disguise (found by the 2026-11-05 review).
         ctx.world.observations["tower_floor"] = floor
         cleared = ctx.world.facts.get("counters.tower.floors_cleared")
         cleared_txt = f"{cleared.value} cleared" if cleared is not None else "cleared unknown"

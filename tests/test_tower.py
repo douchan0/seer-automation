@@ -88,16 +88,21 @@ def no_ui(monkeypatch):
 # --------------------------------------------------------------------------- #
 # counter semantics
 # --------------------------------------------------------------------------- #
-def test_panel_floor_is_recorded_as_reached_and_n_minus_1_cleared(no_ui):
+def test_panel_records_reached_but_never_cleared(no_ui):
+    """Reading the panel must not advance `floors_cleared`.
+
+    `floors_cleared` has exactly one writer: the farm loop, per won battle.  The
+    first version of this fix derived N-1 from the panel reading, which still let
+    the completion predicate be satisfied without a single fight.
+    """
+
     world = GameWorldState()
     session = _Session([{"text": "你当前到达第14层", "conf": 0.9, "px": (500, 300)}])
     result = ReadTowerFloor().run(_ctx(session, world))
 
     assert result.ok
     assert world.facts["counters.tower.floors_reached"].value == 14
-    # The bug this replaces: 14 was written as the *cleared* count.
-    assert world.facts["counters.tower.floors_cleared"].value == 13
-    assert "13 cleared" in result.proof
+    assert "counters.tower.floors_cleared" not in world.facts
 
 
 def test_floor_one_means_nothing_cleared_yet(no_ui):
@@ -105,7 +110,7 @@ def test_floor_one_means_nothing_cleared_yet(no_ui):
     session = _Session([{"text": "你当前到达第1层", "conf": 0.9, "px": (500, 300)}])
     ReadTowerFloor().run(_ctx(session, world))
     assert world.facts["counters.tower.floors_reached"].value == 1
-    assert world.facts["counters.tower.floors_cleared"].value == 0
+    assert "counters.tower.floors_cleared" not in world.facts
 
 
 def test_a_vision_only_read_never_advances_the_cleared_counter(no_ui):
@@ -123,12 +128,14 @@ def test_a_vision_only_read_never_advances_the_cleared_counter(no_ui):
     assert world.facts["counters.tower.floors_reached"].evidence.source.rank == 2  # INFERRED
 
 
-def test_cleared_counter_never_goes_backwards(no_ui):
+def test_panel_leaves_an_existing_cleared_count_alone(no_ui):
+    """The panel is not the owner of `floors_cleared`, so it must not touch it."""
+
     from seerauto.world.model import Evidence, Fact
 
     world = GameWorldState()
     world.facts["counters.tower.floors_cleared"] = Fact(
-        20, Evidence.live("earlier observation"))
+        20, Evidence.live("earlier battle wins"))
     session = _Session([{"text": "你当前到达第14层", "conf": 0.9, "px": (500, 300)}])
     ReadTowerFloor().run(_ctx(session, world))
     assert world.facts["counters.tower.floors_cleared"].value == 20

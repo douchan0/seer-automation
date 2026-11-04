@@ -65,7 +65,7 @@ conventions:
     puni.truebody.defeated: 谱尼真身已被击败（成就面板/胜利面板）
 
   counters:
-    tower.floors_cleared: 塔内已清的楼层数（只在观测到层数推进后 +1，不记意图）
+    tower.floors_cleared: 塔内已清的楼层数（唯一写入者是 game.farm_tower，每赢一场 +1；面板读取不推进它）
     tower.floors_reached: 塔面板显示「你当前到达第N层」的 N（读数，不等于已清层数）
 
   predicates:
@@ -398,7 +398,7 @@ nodes:
       - docs/progress.md#round-4
       - artifacts/round6/level36_pet_panel.png
       - artifacts/round6/tower_floor14.png
-    notes: "文档的 partial 来自 Round 3 旧塔循环：`[f0] floor cleared` 之后两次 `cannot engage - stop`。Round 4 验证的是克洛斯星林间的野外连战（3 场全胜、每场约 17 次点击、约 45 s/场）。2026-11-04 真机：塔层守护者一战 1300 积累经验（野外 52，约 25 倍），塔层 14 由面板「你当前到达第14层」读到。⚠️ 计数器语义已于 2026-11-05 修正：`tower.floors_cleared` 现在只在『真的打赢守护者』或『面板到达第N层 ⇒ N-1 层已清』时推进，不再直接写层号；VLM 读到的层数只进 `tower.floors_reached`（INFERRED）。completion 只证明『至少清过一层』，不证明攒够钱：每层收益未统计（U-C6），「要刷多久」仍无法回答。塔内 PP 恢复仍是缺口。"
+    notes: "文档的 partial 来自 Round 3 旧塔循环：`[f0] floor cleared` 之后两次 `cannot engage - stop`。Round 4 验证的是克洛斯星林间的野外连战（3 场全胜、每场约 17 次点击、约 45 s/场）。2026-11-04 真机：塔层守护者一战 1300 积累经验（野外 52，约 25 倍），塔层 14 由面板「你当前到达第14层」读到。⚠️ 计数器语义已于 2026-11-05 修正：`tower.floors_cleared` 现在**只有一个写入者**：`game.farm_tower` 每打赢一个守护者 +1。面板读取**不再**推进它（第一版曾用『到达第N层 ⇒ N-1 已清』的推导，但那让判据在没打过一场时也能成立——已回退）。VLM 读到的层数只进 `tower.floors_reached`（INFERRED）。completion 只证明『至少清过一层』，不证明攒够钱：每层收益未统计（U-C6），「要刷多久」仍无法回答。塔内 PP 恢复仍是缺口。"
   - id: puni.prepare.tutor_room
     legacy_id: P4-05
     title: 到达辅导员训练室（8 倍经验的前置）
