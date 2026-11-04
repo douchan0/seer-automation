@@ -237,14 +237,19 @@
 
 ### D.4 Commit 列表
 
+9 个 commit，33 个文件，+15,060 / −580 行。
+
 | Commit | 内容 |
 |---|---|
 | `aa7e4a1` | fix(supervisor): a batch that did nothing is NO_WORK, not success |
 | `fbe3498` | fix(tower): the node now actually farms, and "cleared" means cleared |
 | `41878c2` | docs(research): current-version Puni guide, source ledger, and 43-node gap analysis |
 | `0f92144` | feat(battle): turn budget, stuck detection and a per-turn resume snapshot |
-
-（另有 `docs/NEXT_ACTIONS.md`、`docs/research/*` 的更新，随最后一个 commit 或未提交，见 `git status`）
+| `624d559` | fix: apply the independent review's blockers, and correct the research claims it falsified |
+| `bd3e515` | feat(truebody): read which of the six lives we are on, verified on 104 real frames |
+| `4bf221e` | feat(battle): parse the battle log, the only structured event stream a fight gives |
+| `abe3d8f` | fix: one writer for tower.floors_cleared, and dry runs must not blank the world |
+| `f54baa0` | docs: record the empty-world cleanup and the final test count |
 
 ### D.5 测试结果
 
