@@ -35,7 +35,9 @@
 | 5 | **长战看护模块** | `seerauto/runner/battle_watch.py` 已接入 `RunBattle`，每回合一个快照，17 个单测通过 |
 | 6 | **真身命数检测器**（新 Skill） | `game.observe_truebody_life`：104 帧真身画面里 74 帧可见，**解析 74/74**，命数 1→6 单调，封印映射 1虚无/2元素/3能量/4生命/5轮回 |
 | 7 | **战报事件解析器**（新 Skill） | `game.observe_battle_log`：208 帧真实战报读出 5 类事件，并**正确拒绝**视频字幕（4 个字幕框含「圣光气」） |
-| 8 | **测试基线抬升** | 456 → **576 passed, 2 skipped**（新增 120 个用例，0 回归） |
+| 8 | **计数器单一写入者** | `tower.floors_cleared` 只由「打赢守护者」推进；面板读取不再推导 |
+| 9 | **dry-run 不再清空世界** | 无观测的世界不再落库（此前我的 dry-run 把生产库的 latest world 覆盖成空） |
+| 10 | **测试基线抬升** | 456 → **577 passed, 2 skipped**（新增 121 个用例，0 回归） |
 
 ### A.2 只通过单元测试、未在真机验证的
 
@@ -163,7 +165,7 @@
 | 项 | 数值 |
 |---|---|
 | 节点总数 | **46**（43 → 46） |
-| 运行期 completed | **1**（`puni.prepare.tower_farm`，predicate `tower.floors_cleared ≥ 1`，LIVE） |
+| 运行期 completed | **1**（`puni.prepare.tower_farm`，predicate `tower.floors_cleared ≥ 1`，LIVE）。⚠️ 这是**最近一次真机 run（11-04 05:02）**的状态；本夜最后几次 run 是 dry-run，没有节点状态，所以 `goal status` 只显示空 |
 | partial | 4 |
 | todo | 29 |
 | unknown | 8 |
@@ -248,11 +250,11 @@
 
 ```
 PYTHONPATH=.pydeps python3 -m pytest -q
-576 passed, 2 skipped in 27.33s
+577 passed, 2 skipped in 26.91s
 ```
 
 - 基线：456 passed, 2 skipped
-- 新增 **120** 个用例（outcome / supervise / tower / battle_watch / truebody_life / battle_log）
+- 新增 **121** 个用例（outcome / supervise / tower / battle_watch / truebody_life / battle_log）
 - **0 回归**
 - 2 个 skip 是既有的「需要 live OCR fixture」用例，与本轮无关
 
@@ -464,6 +466,7 @@ MiniMax 没有写代码，但它的独立审查（`docs/research/mmx/REVIEW_CODE
 | ~~MiniMax 审查未交付~~ | **订正**：审查 00:12 交付，并改掉了 2 个 blocker（见 §E.5） |
 | 首版 P0 有 2 个 bug | 大小写匹配、拒绝原因内嵌 `status=blocked` 导致误判 —— 被自己写的测试抓住 |
 | `data/supervisor.json` 被覆盖 | 已备份为 `supervisor.spin_2026-11-04.json`，两份都在 |
+| **我自己的 dry-run 污染了世界库** | 8 个「0 facts / 0 obs」的空快照（id 229–236）把 `latest_world()` 覆盖成空，导致 `tower.floors_cleared=14` 在运行期"消失"。**已修代码**（空世界不再落库）+ **已清理这 8 条我自己的噪声**（备份 `data/goalrunner.sqlite3.bak-2026-11-05`），现在 latest world 恢复为 14 facts / 11 obs。**这不是数据丢失，是我制造的测试垃圾，且已如实记录。** |
 
 ---
 
@@ -476,5 +479,5 @@ MiniMax 没有写代码，但它的独立审查（`docs/research/mmx/REVIEW_CODE
 ---
 
 *生成时间：2026-11-05 00:30（Asia/Shanghai）*
-*测试基线：576 passed, 2 skipped*
+*测试基线：577 passed, 2 skipped*
 *Commit：aa7e4a1 / fbe3498 / 41878c2 / 0f92144*

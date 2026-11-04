@@ -57,3 +57,6 @@ docs/research/mmx/logs/
 
 # Battle watchdog snapshots are runtime state (resume points), not source
 data/battle/
+
+# Local sqlite backups taken before a manual repair
+data/*.sqlite3.bak*
