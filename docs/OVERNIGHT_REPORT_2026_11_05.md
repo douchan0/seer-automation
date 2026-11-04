@@ -34,7 +34,8 @@
 | 4 | **计数器语义修正** | `tower.floors_cleared` 不再写层号；面板「到达第N层」→ `reached=N`、`cleared=N-1`；VLM 读数只进 INFERRED |
 | 5 | **长战看护模块** | `seerauto/runner/battle_watch.py` 已接入 `RunBattle`，每回合一个快照，17 个单测通过 |
 | 6 | **真身命数检测器**（新 Skill） | `game.observe_truebody_life`：104 帧真身画面里 74 帧可见，**解析 74/74**，命数 1→6 单调，封印映射 1虚无/2元素/3能量/4生命/5轮回 |
-| 7 | **测试基线抬升** | 456 → **563 passed, 2 skipped**（新增 107 个用例，0 回归） |
+| 7 | **战报事件解析器**（新 Skill） | `game.observe_battle_log`：208 帧真实战报读出 5 类事件，并**正确拒绝**视频字幕（4 个字幕框含「圣光气」） |
+| 8 | **测试基线抬升** | 456 → **576 passed, 2 skipped**（新增 120 个用例，0 回归） |
 
 ### A.2 只通过单元测试、未在真机验证的
 
@@ -225,7 +226,9 @@
 
 ### D.3 新增 Skill / Predicate / Playbook
 
-- **新 Skill：1 个** —— `game.observe_truebody_life`（真身命数检测，离线 74/74 帧验证）
+- **新 Skill：2 个** ——
+  `game.observe_truebody_life`（真身命数，离线 74/74 帧）、
+  `game.observe_battle_log`（战报事件，208 帧，正确排除字幕）
 - **新 Predicate：0 个**（提出了 6 个，见缺口分析 §2.2；实现需要先有六维/技能组数据模型）
 - **新 Playbook：0 个**（改了 1 个：tower_farm）
 - **新 Capability：4 个**（`battle.attribute_reverse`、`battle.pp_drain`、`observe.truebody_life`、`observe.battle_log_event`，均为 `unverified`）
@@ -245,11 +248,11 @@
 
 ```
 PYTHONPATH=.pydeps python3 -m pytest -q
-563 passed, 2 skipped in 26.86s
+576 passed, 2 skipped in 27.33s
 ```
 
 - 基线：456 passed, 2 skipped
-- 新增 **107** 个用例（outcome / supervise / tower / battle_watch / truebody_life）
+- 新增 **120** 个用例（outcome / supervise / tower / battle_watch / truebody_life / battle_log）
 - **0 回归**
 - 2 个 skip 是既有的「需要 live OCR fixture」用例，与本轮无关
 
@@ -456,7 +459,7 @@ MiniMax 没有写代码，但它的独立审查（`docs/research/mmx/REVIEW_CODE
 | 项 | 说明 |
 |---|---|
 | 没有真机验证 | 客户端未开 + 服务器禁止第三方脚本 → 全部结论停在单测/离线层 |
-| 只实现了 1 个新 Skill | 提出了 4 个能力、6 个谓词；实现的是 `observe.truebody_life`，其余（属性反转/耗 PP/战报解析）仍未实现 |
+| 只实现了 2 个新 Skill | 提出了 4 个能力、6 个谓词；实现了 `observe_truebody_life` 与 `observe_battle_log`，属性反转/耗 PP 动作仍未实现 |
 | 真身档位没进图 | 交叉验证发现「普通版/S 级」两档，但 Graph 里 `puni.truebody.*` 仍未区分（只写进了文档） |
 | ~~MiniMax 审查未交付~~ | **订正**：审查 00:12 交付，并改掉了 2 个 blocker（见 §E.5） |
 | 首版 P0 有 2 个 bug | 大小写匹配、拒绝原因内嵌 `status=blocked` 导致误判 —— 被自己写的测试抓住 |
@@ -473,5 +476,5 @@ MiniMax 没有写代码，但它的独立审查（`docs/research/mmx/REVIEW_CODE
 ---
 
 *生成时间：2026-11-05 00:30（Asia/Shanghai）*
-*测试基线：563 passed, 2 skipped*
+*测试基线：576 passed, 2 skipped*
 *Commit：aa7e4a1 / fbe3498 / 41878c2 / 0f92144*

@@ -113,7 +113,7 @@
 | Skill | 用途 | 状态 | 难度 |
 |---|---|---|---|
 | `observe.truebody_life` | 读「第N命（X封印）」→ `counters.truebody.life` | ✅ **2026-11-05 已实现**：离线 104 帧中 74 帧可见，解析 74/74，命数 1→6 单调 | — |
-| `observe.battle_log_event` | 解析「当前战报」→ 击败/暴击/空 PP 事件 | ❌ 未实现 | 中 |
+| `observe.battle_log_event` | 解析「当前战报」→ 击败/暴击/空 PP 事件 | ✅ **2026-11-05 已实现**（`game.observe_battle_log`，208 帧离线验证，正确排除字幕） | — |
 | `observe.seal_panel` | 读七封印面板通过状态 | ❌ 未采样 | 中（需真机） |
 | `battle.attribute_reverse` | 纳多雷「属性反转」并确认生效 | ❌ 未实现 | 中 |
 | `battle.pp_drain` | 用「回避/相位移动」耗 PP 并确认对方空 PP | ❌ 未实现 | 中 |

@@ -963,6 +963,7 @@ nodes:
     status: todo
     executable: false
     skill: game.observe_battle_log
+    notes_impl: "2026-11-05 已实现 game.observe_battle_log：208 帧真实战报里读出 entered/used/crit/holy_light/defeated 五类事件，并**拒绝**视频字幕（4 个字幕框含「圣光气」被正确排除）。离线 REPLAY_VERIFIED，未在实时战斗里跑过。"
     skill_inputs: {pattern: 圣光气}
     budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
     on_failure: pause_and_replan

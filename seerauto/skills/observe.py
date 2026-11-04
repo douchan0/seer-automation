@@ -942,6 +942,85 @@ class ObserveTruebodyLife(_ObserveSkill):
             evidence=[evidence],
         )
 
+
+@skill(SkillSpec(
+    id="game.observe_battle_log",
+    kind=SkillKind.OBSERVE,
+    summary=("解析「当前战报」滚动文本 → 被击败/致命一击/圣光气/登场/使用了 事件；"
+             "「圣光气」是谱尼空 PP 的唯一机器可读信号"),
+    outputs={"events": "list", "enemy_defeated": "bool", "holy_light": "bool"},
+    max_duration_s=20.0,
+    max_actions=0,
+    requires_input=False,
+    # Verified against recorded frames only -- never run on the live client.
+    verified="replay",
+    evidence=(
+        "frames/_ocr.json (208 frames carry battle-log events; the parser reads "
+        "entered/used/crit/holy_light/defeated and rejects the video subtitles "
+        "that sit on the same rows)",
+        "tests/fixtures/battle_log_frames.json",
+    ),
+))
+class ObserveBattleLog(_ObserveSkill):
+    """The battle log is the only structured event stream a fight provides.
+
+    The enemy's HP and PP bars carry **no numbers**, so every branch that depends on
+    "did it die" or "is it out of PP" has to come from this text.  「圣光气」 in
+    particular is the documented marker that 谱尼 has exhausted a move's PP.
+
+    The log panel is bottom-left.  The tutorial video's burned-in subtitles sit on
+    the same rows further right, and one of them literally says 「当他没有圣光气之后」
+    -- reading narration as combat is the failure this region check prevents.
+    """
+
+    def run(self, ctx: SkillContext, **_: Any) -> SkillResult:
+        session = ctx.session
+        if session is None:
+            return SkillResult.fail(self.id, "no session: cannot observe the client",
+                                    escalation="pause")
+        try:
+            items = session.ocr(min_conf=OCR_MIN_CONF)
+        except Exception as exc:  # noqa: BLE001
+            return SkillResult.fail(self.id, f"OCR failed: {type(exc).__name__}: {exc}",
+                                    escalation="replan")
+        events = P.parse_battle_log_events(items)
+        if not events:
+            return SkillResult.fail(
+                self.id,
+                "battle log is not readable (no 当前战报 lines found in the "
+                "bottom-left panel)",
+                escalation="replan")
+
+        holy_light = any(e["kind"] == "holy_light" for e in events)
+        defeated = any(e["kind"] == "defeated" for e in events)
+        world = ctx.world.copy()
+        world.observations["battle_events"] = [dict(e) for e in events]
+        evidence: list[Evidence] = []
+        if holy_light:
+            ev = Evidence.live("battle log: 圣光气 (enemy move out of PP)",
+                               detail="; ".join(e["text"] for e in events
+                                                if e["kind"] == "holy_light")[:160])
+            world.facts["battle.enemy_pp_empty"] = Fact(True, ev)
+            evidence.append(ev)
+        if defeated:
+            # "被击败了" names a side; do not assume it was the enemy.
+            ev = Evidence.live("battle log: a defeat line is visible",
+                               detail="; ".join(e["text"] for e in events
+                                                if e["kind"] == "defeated")[:160])
+            world.observations["battle_defeat_line"] = ev.detail
+            evidence.append(ev)
+        return SkillResult.pass_(
+            self.id,
+            changed=False,
+            proof=(f"{len(events)} event(s)"
+                   + ("; 圣光气=空PP" if holy_light else "")
+                   + ("; 有击败行(未指明哪一方)" if defeated else "")),
+            data={"world": world.to_dict(), "events": events,
+                  "enemy_defeated": defeated, "holy_light": holy_light},
+            after={"events": len(events), "holy_light": holy_light},
+            evidence=evidence,
+        )
+
 def build_observe_skills() -> list[Skill]:
     """Every observe skill, ready for a :class:`~seerauto.skills.base.SkillRegistry`.
 
@@ -957,6 +1036,7 @@ def build_observe_skills() -> list[Skill]:
         InspectResources(),
         InspectSptProgress(),
         ObserveTruebodyLife(),
+        ObserveBattleLog(),
     ]
 
 
@@ -972,5 +1052,6 @@ __all__ = [
     "InspectResources",
     "InspectSptProgress",
     "ObserveTruebodyLife",
+    "ObserveBattleLog",
     "build_observe_skills",
 ]

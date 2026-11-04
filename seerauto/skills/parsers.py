@@ -1005,6 +1005,94 @@ def parse_truebody_seal(items: Iterable[Item]) -> str | None:
 
 
 
+# --------------------------------------------------------------------------- #
+# 当前战报: the only structured event stream a battle gives us
+# --------------------------------------------------------------------------- #
+# Measured on `frames/_ocr.json` (all 417 frames): the battle log occupies
+# x < 0.25 / y < 0.21 (normalised, origin bottom-left).  The video's burned-in
+# subtitles sit at x >= 0.34 on the same rows, so a whole-frame keyword search
+# would read narration as combat.  The two regions do not overlap.
+BATTLE_LOG_X_MAX = 0.30
+#: Fraction from the TOP of the frame; the log panel starts around 0.75.
+BATTLE_LOG_Y_MIN = 0.72
+
+#: Ordered: the first matching kind wins (a line can mention 使用了 and 圣光气).
+BATTLE_EVENT_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("defeated", ("被击败",)),
+    ("crit", ("致命一击",)),
+    ("holy_light", ("圣光气",)),
+    ("entered", ("登场",)),
+    ("used", ("使用了",)),
+)
+
+
+def _in_battle_log(item: Item) -> bool:
+    """True when the box is inside the bottom-left battle-log panel.
+
+    ``Box.cy`` is measured **from the top**, so the log (which is at the bottom of
+    the screen) sits at a *high* fy, not a low one.  Getting this backwards makes
+    the parser silently find nothing at all.
+    """
+
+    box = box_of(item)
+    if box is None:
+        return False
+    fw, fh = LIVE_FRAME_PX
+    fx, fy = box.cx / fw, box.cy / fh
+    return fx < BATTLE_LOG_X_MAX and fy > BATTLE_LOG_Y_MIN
+
+
+def parse_battle_log_events(items: Iterable[Item]) -> list[dict[str, Any]]:
+    """Battle-log lines as ``{"kind", "text"}``, in the order they are drawn.
+
+    Kinds: ``defeated`` (someone was defeated), ``crit`` (致命一击), ``holy_light``
+    (the enemy spent 圣光气), ``entered`` (a pet came in), ``used`` (a move was used).
+
+    Ordering is *as drawn, top to bottom* -- it is not asserted to be recency
+    order, because nothing in the recordings establishes which end is newest.
+    """
+
+    out: list[dict[str, Any]] = []
+    for item in items:
+        if not _in_battle_log(item):
+            continue
+        text = text_of(item)
+        if not text:
+            continue
+        for kind, words in BATTLE_EVENT_WORDS:
+            if any(word in text for word in words):
+                out.append({"kind": kind, "text": text[:80]})
+                break
+    return out
+
+
+def battle_log_has(items: Iterable[Item], kind: str) -> bool:
+    """True when the visible log contains at least one event of ``kind``."""
+
+    return any(event["kind"] == kind for event in parse_battle_log_events(items))
+
+
+def enemy_defeated(items: Iterable[Item]) -> bool:
+    """A defeat line is on screen.  It does **not** say who was defeated.
+
+    The client prints 「【X】被击败了」 for both sides, so the caller must combine
+    this with its own knowledge of the scene; treating any defeat as a win is how a
+    run reports a victory it did not have.
+    """
+
+    return battle_log_has(items, "defeated")
+
+
+def holy_light_seen(items: Iterable[Item]) -> bool:
+    """谱尼 spent 圣光气 -- the documented marker that its PP is exhausted.
+
+    This is the *only* machine-readable "the enemy is out of PP" signal: the enemy
+    HP/PP bar carries no numbers at all.
+    """
+
+    return battle_log_has(items, "holy_light")
+
+
 __all__ = [
     "LIVE_FRAME_PX",
     "SAME_LINE_PX",
@@ -1043,4 +1131,11 @@ __all__ = [
     "parse_truebody_life",
     "parse_truebody_seal",
     "_in_truebody_band",
+    "BATTLE_LOG_X_MAX",
+    "BATTLE_LOG_Y_MIN",
+    "BATTLE_EVENT_WORDS",
+    "parse_battle_log_events",
+    "battle_log_has",
+    "enemy_defeated",
+    "holy_light_seen",
 ]

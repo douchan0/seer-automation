@@ -599,6 +599,7 @@ def test_build_observe_skills_contract(registry: SkillRegistry) -> None:
         "game.inspect_resources",
         "game.inspect_spt_progress",
         "game.observe_truebody_life",
+        "game.observe_battle_log",
     ]
     by_id = {skill.id: skill for skill in skills}
     for skill in skills:
@@ -625,6 +626,8 @@ def test_build_observe_skills_contract(registry: SkillRegistry) -> None:
         "game.inspect_spt_progress": "unverified",
         # replay only: verified on the 104 recorded truebody frames, never live
         "game.observe_truebody_life": "replay",
+        # replay only: verified on the 208 recorded battle-log frames
+        "game.observe_battle_log": "replay",
     }
     assert registry.ids(SkillKind.OBSERVE) == sorted(by_id)
 
