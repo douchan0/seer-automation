@@ -1288,8 +1288,8 @@ nodes:
       type: verified_account_state
       predicate: feature_unlocked
       args: {feature: puni.truebody.life_tracked}
-    status: todo
-    executable: false
+    status: partial
+    executable: true
     skill: game.observe_truebody_life
     skill_inputs: {}
     budget: {max_minutes: 10, max_battles: 0, max_spend: 0}
@@ -1297,5 +1297,6 @@ nodes:
     evidence:
       - docs/research/PUNI_CURRENT_VERSION_GUIDE.md
       - frames/07_truebody_s/f_00004.png
-    blocked_reason: 观察技能尚未实现（game.observe_truebody_life 不存在），但 UI 信号已确认存在
+      - tests/fixtures/truebody_life_frames.json
+    notes_exec: "⚠️ 只能离线回放验证（REPLAY_VERIFIED）：104 帧里 74 帧有「第N命」覆盖层，解析 74/74、命数 1→6 单调、封印映射 1虚无/2元素/3能量/4生命/5轮回。**从未在真身战斗里实时跑过**——本夜客户端未启动（scripts/seerd 返回 no window）。"
     notes: "本轮最重要的 UI 发现：真身开战时客户端在画面正中打「谱尼真身 / 第N命 /（X封印）」，白字黑描边、居中、高对比；frames/_ocr.json 的 104 帧真身画面里都能读出「第N命（X封印）」。敌方血条只有 LV:?? 与纯色条（没有数字），所以**命数检测是判断真身进度的唯一可靠信号**。节点保持 todo：素材已确认，代码没写。"

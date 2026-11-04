@@ -183,9 +183,16 @@ def test_tower_graph_node_points_at_the_farm_skill():
 
 
 def test_every_playbook_step_names_a_registered_skill():
-    """A playbook that calls a skill nobody registered fails only at run time."""
+    """A playbook that calls a skill nobody registered fails only at run time.
 
-    registered = {s.spec.id for s in build_act_skills()}
+    Both registries count: act skills *and* observe skills (the truebody life
+    detector is an observe skill, and it is a legitimate playbook step).
+    """
+
+    from seerauto.skills.observe import build_observe_skills
+
+    registered = ({s.spec.id for s in build_act_skills()}
+                  | {s.spec.id for s in build_observe_skills()})
     missing = [(node, step.skill)
                for node, steps in playbooks.PLAYBOOKS.items()
                for step in steps if step.skill not in registered]

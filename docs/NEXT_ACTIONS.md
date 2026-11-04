@@ -23,13 +23,15 @@ supervisor 连续 2 批无任务就停机；刷塔节点真正接上了连战；
 > 为什么排第一：这 4 张截图能把 `puni.seal.*`（7 个）、`buy_*`（4 个）、`buy_potions` 从
 > 「没有 UI 就只能猜坐标」变成「可以写模板」。**在拿到之前不要写任何封印相关的点击代码。**
 
-### P1 · 真身命数检测（不需要新采样）
+### P1 · 真身命数检测 ✅ 已完成（2026-11-05）
 
-| 任务 | 文件 | 验收 |
-|---|---|---|
-| 1.1 | 实现 `game.observe_truebody_life`：OCR/模板读画面正中「谱尼真身 / 第N命 /（X封印）」 | 用 `frames/07_truebody_s/` 的 104 帧做离线回放，≥95% 帧读对 |
-| 1.2 | 写入 `counters.truebody.life`（LIVE），并让 `puni.truebody.detect_life` 的谓词消费它 | 节点可完成；离线回放测试 |
-| 1.3 | 接 `BattleWatchdog`：真身用 `battle_max_turns=600`、`battle_log_path=data/battle/<run>.jsonl` | 单测 + 回放 |
+| 任务 | 状态 |
+|---|---|
+| 1.1 `game.observe_truebody_life` | ✅ 已实现；104 帧里 74 帧可见，**解析 74/74**（`tests/test_truebody_life.py`，fixture `tests/fixtures/truebody_life_frames.json`） |
+| 1.2 写 `counters.truebody.life` | ✅ 已写，证据 LIVE；节点 `puni.truebody.detect_life` todo → partial |
+| 1.3 接 `BattleWatchdog` | ⚠️ 部分：快照路径已默认注入 `data/battle/<run>.jsonl`；**真身节点的 `battle_max_turns` 尚未在 playbook 里设定**（因为还没有真身 playbook） |
+
+**剩下的一步**：在真身战斗里实时跑一次，把 `verified` 从 `replay` 升到 `real`。
 
 ### P2 · 战报事件解析（所有分支判断的公共依赖）
 

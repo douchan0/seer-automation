@@ -82,7 +82,7 @@
 |---|---|---|
 | `puni.crosscut.attribute_reverse` | capability_demonstrated | **属性反转是整个谱尼路线的核心机制**（6/7 封印、真身 3/5 命都依赖纳多雷），但 43 节点里**没有任何节点或 capability 覆盖它**。没有它，`seal_6/7` 的成功无法归因 |
 | `puni.crosscut.pp_drain` | capability_demonstrated | 「耗光谱尼 PP」是全部打法的**共同前提**。现有 `puni.seal.boss_pp_empty` 只做「空 PP 窗口识别」，缺「主动耗 PP」这个动作本身 |
-| `puni.truebody.detect_life` | verified_account_state | 真身 6 条命的自动化前提是**知道现在第几命**。本轮已确认客户端会打「第N命（X封印）」（U1），但图里没有任何节点消费这个信号 |
+| `puni.truebody.detect_life` | verified_account_state | 真身 6 条命的自动化前提是**知道现在第几命**。客户端会打「第N命（X封印）」（U1）。**2026-11-05 已实现并离线验证（74/74）**，节点状态 todo → partial |
 
 ### 1.6 暂时阻塞（保留 blocked/unknown，不硬推）
 
@@ -92,7 +92,7 @@
 | `puni.prepare.market_unlock` | `feature 'market'` 从未被观测 | 同上 |
 | `puni.prepare.buy_potions` | 货币余额/药剂价格本轮都未观测 | 读货币栏 + 商城价格 |
 | `puni.seal.*`（7 个） | 缺 `battle.log_read` / 封印面板 UI 采样 | 先采样七封印面板 |
-| `puni.truebody.*` | 缺 `battle.long_watch`、命数检测 | 先实现 `observe.truebody_life` |
+| `puni.truebody.*` | 缺 `battle.long_watch`；命数检测**已实现**（离线） | 先在真身战斗里实时跑一次 `observe_truebody_life` |
 
 ### 1.7 已经过时 / 判定为不适用的外部资料
 
@@ -112,7 +112,7 @@
 
 | Skill | 用途 | 状态 | 难度 |
 |---|---|---|---|
-| `observe.truebody_life` | 读「第N命（X封印）」→ `counters.truebody.life` | ❌ 未实现（UI 已确认，见 U1） | 低（模板/OCR） |
+| `observe.truebody_life` | 读「第N命（X封印）」→ `counters.truebody.life` | ✅ **2026-11-05 已实现**：离线 104 帧中 74 帧可见，解析 74/74，命数 1→6 单调 | — |
 | `observe.battle_log_event` | 解析「当前战报」→ 击败/暴击/空 PP 事件 | ❌ 未实现 | 中 |
 | `observe.seal_panel` | 读七封印面板通过状态 | ❌ 未采样 | 中（需真机） |
 | `battle.attribute_reverse` | 纳多雷「属性反转」并确认生效 | ❌ 未实现 | 中 |

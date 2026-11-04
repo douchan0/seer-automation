@@ -59,6 +59,7 @@ from typing import Any, Mapping, Sequence
 
 from ..world.model import (
     Evidence,
+    Fact,
     GameWorldState,
     PetState,
     ResourceState,
@@ -873,6 +874,74 @@ class InspectSptProgress(_ObserveSkill):
         )
 
 
+
+@skill(SkillSpec(
+    id="game.observe_truebody_life",
+    kind=SkillKind.OBSERVE,
+    summary=("读真身战斗画面正中的「谱尼真身 / 第N命 /（X封印）」大号文字，"
+             "写入 counters.truebody.life"),
+    outputs={"life": "int", "seal": "str"},
+    max_duration_s=20.0,
+    max_actions=0,
+    requires_input=False,
+    # Verified against recorded frames only -- it has never run on the live client.
+    verified="replay",
+    evidence=(
+        "frames/07_truebody_s/ (104 frames; the overlay is visible on 74 of them, "
+        "and the parser reads the life on 74/74 with a monotonic 1->6 sequence)",
+        "frames/_ocr.json",
+    ),
+))
+class ObserveTruebodyLife(_ObserveSkill):
+    """Which of the six truebody lives are we on?
+
+    The client draws the life number as a large centre overlay at the start of every
+    life (「谱尼真身 / 第一命 /（虚无封印）」).  That overlay is the *only* reliable
+    progress signal in a truebody fight: the enemy HP bar carries no number at all
+    (it renders as ``LV:??`` plus a plain bar), so "which life am I on" cannot be
+    derived from HP.
+
+    Returning FAIL when the overlay is absent is deliberate -- most battle frames do
+    not show it, and guessing a life number is worse than admitting we do not know.
+    """
+
+    def run(self, ctx: SkillContext, **_: Any) -> SkillResult:
+        session = ctx.session
+        if session is None:
+            return SkillResult.fail(self.id, "no session: cannot observe the client",
+                                    escalation="pause")
+        try:
+            items = session.ocr(min_conf=OCR_MIN_CONF)
+        except Exception as exc:  # noqa: BLE001
+            return SkillResult.fail(self.id, f"OCR failed: {type(exc).__name__}: {exc}",
+                                    escalation="replan")
+        parsed = P.parse_truebody_life(items)
+        if parsed is None:
+            return SkillResult.fail(
+                self.id,
+                "truebody life overlay is not on screen (the client only draws "
+                "「第N命」 at the start of a life; this frame is mid-battle)",
+                escalation="replan")
+
+        life = int(parsed["life"])
+        seal = parsed.get("seal")
+        world = ctx.world.copy()
+        evidence = Evidence.live(
+            f"truebody overlay: 第{life}命" + (f"（{seal}封印）" if seal else ""),
+            detail=str(parsed.get("text") or "")[:120])
+        world.facts["counters.truebody.life"] = Fact(life, evidence)
+        if seal:
+            world.observations["truebody.seal"] = seal
+        world.observations["truebody_life"] = life
+        return SkillResult.pass_(
+            self.id,
+            changed=False,
+            proof=f"谱尼真身 第{life}命" + (f"（{seal}封印）" if seal else ""),
+            data={"world": world.to_dict(), "life": life, "seal": seal},
+            after={"life": life, "seal": seal},
+            evidence=[evidence],
+        )
+
 def build_observe_skills() -> list[Skill]:
     """Every observe skill, ready for a :class:`~seerauto.skills.base.SkillRegistry`.
 
@@ -887,6 +956,7 @@ def build_observe_skills() -> list[Skill]:
         InspectPets(),
         InspectResources(),
         InspectSptProgress(),
+        ObserveTruebodyLife(),
     ]
 
 
@@ -901,5 +971,6 @@ __all__ = [
     "InspectPets",
     "InspectResources",
     "InspectSptProgress",
+    "ObserveTruebodyLife",
     "build_observe_skills",
 ]

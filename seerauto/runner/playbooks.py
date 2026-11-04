@@ -54,6 +54,11 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
         Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
              label="点守护者连战→清弹窗→读新层数"),
     ),
+    # 真身命数：纯观察，不点任何东西。真身战斗里敌方血条没有数字，
+    # 「第N命（X封印）」是唯一可靠的进度信号（离线 74/74 帧读对）。
+    "puni.truebody.detect_life": (
+        Step("game.observe_truebody_life", {}, label="读画面正中「第N命（X封印）」"),
+    ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
              label="传送到已验证的刷怪场景"),

@@ -879,6 +879,132 @@ def parse_dialog_buttons(items: Iterable[Item]) -> list[dict[str, Any]]:
     return out
 
 
+# --------------------------------------------------------------------------- #
+# 谱尼真身: which life are we on?
+# --------------------------------------------------------------------------- #
+# The client prints the life as a large centre overlay:
+#
+#     谱尼真身
+#     第一命
+#     （虚无封印）
+#
+# Measured on the 104 truebody frames in ``frames/_ocr.json`` (2026-08-23 video):
+# the "第N命" line survives OCR as 第一命/第二命/第三命/第四命/第五命/第六命, and
+# the seal line survives as （虚无封印）/（元素封印）/（能量封印）/（生命封印）/
+# （轮回封印）.  Two frames lose the numeral entirely ("第￥命", "第 命") -- those
+# must return None, because guessing a life number is exactly the kind of invented
+# fact this module forbids.
+#
+# The seal names are only a *check*: the sixth life has no seal ("第六命无对应"),
+# so a missing seal is normal and must not be read as "unknown life".
+_CN_DIGITS = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
+              "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+
+#: `第一命`, `第五条命`, `第 3 命` -- `条` is optional and the numeral may be a digit.
+TRUEBODY_LIFE_RE = re.compile(r"第\s*([一二三四五六七八九十\d]{1,2})\s*条?\s*命")
+#: `（虚无封印）`, `元素封印`, with tolerant brackets.
+TRUEBODY_SEAL_RE = re.compile(r"[（(]?\s*([\u4e00-\u9fa5]{2})\s*封印\s*[）)]?")
+
+#: The seven seals, in the order the client presents them.
+TRUEBODY_SEALS = ("虚无", "元素", "能量", "生命", "轮回", "永恒", "圣洁")
+
+#: A truebody has six lives (docs/research/PUNI_CURRENT_VERSION_GUIDE.md §6).
+#: Anything outside 1..6 is a misread, not a seventh life.
+TRUEBODY_MAX_LIFE = 6
+
+
+def _numeral(token: str) -> int | None:
+    """`五` -> 5, `5` -> 5, anything else -> None."""
+
+    token = token.strip()
+    if not token:
+        return None
+    if token.isdigit():
+        value = int(token)
+    else:
+        value = _CN_DIGITS.get(token)
+    if value is None:
+        return None
+    return value if 1 <= value <= TRUEBODY_MAX_LIFE else None
+
+
+def _in_truebody_band(item: Item) -> bool:
+    """True when the box sits where the client draws the life overlay.
+
+    The overlay is mid-screen.  The battle log is bottom-left and the command menu
+    bottom-right; a whole-frame regex would happily read 「致命一击」 or
+    「命中率」 from those, which is why the band exists.
+    """
+
+    box = box_of(item)
+    if box is None:
+        return False
+    fw, fh = LIVE_FRAME_PX
+    fx, fy = box.cx / fw, box.cy / fh
+    return 0.30 <= fx <= 0.75 and 0.15 <= fy <= 0.60
+
+
+def parse_truebody_life(items: Iterable[Item]) -> dict[str, Any] | None:
+    """Read the truebody life overlay.
+
+    Returns ``{"life": int, "seal": str | None, "text": str}`` or ``None`` when the
+    overlay is not on screen.  ``None`` means "not observed", never "life 0".
+
+    Only the *centre* overlay is trusted: the battle log on the left also mentions
+    命 (「命中率」「致命一击」), so a naive whole-frame regex would match those.  The
+    centre band is where the client draws this overlay on every truebody frame.
+    """
+
+    items = list(items)
+    centre = [it for it in items if _in_truebody_band(it)]
+    # The life line and the seal line are separate OCR boxes on every frame
+    # measured (「第一命」 / 「（虚无封印）」), so the seal is looked up across the
+    # whole centre band rather than only inside the life box.
+    band_seal = parse_truebody_seal(centre)
+
+    best: dict[str, Any] | None = None
+    for item in centre:
+        text = text_of(item)
+        if not text:
+            continue
+        match = TRUEBODY_LIFE_RE.search(text)
+        if not match:
+            continue
+        life = _numeral(match.group(1))
+        if life is None:
+            continue
+        seal_match = TRUEBODY_SEAL_RE.search(text)
+        seal = seal_match.group(1) if seal_match else None
+        if seal is not None and seal not in TRUEBODY_SEALS:
+            seal = None
+        seal = seal or band_seal
+        candidate = {"life": life, "seal": seal, "text": text[:60]}
+        # Prefer a reading that also carries the seal name.
+        if best is None or (candidate["seal"] and not best["seal"]):
+            best = candidate
+    return best
+
+
+def parse_truebody_seal(items: Iterable[Item]) -> str | None:
+    """The seal named next to the life overlay, if it survived OCR.
+
+    The sixth life has no seal, so ``None`` here is normal -- callers must not
+    treat it as an error.
+    """
+
+    for item in items:
+        text = text_of(item)
+        if not text:
+            continue
+        if not _in_truebody_band(item):
+            continue
+        match = TRUEBODY_SEAL_RE.search(text)
+        if match and match.group(1) in TRUEBODY_SEALS:
+            return match.group(1)
+    return None
+
+
+
 __all__ = [
     "LIVE_FRAME_PX",
     "SAME_LINE_PX",
@@ -910,4 +1036,11 @@ __all__ = [
     "parse_spt_card",
     "parse_spt_cards",
     "parse_dialog_buttons",
+    "TRUEBODY_LIFE_RE",
+    "TRUEBODY_SEAL_RE",
+    "TRUEBODY_SEALS",
+    "TRUEBODY_MAX_LIFE",
+    "parse_truebody_life",
+    "parse_truebody_seal",
+    "_in_truebody_band",
 ]
