@@ -299,8 +299,9 @@ def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
             # A refusal (no input / dry run / wrong scene) is BLOCKED, not "it ran and
             # found nothing".  Keeping them apart is what stops a NO_WORK guard from
             # firing on a configuration problem.
-            if res.status.value in ("BLOCKED", "SKIPPED") or "refused" in (
-                    res.reason or "").lower():
+            # Trust the status, not a substring: the skill now returns BLOCKED for a
+            # refused click, so a wording change cannot silently reclassify the round.
+            if res.status.value in ("BLOCKED", "SKIPPED"):
                 rec.blocked = True
             rec.error = f"farm_tower {res.status.value}: {res.reason[:160]}"
         # Prefer what the battle itself measured; only fall back to the screen.

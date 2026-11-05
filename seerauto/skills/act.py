@@ -1923,8 +1923,11 @@ class FarmTower(_Base):
                     # "The click was refused" and "the click missed" are different
                     # faults with different fixes; reporting the second for the first
                     # (dry run / not frontmost) sends the reader hunting scenery.
-                    notes.append(f"guardian click refused: {why[:100]}")
-                    break
+                    refusal = f"guardian click refused: {why[:100]}"
+                    return SkillResult.blocked(
+                        self.id, refusal, escalation="pause",
+                        data={"floors_won": won, "refused": True})
+
                 entered = s.wait_for(lambda f: s.scene(f).scene is Scene.BATTLE, timeout_s=12.0)
                 if not entered:
                     notes.append("guardian click landed but no battle started "
@@ -2008,12 +2011,18 @@ def _parse_allocator_body(items):
     out: dict[str, Any] = {"level": None, "pool": None, "pending_amount": None}
     for item in items or ():
         text = str(item.get("text") or "")
-        match = re.search(r"(\d[\d,]*)", text.split("：")[-1] if "：" in text else text)
-        if "等级" in text and match:
-            out["level"] = float(match.group(1).replace(",", ""))
-        elif "积累经验" in text and match:
-            out["pool"] = float(match.group(1).replace(",", ""))
-        elif text.strip().endswith("g") and text.strip()[:-1].isdigit():
+        # Take the number that follows the label itself, not the last number on the
+        # line: OCR sometimes merges two rows ("等级：18 积累经验：18744927"), and the
+        # old `split("：")[-1]` then read level=18744927 — which made the "level rose"
+        # check pass on garbage.
+        for label, key in (("等级", "level"), ("积累经验", "pool")):
+            if label not in text:
+                continue
+            tail = text.split(label, 1)[1]
+            match = re.search(r"(\d[\d,]*)", tail)
+            if match:
+                out[key] = float(match.group(1).replace(",", ""))
+        if text.strip().endswith("g") and text.strip()[:-1].isdigit():
             out["pending_amount"] = float(text.strip()[:-1])
     return out if (out["level"] is not None or out["pool"] is not None) else None
 
