@@ -159,6 +159,8 @@ def main() -> int:
     ap.add_argument("--max-no-progress", type=int, default=2)
     ap.add_argument("--batch-minutes", type=float, default=8.0)
     ap.add_argument("--batch-battles", type=int, default=8)
+    ap.add_argument("--max-spend", type=float, default=0.0,
+                    help="Goal Runner spending budget per batch; 0 by default")
     ap.add_argument("--planner", default="deterministic")
     ap.add_argument("--max-failures", type=int, default=4)
     args = ap.parse_args()
@@ -225,7 +227,8 @@ def main() -> int:
         code, out = run([sys.executable, "-m", "seerauto", "goal", "start", "puni",
                          "--planner", args.planner, "--allow-input",
                          "--max-minutes", str(args.batch_minutes),
-                         "--max-battles", str(args.batch_battles)],
+                         "--max-battles", str(args.batch_battles),
+                         "--max-spend", str(args.max_spend)],
                         # a batch's own clock stops between skills, so give the
                         # subprocess room for the last skill to finish
                         timeout=args.batch_minutes * 60 + 480)
