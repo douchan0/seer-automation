@@ -1,0 +1,33 @@
+name: Overnight outcome regression
+on:
+  pull_request:
+    paths:
+      - "seerauto/runner/outcomes.py"
+      - "seerauto/runner/runner.py"
+      - "seerauto/goalcli.py"
+      - "tools/supervise.py"
+      - "tools/night_session.py"
+      - "tests/test_outcomes.py"
+      - ".github/workflows/overnight-outcomes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  outcome-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependency
+        run: python -m pip install pytest
+      - name: Compile updated Python modules
+        run: |
+          python -m py_compile \
+            seerauto/runner/outcomes.py seerauto/runner/runner.py \
+            seerauto/goalcli.py tools/supervise.py tools/night_session.py
+      - name: Outcome regression
+        run: python -m pytest -q tests/test_outcomes.py
