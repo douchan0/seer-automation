@@ -159,10 +159,17 @@ class TowerLedger:
             # A pause is not evidence of failure, and must never trip a guard.
             return
         elif outcome == ROUND_FAILED:
+            # Ran, tried, and produced nothing usable.
             self.failure_streak += 1
             self.no_work_streak += 1
-        else:  # NO_WORK / BLOCKED
-            self.failure_streak = 0 if outcome == ROUND_IDLE else self.failure_streak + 1
+        elif outcome == ROUND_BLOCKED:
+            # A refusal (input disabled, wrong scene, client gone) is a configuration
+            # fault, not evidence that the tower has nothing to give.  Letting it bump
+            # no_work_streak made two refusals look exactly like "we farmed and got
+            # nothing", which is the distinction this module exists to keep.
+            self.failure_streak += 1
+        else:  # NO_WORK
+            self.failure_streak = 0
             self.no_work_streak += 1
 
     # -- the decision ------------------------------------------------------- #

@@ -211,8 +211,14 @@ def reset_between_rounds(skills, ctx, destination: str) -> None:
     ends the night with "click landed but no battle started".
     """
 
-    log("reset: leaving the tower to heal, then re-entering")
-    travel_to_tower(skills, ctx, destination)
+    log("reset: trying to leave the tower to heal, then re-enter")
+    if not travel_to_tower(skills, ctx, destination):
+        # Honest limitation: the tower interior has no bottom bar, so the map icon the
+        # Travel skill clicks may not exist there.  There is no verified "exit the
+        # tower" action, so do not pretend a heal happened.
+        log("reset: cannot leave the tower (no map icon inside); healing deferred — "
+            "the run will stop on its guards rather than fight at 0 HP")
+        return
     heal = skills.get("game.heal_pet")
     if heal is not None:
         try:
@@ -402,7 +408,10 @@ def main() -> int:
             log(f"round {index}: farm {args.rounds} floor(s)")
             # Bracket the session, not every round: the read costs a VLM call and is
             # INFERRED evidence.  `floors_won` is the per-round truth.
-            first_or_last = (index == 1
+            # Bracket with the floor read, don't re-enter: `game.tower_status` *clicks
+            # the tower entrance* every call, and from inside the tower that pixel is
+            # random scenery.  Entry already happened once, before the loop.
+            first_or_last = (index == 1 and not args.no_travel and args.dry_run
                              or (args.max_rounds and index == args.max_rounds)
                              or (args.floor_read_every
                                  and index % args.floor_read_every == 0))

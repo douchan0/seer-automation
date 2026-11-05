@@ -197,3 +197,27 @@ def test_the_master_pause_switch_is_honoured(tmp_path, monkeypatch):
     assert mod.pause_requested(FakeControl()) is False
     marker.write_text("1")
     assert mod.pause_requested(FakeControl()) is True
+
+
+def test_a_configuration_refusal_is_not_no_work():
+    """Two BLOCKED rounds must not read as 'we farmed and the tower paid nothing'.
+
+    They mean the run could not act at all (no input, wrong scene), which is a
+    different fix from 'the tower has no experience to give'.
+    """
+
+    led = TowerLedger(guards=Guards(max_no_work=2, max_failures=99))
+    led.add(_round(won=0, xp=0, blocked=True, error="farm_tower BLOCKED: input disabled"))
+    led.add(_round(won=0, xp=0, blocked=True, error="farm_tower BLOCKED: input disabled"))
+    keep, why = led.should_continue(now=T0, deadline=None)
+    assert keep, f"a refusal streak should be stopped by max_failures, not no_work ({why})"
+    assert led.no_work_streak == 0
+    assert led.failure_streak == 2
+
+
+def test_two_real_no_work_rounds_still_stop_the_loop():
+    led = TowerLedger(guards=Guards(max_no_work=2))
+    led.add(_round(won=0, xp=0))
+    led.add(_round(won=0, xp=0))
+    keep, why = led.should_continue(now=T0, deadline=None)
+    assert not keep and "no verified floor progress" in why
