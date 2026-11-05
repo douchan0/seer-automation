@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .runner.control import InstanceLock, LockHeld, RunControl
+from .runner.outcomes import classify_run, run_exit_code
 from .runner.runner import GoalRunner, RunConfig, open_runner
 from .world.store import StoreError, WorldStore
 
@@ -157,7 +158,8 @@ def cmd_goal_start(args: Any) -> int:
             pass
     print()
     _print_summary(summary)
-    return 0
+    print(f"outcome {classify_run(summary)}")
+    return run_exit_code(summary)
 
 
 def cmd_goal_status(args: Any) -> int:
@@ -258,7 +260,8 @@ def cmd_goal_resume(args: Any) -> int:
             pass
     print()
     _print_summary(summary)
-    return 0
+    print(f"outcome {classify_run(summary)}")
+    return run_exit_code(summary)
 
 
 def cmd_goal_stop(args: Any) -> int:
