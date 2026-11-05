@@ -60,3 +60,7 @@ data/battle/
 
 # Local sqlite backups taken before a manual repair
 data/*.sqlite3.bak*
+
+# Raw observation dumps (account state + absolute local paths). The report quotes
+# what it needs; these stay local so a public clone carries evidence, not account data.
+data/overnight/snapshots/
