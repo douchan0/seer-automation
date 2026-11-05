@@ -48,11 +48,11 @@
 | 会话时长 | 19:38 → 06:30（**10 小时 52 分**，比计划窗口长） |
 | 真机窗口 | 23:10 → 06:12（约 7 小时） |
 | Goal Runner 批次 | 5 批（1 次 dry-run + 1 次真机被 NotFrontmost 拒 + 3 次被 supervisor 拉起后失败） |
-| `wild_cycle` 轮次 | **100+ 轮**，237 胜、17236 经验（见 `wild_cycle.jsonl`） |
+| `wild_cycle` 轮次 | **154 轮**，294 胜、+20200 经验（见 `wild_cycle.jsonl`） |
 | 客户端重启 | 6 次（美术包弹窗 ×2、塔内无法退出 ×2、UI 冻屏 ×2） |
 | 是否有轮"提前退出" | 有，且都是**按设计**：NotFrontmost 拒点、NO_WORK 连击、错误预算、暂停/停止文件 |
 | 是否恢复过 | 是 —— 登录失败 5 次全部恢复（冷却 + 错误退避），冻屏 3 次全部靠重启 + 重新登录恢复 |
-| 是否到达截止时间 | 见 §A.4（结束时更新） |
+| 是否到达截止时间 | **是**。`wild_cycle` 按 `--deadline-at 06:08` 自行收工，未越过 06:30 硬截止 |
 
 ### A.3 这七小时真正"自主"到什么程度（不吹）
 
@@ -84,16 +84,16 @@
 | 项 | 19:52 起点 | 01:50 实测 | 证据 |
 |---|---|---|---|
 | 角色 / 服务器 | `hello` / 1 号 啦公星 | 同 | `data/overnight/frames/world_02.png` |
-| 出战精灵 | **烈火猴 Lv36**，HP 108/108，`xp_to_next` 4689 | **烈焰猩猩 Lv39**，HP 117/117，`xp_to_next` 2705 | `read_active_pet_level`（真机面板读数） |
+| 出战精灵 | **烈火猴 Lv36**，HP 108/108，`xp_to_next` 4689 | **烈焰猩猩 Lv41**，HP 122/122，`xp_to_next` 2876 | `read_active_pet_level`（真机面板读数，06:03） |
 | 试炼之塔 | 第 15 层（历史记录写 14） | **第 23 层**（当晚通关 15→23，共 8 层） | `farm_tower` PASS + `floor_*` 帧 |
-| 野生连战 | — | **12 胜 0 负，+954 经验**（截至 01:48，仍在跑） | `data/overnight/wild_cycle.jsonl` |
+| 野生连战 | — | **294 胜 0 负，+20200 经验**（06:08 收工） | `data/overnight/wild_cycle.jsonl` |
 | 交易行 | 未开通 | 未开通（今晚没碰，不是优先级） | — |
 | 谱尼封印 / 真身 | 0/7 · 0/6 | 0/7 · 0/6 | 未变 |
 
 ### B.2 每一项的可靠证据
 
 - **升级与进化**：`game.read_active_pet_level` 读精灵面板（不是猜），三次读数
-  `烈火猴 Lv36/xp 4689` → `烈焰猩猩 Lv37/xp 4463`（23:44）→ `烈焰猩猩 Lv39/xp 3203/2705`（01:48）。
+  `烈火猴 Lv36/xp 4689` → `烈焰猩猩 Lv37/xp 4463`（23:44）→ `Lv39`（01:48）→ `Lv40`（02:12）→ `Lv41/xp 2876`（06:03）。
   进化（烈火猴→烈焰猩猩）本身就是 36 级的事实证据，因为 36 级进化是文档记录的机制。
 - **塔 8 层**：`game.farm_tower` 的 PASS 返回值带 `floors_won` 与 `tower_floor`，
   并且每次都有帧：`data/overnight/frames/floor15_won.png`（第 16 层）、`farm_more_end.png`（第 19 层）、
@@ -132,7 +132,7 @@
 | `tools/bg_probe.py` | ✅ 8 项 | — | ✅ 同一次运行跑两条通道 | **`BACKGROUND_INPUT_BLOCKED`** | `data/overnight/bg_probe.json` |
 | **`game.give_exp`（新增）** | ✅ 8 项 | — | ❌ 面板没找到，从未执行 | **NOT_EXECUTED** | — |
 | **`parse_exp_allocator`（新增）** | ✅ 7 项 | ✅ 视频真帧 | ❌ 同上 | **REPLAY_PASS** | — |
-| `tools/wild_cycle.py`（新增） | — | — | ✅ 36 胜 / +3286 XP 且仍在跑 | **LIVE_PASS** | `data/overnight/wild_cycle.log` |
+| `tools/wild_cycle.py`（新增） | — | — | ✅ **294 胜 / +20200 XP**，跨 3 次客户端重启自恢复 | **LIVE_PASS** | `data/overnight/wild_cycle.jsonl` |
 | `tools/tower_cycle.py`（新增） | — | — | ⚠️ 入口判定不稳，已被 wild_cycle 取代 | **LIVE_FAIL** | `frames/cycle_006.png` |
 | `tools/explain_goal.py` | — | — | 不碰游戏（纯读 SQLite） | **N/A** | — |
 
