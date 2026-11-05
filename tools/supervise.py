@@ -207,21 +207,26 @@ def main() -> int:
     pause_file = "/tmp/seerauto.pause"
     stop_file = "/tmp/seerauto.stop"
 
-    def wait_if_paused() -> bool:
+    def wait_if_paused() -> str:
         if not os.path.exists(pause_file):
-            return not os.path.exists(stop_file)
+            return "STOP" if os.path.exists(stop_file) else "READY"
         log("PAUSED: saving current run state and waiting for the user to say start")
         while os.path.exists(pause_file):
             if os.path.exists(stop_file):
-                return False
+                return "STOP"
+            if datetime.now(deadline.tzinfo) >= deadline:
+                return "DEADLINE"
             time.sleep(0.2)
         log("RESUMED: re-observing the game before any further action")
-        return not os.path.exists(stop_file)
+        if datetime.now(deadline.tzinfo) >= deadline:
+            return "DEADLINE"
+        return "STOP" if os.path.exists(stop_file) else "READY"
 
     while datetime.now(deadline.tzinfo) < deadline:
-        if not wait_if_paused():
-            terminal_outcome = "INTERRUPTED"
-            log("stop requested while paused; ending supervisor")
+        pause_state = wait_if_paused()
+        if pause_state != "READY":
+            terminal_outcome = "INTERRUPTED" if pause_state == "STOP" else "DEADLINE_REACHED"
+            log(f"supervisor ending while paused: {terminal_outcome}")
             break
         started = time.time()
         if not ensure_in_game(background=args.background):
@@ -233,8 +238,9 @@ def main() -> int:
                 break
             time.sleep(30)
             continue
-        if not wait_if_paused():
-            terminal_outcome = "INTERRUPTED"
+        pause_state = wait_if_paused()
+        if pause_state != "READY":
+            terminal_outcome = "INTERRUPTED" if pause_state == "STOP" else "DEADLINE_REACHED"
             break
         if not heal_if_needed(background=args.background):
             terminal_outcome = "BLOCKED"
@@ -266,6 +272,10 @@ def main() -> int:
         tail = [ln for ln in out.strip().splitlines() if ln.strip()][-4:]
         log(f"batch {batches} exited {code}: {' | '.join(tail)}")
         if any("out of uses" in t or "PP exhausted" in t for t in tail):
+            pause_state = wait_if_paused()
+            if pause_state != "READY":
+                terminal_outcome = "INTERRUPTED" if pause_state == "STOP" else "DEADLINE_REACHED"
+                break
             log("PP exhausted in that batch -> healing before the next one")
             heal_if_needed(background=args.background)
         entry = {"batch": batches, "code": code, "elapsed_s": round(time.time() - started, 1),
