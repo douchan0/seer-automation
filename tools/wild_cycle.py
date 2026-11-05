@@ -122,6 +122,17 @@ def main() -> int:
                         return 11
                     continue
             nav = skills["game.navigate_spt_boss"](ctx, boss=BOSS)
+            if nav.status.value != "PASS":
+                # Seen live 2026-11-06 02:00: the SPT panel opens but the skill's own
+                # marker check runs before it renders, so one slow frame looks like a
+                # hard failure.  Clear whatever is on screen and retry once.
+                log(f"navigate {nav.status.value}: {(nav.reason or '')[:100]} — retrying")
+                try:
+                    session.client.send("key", code=53)   # Esc
+                    time.sleep(1.5)
+                except Exception:  # noqa: BLE001
+                    pass
+                nav = skills["game.navigate_spt_boss"](ctx, boss=BOSS)
             record["navigate"] = nav.status.value
             if nav.status.value != "PASS":
                 log(f"navigate {nav.status.value}: {(nav.reason or '')[:120]}")
