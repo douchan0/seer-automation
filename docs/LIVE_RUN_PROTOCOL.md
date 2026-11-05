@@ -56,6 +56,25 @@ PYTHONPATH=.pydeps python3 tools/farm_tower_repeat.py \
 - `guardian click refused` → 输入被拒（前台/几何问题），查 `ensure_frontmost`
 - `landed but no battle` → 守卫者坐标或场景不对，做一次 `probe_panels` 定位
 
+## S3.5 「每日逃跑 50 万经验」一次性验证（10 分钟，性价比最高的一格）
+
+研究（`data/overnight/research/mmx_report_01.md` §7.3）指出：攻略视频里有
+「**每天只能获得一次这 50 万**」的旁白，并在 `frames/02_spirit_day1/f_00018.png` 的 OCR 里
+出现 `c逃跑白嫖50万经验` / `每天只能获得一次这50万`。**本服从未复核 = UNKNOWN。**
+
+验证步骤（一次，代价 = 一回合）：
+1. 找一只**等级足够高**的野怪进入战斗（战利品不是重点，重点是"逃跑"这个动作）；
+2. 点「逃跑」→ 等战斗结束；
+3. **读积累经验池的前后差值**（奖励弹窗 OCR 或 面板 `积累经验：`）。
+
+判据：
+- 池子 +500,000 → 记为 `LIVE_PASS`，写进 `world.unlocked["reward.daily_flee"]`，
+  并在报告里给出帧 + 前后数字；
+- 池子只 + 少量（=正常逃跑无收益）→ 记为 `LIVE_FAIL`，把这条从路线里划掉；
+- 读不到池子 → `UNKNOWN`，不要猜。
+
+> 为什么值得插队：塔 1300/层 × 27 s ≈ 6.2 万/小时；这一格如果成立，等于**8 小时的塔**。
+
 ## S4 长跑（S3 通过后）
 
 ```bash
