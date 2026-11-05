@@ -144,7 +144,9 @@ def main() -> int:
     env = dict(os.environ, PYTHONPATH=".pydeps")
     proc = subprocess.run(cmd, cwd=ROOT, env=env)
     log(f"goal run exited {proc.returncode}")
-    return 0
+    # Propagate the runner's own outcome code. A caller that only ever sees 0 cannot
+    # tell verified progress apart from "planner refused" (PR #1 finding, kept).
+    return proc.returncode
 
 
 if __name__ == "__main__":

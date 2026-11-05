@@ -514,3 +514,78 @@ def test_a_sessionless_run_does_not_blank_the_last_real_world(tmp_path):
     stored = store.latest_world()
     assert stored is not None
     assert stored.fact("counters.tower.floors_cleared") == 14
+
+
+# --------------------------------------------------------------------------- #
+# cooperative pause (§ user protocol "暂停，保存")
+# --------------------------------------------------------------------------- #
+def test_user_pause_saves_a_resumable_checkpoint_and_is_not_a_failure(tmp_path):
+    """「暂停，保存」 must leave a durable, read-only checkpoint behind.
+
+    The pause is a promise, so three things are asserted:
+      * a checkpoint row exists and is *not* verified progress;
+      * the run's status is `paused`, never `finished`/`failed`;
+      * the freshly observed world is stored, because the game kept moving.
+    """
+
+    ctl = RunControl(str(tmp_path / "pause"), str(tmp_path / "stop"))
+    ctl.request_pause()
+
+    cfg = dict(db_path=str(tmp_path / "runs.sqlite3"), dry_run=False, allow_input=True,
+               max_minutes=5, max_battles=1)
+    store = WorldStore(cfg["db_path"])
+    store.start_run("puni", "fake", budgets=RunConfig(**cfg).budgets, options={})
+    run_id = store.list_runs()[0]["run_id"]
+
+    session = FakeSession()
+    r = GoalRunner(RunConfig(**cfg), store=store, graph=GoalGraph.load(),
+                   registry=SkillRegistry([RunBattleStub(), NavigateStub(),
+                                           ObservedLevelSkill()]),
+                   planner=FakePlanner(PlanDecision(goal="puni",
+                                                    selected_node="puni.prepare.level_up",
+                                                    capability="game.run_battle",
+                                                    reason="grind",
+                                                    expected_observation="level rises",
+                                                    max_actions=10, max_duration_s=120)),
+                   session=session, control=ctl)
+    # Drive the pause callback directly: a blocking wait would never return here.
+    r.run_id = run_id
+    r._pause_checkpoint()
+
+    ck = r.store.last_checkpoint(run_id)
+    assert ck is not None, "a user pause must leave a checkpoint"
+    assert ck["verified"] in (0, False), "a pause proves nothing about the goal"
+    assert ck["payload"].get("pause_requested") is True
+    assert ck["payload"].get("safe_to_resume") is True
+
+    run = r.store.get_run(run_id)
+    assert run["status"] == "paused"
+    assert "waiting for resume" in (run["stop_reason"] or "")
+    # the world snapshot written by the pause is readable again after a restart
+    assert r.store.latest_world() is not None
+
+
+def test_resume_clears_the_paused_status(tmp_path):
+    ctl = RunControl(str(tmp_path / "pause"), str(tmp_path / "stop"))
+    cfg = dict(db_path=str(tmp_path / "runs.sqlite3"), dry_run=True, max_minutes=1)
+    store = WorldStore(cfg["db_path"])
+    store.start_run("puni", "fake", budgets=RunConfig(**cfg).budgets, options={})
+    run_id = store.list_runs()[0]["run_id"]
+    r = GoalRunner(RunConfig(**cfg), store=store, graph=GoalGraph.load(),
+                   registry=SkillRegistry([RunBattleStub()]),
+                   planner=FakePlanner(), session=FakeSession(), control=ctl)
+    r.run_id = run_id
+    store.update_run(run_id, status="paused", stop_reason="user requested pause")
+    r._resume_after_pause(12.5)
+    run = store.get_run(run_id)
+    assert run["status"] == "running"
+    assert run["stop_reason"] in (None, "")
+
+
+def test_a_starting_run_does_not_erase_a_user_pause():
+    """`run()` used to call control.clear(), which silently ate a fresh pause."""
+
+    import inspect
+
+    src = inspect.getsource(GoalRunner.run)
+    assert "clear_stop()" in src

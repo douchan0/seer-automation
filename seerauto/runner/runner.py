@@ -96,6 +96,9 @@ class RunConfig:
             "goal": self.goal, "planner": self.planner, "dry_run": self.dry_run,
             "allow_input": self.allow_input, "budgets": self.budgets,
             "db_path": self.db_path, "ai_dir": self.ai_dir, "run_id": self.run_id,
+            # Persisted so `goal resume` continues on the same input lane instead of
+            # quietly turning a no-focus run into a foreground mouse grab.
+            "background": self.background,
         }
 
 
@@ -703,9 +706,13 @@ class GoalRunner:
                     escalation="pause",
                     data={"recovery": "heal_pet"}))
                 break
-            self.control.wait_while_paused(
-                on_pause=lambda: self.log("[runner] PAUSED (control file)"),
-                on_resume=lambda s: self.log(f"[runner] RESUMED after {s:.1f}s"))
+            paused_s = self.control.wait_while_paused(
+                on_pause=self._pause_checkpoint,
+                on_resume=self._resume_after_pause)
+            if paused_s > 0:
+                # The game keeps running while we wait, so the pre-pause world is
+                # stale by definition. Never evaluate a step's condition against it.
+                world = self.observe(full=True)
             if not self._step_when(step.when, world):
                 results.append(SkillResult(skill=step.skill, status=Status.SKIPPED,
                                            reason=f"condition {step.when!r} not met"))
@@ -806,7 +813,9 @@ class GoalRunner:
         assert self.store is not None and self.graph is not None
         cfg = self.config
         self._started = time.monotonic()
-        self.control.clear()
+        # Clear a stale *stop* request only. A pause the user just asked for is a
+        # contract, and erasing it here turned 「暂停」 into "keeps clicking".
+        self.control.clear_stop()
         if self.run_id and self.store.get_run(self.run_id):
             run_id = self.run_id                     # resuming an existing run
         else:
@@ -832,10 +841,8 @@ class GoalRunner:
                     end_reason = "stop requested"
                     break
                 if self.control.wait_while_paused(
-                        on_pause=lambda: (self.log("[runner] PAUSED (control file)"),
-                                          self.store.update_run(run_id, status="paused")),
-                        on_resume=lambda s: (self.log(f"[runner] RESUMED after {s:.1f}s"),
-                                             self.store.update_run(run_id, status="running"))):
+                        on_pause=self._pause_checkpoint,
+                        on_resume=self._resume_after_pause):
                     pass
 
                 self._loops += 1
@@ -1078,6 +1085,57 @@ class GoalRunner:
         assert self.graph is not None
         done = self.completed_nodes()
         return all(n.id in done for n in self.graph if n.executable)
+
+    # -- cooperative pause: freeze the *knowledge*, not the game ----------- #
+    def _pause_checkpoint(self) -> None:
+        """One read-only observation + a durable checkpoint, then wait.
+
+        A pause is a promise to the user, not an apology in a log line.  When they
+        say 「暂停，保存」 the run must leave behind everything needed to resume:
+        a fresh observation (the game kept moving while we were not looking), a
+        checkpoint row, and a status that says paused rather than finished.  It must
+        never be reported as a failure, and it must never be reported as completion.
+        """
+
+        if self.store is None or self.run_id is None:
+            self.log("[runner] PAUSED (control file)")
+            return
+        try:
+            self.store.update_run(self.run_id, status="paused")
+            world = self.observe(full=True)
+            self.store.save_world(world, run_id=self.run_id,
+                                  note="user pause: fresh read-only observation")
+            self.store.checkpoint(
+                self.run_id, "user pause checkpoint", world,
+                payload={"pause_requested": True, "safe_to_resume": True,
+                         "loops": self._loops, "actions": self._actions,
+                         "battles": self._battles},
+                # Not verified progress: nothing was proven about the goal here.
+                verified=False,
+            )
+            self.store.update_run(
+                self.run_id, status="paused",
+                stop_reason="user requested pause; checkpoint saved; waiting for resume")
+            self.store.append_event(
+                self.run_id, "run.paused",
+                "user pause acknowledged; fresh observation and checkpoint saved")
+            self.log("[runner] PAUSED: fresh observation checkpoint saved; waiting")
+        except Exception as exc:  # noqa: BLE001 - a failed checkpoint must not kill a pause
+            try:
+                self.store.update_run(self.run_id, status="paused",
+                                      stop_reason=f"pause requested; checkpoint failed: {exc}")
+                self.store.append_event(self.run_id, "run.pause_checkpoint_failed", str(exc))
+            except Exception:
+                pass
+            self.log(f"[runner] PAUSED but checkpoint capture failed: {exc}")
+
+    def _resume_after_pause(self, elapsed: float) -> None:
+        if self.store is not None and self.run_id:
+            self.store.update_run(self.run_id, status="running", stop_reason=None)
+            self.store.append_event(
+                self.run_id, "run.resumed",
+                f"user resumed after {elapsed:.1f}s; re-observing before the next action")
+        self.log(f"[runner] RESUMED after {elapsed:.1f}s; re-observing before the next action")
 
     # -- reporting --------------------------------------------------------- #
     def summary(self) -> dict[str, Any]:

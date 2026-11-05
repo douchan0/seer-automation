@@ -452,6 +452,12 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     ap.add_argument("--minutes", type=float, default=240.0)
     ap.add_argument("--until", default=None, help="HH:MM local deadline, e.g. 06:30")
+    ap.add_argument("--deadline-at", default=None,
+                    help="Absolute ISO timestamp carrying a timezone, e.g. "
+                         "2026-11-06T06:30:00+08:00. Preferred over --until: a "
+                         "clock-only deadline silently rolls into tomorrow when the "
+                         "time has already passed, which once stretched an overnight "
+                         "run by a whole day.")
     ap.add_argument("--batch-minutes", type=float, default=8.0)
     ap.add_argument("--batch-battles", type=int, default=8)
     ap.add_argument("--planner", default="deterministic")
@@ -469,6 +475,23 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def deadline_from(args: argparse.Namespace) -> datetime:
+    """Absolute, timezone-carrying deadline when possible.
+
+    ``--until 06:30`` cannot express "tomorrow morning": if the run starts after
+    06:30 the same expression means a day later, so a late start silently doubles
+    the window.  ``--deadline-at`` refuses to guess instead.
+    """
+
+    if getattr(args, "deadline_at", None):
+        deadline = datetime.fromisoformat(args.deadline_at)
+        if deadline.tzinfo is None or deadline.utcoffset() is None:
+            raise SystemExit("--deadline-at must carry a timezone offset, "
+                             "e.g. 2026-11-06T06:30:00+08:00")
+        now = datetime.now(deadline.tzinfo)
+        if deadline <= now:
+            raise SystemExit(f"--deadline-at {deadline.isoformat()} is not in the "
+                             "future; it will not be rolled forward")
+        return deadline.replace(tzinfo=None)
     if args.until:
         now = datetime.now()
         hh, mm = (int(x) for x in args.until.split(":"))

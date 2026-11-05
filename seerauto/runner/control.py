@@ -65,6 +65,14 @@ class RunControl:
         self._paused_since = None
         self._slept = 0.0
 
+    def clear_stop(self) -> None:
+        """Clear a stale stop request while preserving an active user pause."""
+
+        try:
+            self.stop_file.unlink()
+        except FileNotFoundError:
+            pass
+
     # -- blocking ---------------------------------------------------------- #
     def wait_while_paused(self, poll_s: float = 0.2, *, on_pause=None,
                           on_resume=None) -> float:

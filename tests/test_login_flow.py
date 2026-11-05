@@ -1,0 +1,96 @@
+"""Login-screen classification — regression for the 2026-11-05 false "in the world".
+
+The failure being locked down here is real and cost a session: right after pressing
+登录, the client paints the world HUD *behind* the still-rendering server panel, so a
+frame contains 「公屏聊天 • 离线」 and 「综合待命中」 while the player is not in the
+world at all.  The old predicate treated those as world markers and the tool exited 0
+— a success reported for a screen that cannot fight, walk or cast.
+
+Every string in `SERVER_LIST_FRAME` was copied from the OCR dump of
+`data/overnight/frames/world_01.png` (2026-11-05 19:48, client 1.0.8.9).
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import os
+
+import pytest
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_login():
+    path = os.path.join(ROOT, "tools", "login.py")
+    spec = importlib.util.spec_from_file_location("seer_login_tool", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+login = _load_login()
+
+#: Verbatim OCR of the server-selection screen, including the world HUD behind it.
+SERVER_LIST_FRAME = [
+    "公屏聊天 • 离线", "综合待命中", "28", "26", "20", "6", "14", "00",
+    "组队开启中（PVP服", "00", "123", "Miss冰封", "等你下课", "流星",
+    "xin计划（1.0.8.9）", "选择服务器", "29", "CC", "1-！", "18", "：00",
+    "（测试服关闭中）", "饼饼饼", "美味蟹黄堡", "9", "24", "：00",
+    "NLNS", "25", "极光雷伊", "好友在线", "在线人数", "禁止公众聊天",
+    "请输入服务器编号", "快速进几", "查看全部服务器",
+]
+
+#: Verbatim OCR of the world, same session, after picking server 1.
+WORLD_FRAME = [
+    "公屏聊天 • 在线", "系统：已连接公屏聊天", "小XIN要来挑战我", "吗！",
+    "主播纽斯", "xin计划（1.0.8.9）", "BET", "卫兵", "00", "hello", "12:00",
+]
+
+LOGIN_FRAME = [
+    "航行公告", "风过星野，与你再启航", "11月份版本更新内容已发布",
+    "登录，开启秋日漫游", "忘记密码", "前往注册",
+]
+
+ANNOUNCEMENT_FRAME = ["游戏公告", "亲爱的", "我已知晓"]
+
+
+@pytest.mark.parametrize("texts,expected", [
+    (SERVER_LIST_FRAME, "server"),
+    (WORLD_FRAME, "world"),
+    (LOGIN_FRAME, "login"),
+    (ANNOUNCEMENT_FRAME, "announcement"),
+    ([], "unknown"),
+    (["正在加载星球资源", "76%"], "unknown"),
+])
+def test_screen_kind(texts, expected):
+    assert login.screen_kind(texts) == expected
+
+
+def test_server_list_is_not_the_world():
+    """The bug: 综合待命中 + 公屏聊天 离线 must never add up to the world."""
+
+    assert "综合待命中" not in login.PRIMARY_WORLD_MARKERS
+    assert login.screen_kind(SERVER_LIST_FRAME) != "world"
+
+
+def test_multimodal_screen_prefers_the_modal():
+    # A transition frame can hold both the HUD and the server panel; the panel wins.
+    mixed = WORLD_FRAME + ["选择服务器"]
+    assert login.screen_kind(mixed) == "server"
+
+
+def test_world_frame_still_recognised():
+    assert login.screen_kind(WORLD_FRAME) == "world"
+    assert any(m in " ".join(WORLD_FRAME) for m in login.PRIMARY_WORLD_MARKERS)
+
+
+def test_announcement_beats_login():
+    # The announcement modal sits on top of the login page and must be dismissed first.
+    assert login.screen_kind(ANNOUNCEMENT_FRAME + LOGIN_FRAME) == "announcement"
+
+
+def test_confirm_frames_is_at_least_two():
+    # One frame is not evidence: the login -> server transition looks world-ish once.
+    assert login.WORLD_CONFIRM_FRAMES >= 2
+    assert login.WORLD_CONFIRM_GAP_S > 0

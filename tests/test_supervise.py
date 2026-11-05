@@ -423,3 +423,34 @@ def test_yaml_has_no_duplicate_node_keys():
             else:
                 seen[key] = i
     assert dupes == [], f"duplicate keys (node, key, first_line, dup_line): {dupes}"
+
+
+# -- absolute deadline ------------------------------------------------------ #
+def _args(**kw):
+    base = dict(deadline_at=None, until=None, minutes=240.0)
+    base.update(kw)
+    return SimpleNamespace(**base)
+
+
+def test_deadline_at_accepts_a_timezone():
+    got = sup.deadline_from(_args(deadline_at="2099-11-06T06:30:00+08:00"))
+    # naive local wall clock, because the loop compares against datetime.now()
+    assert (got.year, got.month, got.day, got.hour, got.minute) == (2099, 11, 6, 6, 30)
+
+
+def test_deadline_at_rejects_a_past_instant_instead_of_rolling_forward():
+    # The 2026-11-04 failure mode: a deadline that has already passed must not turn
+    # into "24 hours from now".
+    with pytest.raises(SystemExit):
+        sup.deadline_from(_args(deadline_at="2020-01-01T06:30:00+08:00"))
+
+
+def test_deadline_at_requires_a_timezone():
+    with pytest.raises(SystemExit):
+        sup.deadline_from(_args(deadline_at="2099-11-06T06:30:00"))
+
+
+def test_until_is_still_supported_for_compatibility():
+    got = sup.deadline_from(_args(until="06:30"))
+    assert got.hour == 6 and got.minute == 30
+    assert got > datetime.now() - timedelta(minutes=1)

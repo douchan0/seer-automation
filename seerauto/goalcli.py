@@ -237,10 +237,16 @@ def cmd_goal_resume(args: Any) -> int:
               f"{run.get('stop_reason')})")
         print(f"completed nodes: {[k for k, v in nodes.items() if v == 'completed']}")
         budgets = run.get("budgets") or {}
+        saved_options = run.get("options") or {}
+        saved_background = bool(saved_options.get("background", False))
     finally:
         store.close()
 
     cfg = _config_from_args(args, run_id=run_id)
+    # A resume must continue the run it found, including which input lane it used.
+    # Silently switching lanes mid-run is how a no-focus run becomes a mouse grab.
+    if getattr(args, "background", None) is None:
+        cfg.background = saved_background
     if "max_minutes" in budgets and not getattr(args, "max_minutes", None):
         cfg.max_minutes = float(budgets["max_minutes"])
     if "max_battles" in budgets and not getattr(args, "max_battles", None):
@@ -454,6 +460,8 @@ def add_goal_subcommand(sub: Any) -> None:
     resume.add_argument("--max-battles", type=int, default=None)
     resume.add_argument("--db", **common_db)
     resume.add_argument("--ai-dir", default=None)
+    resume.add_argument("--background", action="store_true", default=None,
+                        help="override the saved run's input lane (default: reuse it)")
     resume.add_argument("--pause-file", default=None)
     resume.add_argument("--stop-file", default=None)
     resume.add_argument("--run-id", default=None)
