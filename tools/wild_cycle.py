@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
@@ -49,6 +50,55 @@ def paused() -> bool:
     return os.path.exists(PAUSE) or os.path.exists(MASTER)
 
 
+
+def recover_client(cooldown: float = 25.0) -> bool:
+    """Restart the client — the only reliable way out of a frozen UI.
+
+    Seen three times tonight: 「请选择背面朝向你的精灵！」 (a PvP pet-prompt) freezes the
+    whole interface at a motionless 56 s countdown, after which the SPT panel never
+    opens and every battle skill reports "no engageable monster".  Esc and clicks do
+    nothing.  A restart lands in the world; `tools/login.py --cooldown` then logs back
+    in without tripping the server's 500033 rate limit.
+    """
+
+    log("recover: restarting the client")
+    try:
+        subprocess.run(["pkill", "-f", "/Applications/SeerGame.app/Contents/MacOS/SeerGame"],
+                       check=False, capture_output=True, timeout=15)
+    except Exception as exc:  # noqa: BLE001
+        log(f"recover: pkill failed ({exc})")
+        return False
+    time.sleep(8)
+    try:
+        subprocess.run(["open", "-a", "/Applications/SeerGame.app"], check=False, timeout=25)
+    except Exception as exc:  # noqa: BLE001
+        log(f"recover: open failed ({exc})")
+        return False
+    # The client needs ~40 s before the login page is usable; logging in earlier makes
+    # login.py exit non-zero and wastes a restart (seen 03:15).
+    time.sleep(42)
+    # the art-pack dialog: raise the app, then click 暂不导入 by text
+    try:
+        from seerauto.live import LiveSession as _LS
+
+        subprocess.run([sys.executable, "tools/fix_startup.py"], cwd=ROOT,
+                       capture_output=True, text=True, timeout=180,
+                       env=dict(os.environ, PYTHONPATH=".pydeps"))
+    except Exception as exc:  # noqa: BLE001
+        log(f"recover: fix_startup raised ({exc})")
+    try:
+        proc = subprocess.run([sys.executable, "tools/login.py", "--timeout", "280",
+                               "--server-tries", "8", "--cooldown", str(cooldown)],
+                              cwd=ROOT, capture_output=True, text=True, timeout=600,
+                              env=dict(os.environ, PYTHONPATH=".pydeps"))
+        tail = (proc.stdout or "").strip().splitlines()[-2:]
+        log(f"recover: login exited {proc.returncode} ({' | '.join(tail)})")
+        return proc.returncode == 0
+    except subprocess.TimeoutExpired:
+        log("recover: login timed out")
+        return False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--battles", type=int, default=3, help="battles per pass")
@@ -57,6 +107,8 @@ def main() -> int:
     ap.add_argument("--minutes", type=float, default=0.0)
     ap.add_argument("--deadline-at", default=None)
     ap.add_argument("--max-no-progress", type=int, default=3, help="passes with 0 wins")
+    ap.add_argument("--max-restarts", type=int, default=2,
+                    help="client relaunches allowed to escape a frozen UI")
     args = ap.parse_args()
 
     deadline = None
@@ -72,17 +124,24 @@ def main() -> int:
     os.makedirs(FRAMES, exist_ok=True)
     from seerauto.live import LiveSession
 
-    session = LiveSession(dry_run=False, enable_input=True).open()
-    session.client.send("activate")
-    time.sleep(0.8)
     skills = {s.spec.id: s for s in build_act_skills()}
-    ctx = SkillContext(session=session, world=GameWorldState(), dry_run=False,
-                       allow_input=True,
-                       budget=Budget(max_duration_s=600, max_actions=300))
+
+    def open_session(skills_map):
+        sess = LiveSession(dry_run=False, enable_input=True).open()
+        sess.client.send("activate")
+        time.sleep(0.8)
+        context = SkillContext(session=sess, world=GameWorldState(), dry_run=False,
+                               allow_input=True,
+                               budget=Budget(max_duration_s=600, max_actions=300))
+        return sess, context
+
+    session, ctx = open_session(skills)
     started = datetime.now()
     total_wins = 0
     total_xp = 0.0
     dry_passes = 0
+    nav_failures = 0
+    restarts = 0
     passes = 0
     level_seen = None
     try:
@@ -109,16 +168,18 @@ def main() -> int:
                 record["heal"] = {"status": h.status.value, "hp": lead.get("hp"),
                                   "hp_max": lead.get("hp_max")}
                 log(f"heal: {h.status.value} lead {lead.get('hp')}/{lead.get('hp_max')}")
-                # A FAIL whose HP read shows a full pet is not a problem: the heal
-                # button simply has nothing to do.  Only a genuinely low/unknown HP is.
-                full = (lead.get("hp") is not None and lead.get("hp_max")
-                        and lead["hp"] >= lead["hp_max"])
-                if h.status.value != "PASS" and not full:
+                # Do NOT gate the fight on the heal's own readback.  Live 03:00: the
+                # skill reports FAIL because its HP read lands on a fainted 小蘑菇 slot
+                # (0/12) rather than 烈焰猩猩, while the 精灵恢复 click itself works —
+                # every other pass was being skipped for a mis-read, halving the night.
+                # Only a BLOCKED heal (the button could not even be clicked) is fatal,
+                # and a pet that really cannot fight shows up as 0 wins in the battle.
+                if h.status.value == "BLOCKED":
                     dry_passes += 1
                     record["outcome"] = "NO_WORK"
                     _append(record)
                     if dry_passes >= args.max_no_progress:
-                        log("cannot heal; stopping rather than fight at 0 HP")
+                        log("heal could not even be attempted; stopping")
                         return 11
                     continue
             nav = skills["game.navigate_spt_boss"](ctx, boss=BOSS)
@@ -136,6 +197,19 @@ def main() -> int:
             record["navigate"] = nav.status.value
             if nav.status.value != "PASS":
                 log(f"navigate {nav.status.value}: {(nav.reason or '')[:120]}")
+                nav_failures += 1
+                if nav_failures >= 2 and restarts < args.max_restarts:
+                    restarts += 1
+                    if recover_client():
+                        nav_failures = 0
+                        # The old session is bound to a dead window; rebuild it.
+                        try:
+                            session.close()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        session, ctx = open_session(skills)
+                        log("recover: session re-opened")
+                        continue
                 dry_passes += 1
                 record["outcome"] = "NO_WORK"
                 _append(record)
@@ -159,6 +233,7 @@ def main() -> int:
                 dry_passes += 1
             else:
                 dry_passes = 0
+                nav_failures = 0
             lvl = skills["game.read_active_pet_level"](ctx)
             if lvl.status.value == "PASS":
                 level_seen = lvl.after
