@@ -4,10 +4,14 @@ on:
     paths:
       - "seerauto/runner/outcomes.py"
       - "seerauto/runner/runner.py"
+      - "seerauto/runner/control.py"
+      - "seerauto/live.py"
+      - "seerauto/skills/act.py"
       - "seerauto/goalcli.py"
       - "tools/supervise.py"
       - "tools/night_session.py"
       - "tests/test_outcomes.py"
+      - "tests/test_runner.py"
       - ".github/workflows/overnight-outcomes.yml"
   workflow_dispatch:
 
@@ -23,11 +27,12 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install test dependency
-        run: python -m pip install pytest
+        run: python -m pip install -e ".[dev]"
       - name: Compile updated Python modules
         run: |
           python -m py_compile \
             seerauto/runner/outcomes.py seerauto/runner/runner.py \
-            seerauto/goalcli.py tools/supervise.py tools/night_session.py
+            seerauto/goalcli.py seerauto/runner/control.py seerauto/live.py \\
+            seerauto/skills/act.py tools/supervise.py tools/night_session.py
       - name: Outcome regression
-        run: python -m pytest -q tests/test_outcomes.py
+        run: python -m pytest -q tests/test_outcomes.py tests/test_runner.py
