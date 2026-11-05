@@ -42,7 +42,11 @@ WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "XIN计划，启动")
 #: 「XIN计划，启动！」 is the splash/loading caption and 「当前回合」 is battle HUD — both
 #: appear *before* arrival, and trusting them made this tool report "confirmed in the
 #: world" on a 76% 「正在加载星球资源」 screen (2026-11-05, repro: server_entered.png).
-PRIMARY_WORLD_MARKERS = ("卫兵", "已连接公屏聊天")
+#: 「公屏聊天 • 在线」 is the one signal that survives *inside* special scenes: the
+#: tower interior has no bottom bar and no NPC name, and its only OCR-able arrival
+#: evidence is 「公屏聊天 • 在线」 + 「系统：尊享入场」.  The server screen instead says
+#: 「公屏聊天 • 离线」, so the online/offline word separates the two exactly.
+PRIMARY_WORLD_MARKERS = ("卫兵", "已连接公屏聊天", "公屏聊天 • 在线", "公屏聊天•在线")
 #: Loading must be checked before anything else: it is the state that most looks like
 #: success and most certainly is not arrival.
 LOADING_MARKERS = ("正在加载", "版本检测中", "加载中")

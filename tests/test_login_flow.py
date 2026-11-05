@@ -119,3 +119,25 @@ def test_a_loading_screen_is_never_the_world():
 def test_loading_outranks_every_other_class():
     # A loading screen can carry leftover login/announcement text; loading wins.
     assert login.screen_kind(LOADING_FRAME + LOGIN_FRAME) == "loading"
+
+
+#: Verbatim OCR of artifacts/round6/tower_floor14.png — the tower interior.
+#: It has NO bottom bar and NO NPC name: the only arrival evidence is that the chat
+#: channel is online.  A world predicate of ("卫兵", "已连接公屏聊天") therefore fails
+#: inside the tower, which is where the grind lives — the supervisor would then keep
+#: calling the login tool on a perfectly healthy client.
+TOWER_INTERIOR_FRAME = [
+    "公屏聊天 • 在线", "系统：尊享入场|hello 登录了", "xin计划（1.0.8.9）",
+    "v0", "hello", "500",
+]
+
+
+def test_the_tower_interior_counts_as_the_world():
+    assert login.screen_kind(TOWER_INTERIOR_FRAME) == "world"
+
+
+def test_the_server_screen_is_not_the_world_even_though_it_says_chat():
+    """The server list says 「公屏聊天 • 离线」; online/offline is the discriminator."""
+
+    assert login.screen_kind(SERVER_LIST_FRAME) == "server"
+    assert not any("公屏聊天 • 在线" in t for t in SERVER_LIST_FRAME)

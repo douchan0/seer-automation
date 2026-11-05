@@ -59,9 +59,19 @@ LOG_PATH = os.path.join(ROOT, "data", "supervisor.log")
 REPORT = os.path.join(ROOT, "data", "supervisor.json")
 DB_PATH = os.path.join(ROOT, "data", "goalrunner.sqlite3")
 
-WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "综合待命中")
-LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险")
-SERVER_MARKERS = ("选择服务器", "快速进入")
+#: Kept in sync with tools/login.py, and for the same reasons:
+#:  * 「综合待命中」/「公屏聊天」 are visible *behind* the server-selection panel, so they
+#:    are not arrival evidence (2026-11-05: login.py reported "already in the world"
+#:    while sitting on 选择服务器);
+#:  * 「公屏聊天 • 在线」 is the only arrival signal that also exists inside the tower
+#:    interior (no bottom bar, no NPC name there) — and the tower is where the grind
+#:    lives, so without it the supervisor calls the login tool on a healthy client.
+WORLD_MARKERS = ("卫兵", "已连接公屏聊天", "公屏聊天 • 在线", "公屏聊天•在线")
+LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险", "忘记密码")
+SERVER_MARKERS = ("选择服务器", "快速进入", "查看全部服务器", "请输入服务器编号")
+#: While the art-pack dialog is up the playfield is stuck on this and looks like a hang.
+POPUP_MARKERS = ("版本检测中",)
+WORLD_CONFIRM_GAP_S = 1.5
 
 
 def log(msg: str) -> None:
@@ -307,6 +317,23 @@ def has(texts: list[str], markers) -> bool:
     return any(m in joined for m in markers)
 
 
+def in_world_texts(texts: list[str]) -> bool:
+    """World means: an arrival marker is present AND no modal screen marker is."""
+
+    return has(texts, WORLD_MARKERS) and not has(texts, LOGIN_MARKERS + SERVER_MARKERS)
+
+
+def confirm_in_world(tries: int = 2) -> bool:
+    """Two spaced observations, because the login->server transition looks world-ish."""
+
+    for i in range(tries):
+        if in_world_texts(screen_text()):
+            return True
+        if i + 1 < tries:
+            time.sleep(WORLD_CONFIRM_GAP_S)
+    return False
+
+
 def ensure_in_game() -> bool:
     """Window up and character in the world.  Returns True when ready."""
 
@@ -315,14 +342,20 @@ def ensure_in_game() -> bool:
         subprocess.run(["open", "-a", "/Applications/SeerGame.app"], check=False)
         time.sleep(20)
     texts = screen_text()
-    if has(texts, WORLD_MARKERS) and not has(texts, LOGIN_MARKERS + SERVER_MARKERS):
+    if in_world_texts(texts):
         return True
+    if has(texts, POPUP_MARKERS):
+        log("playfield stuck on 版本检测中 (art-pack popup) -> clearing it")
+        code, out = run([sys.executable, "tools/fix_startup.py"], timeout=120)
+        log(f"fix_startup exited {code}: {' | '.join(out.strip().splitlines()[-2:])}")
     log(f"not in the world ({texts[:4]}) -> running the login tool")
-    code, out = run([sys.executable, "tools/login.py", "--timeout", "180"], timeout=400)
+    code, out = run([sys.executable, "tools/login.py", "--timeout", "240"], timeout=460)
     tail = " | ".join(out.strip().splitlines()[-3:])
     log(f"login tool exited {code}: {tail}")
-    texts = screen_text()
-    return has(texts, WORLD_MARKERS)
+    if code != 0:
+        return False
+    # Never trust the child's exit code alone: re-observe ourselves, twice.
+    return confirm_in_world()
 
 
 def heal_if_needed(*, activate: bool = True) -> bool:
@@ -334,7 +367,9 @@ def heal_if_needed(*, activate: bool = True) -> bool:
     """
 
     code, out = run([sys.executable, "-c", heal_snippet(activate)], timeout=300)
-    ok = "healed" in out.lower() or "hp alive" in out.lower() or code == 0
+    # Code 0 only means the snippet ran; the point is whether the pet is usable.
+    ok = code == 0 and any(sig in out.lower() for sig in
+                           ("hp fine (", "healed: pass", "hp alive"))
     log(f"heal pass exited {code}: {' | '.join(out.strip().splitlines()[-2:])}")
     return ok
 
