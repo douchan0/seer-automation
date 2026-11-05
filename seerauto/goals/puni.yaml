@@ -462,10 +462,15 @@ nodes:
       type: verified_account_state
       predicate: pet_level_at_least
       args: {pet: 烈焰猩猩, level: 45, aliases: [烈火猴, 小火猴]}
-    status: todo
-    executable: true
+    status: blocked
+    executable: false
     skill: game.farm_tower
     skill_inputs: {floors: 3}
+    blocked_reason: >
+      2026-11-06 真机：第 15→23 层连续通关，第 23 层之后守卫者开始稳赢我方（战败弹窗
+      「很遗憾，这次挑战未能获胜」）。塔是**向上推进**的，没有已验证的"回到低层重刷"入口
+      （「选择楼层」的 1/11/21 预设点了没有改变起始层）。所以升到 45 级不能靠继续刷塔，
+      需要别的产经验路线或先把阵容练厚。代码没有问题，是战力不够。
     budget: {max_minutes: 45, max_battles: 12, max_spend: 0}
     on_failure: pause_and_replan
     evidence:
@@ -491,10 +496,15 @@ nodes:
       type: verified_account_state
       predicate: pet_level_at_least
       args: {pet: 烈焰猩猩, level: 60, aliases: [烈火猴, 小火猴]}
-    status: todo
-    executable: true
+    status: blocked
+    executable: false
     skill: game.farm_tower
     skill_inputs: {floors: 3}
+    blocked_reason: >
+      2026-11-06 真机：第 15→23 层连续通关，第 23 层之后守卫者开始稳赢我方（战败弹窗
+      「很遗憾，这次挑战未能获胜」）。塔是**向上推进**的，没有已验证的"回到低层重刷"入口
+      （「选择楼层」的 1/11/21 预设点了没有改变起始层）。所以升到 60 级不能靠继续刷塔，
+      需要别的产经验路线或先把阵容练厚。代码没有问题，是战力不够。
     budget: {max_minutes: 90, max_battles: 30, max_spend: 0}
     on_failure: pause_and_replan
     evidence:
@@ -517,10 +527,15 @@ nodes:
       type: verified_account_state
       predicate: pet_level_at_least
       args: {pet: 烈焰猩猩, level: 80, aliases: [烈火猴, 小火猴]}
-    status: todo
-    executable: true
+    status: blocked
+    executable: false
     skill: game.farm_tower
     skill_inputs: {floors: 3}
+    blocked_reason: >
+      2026-11-06 真机：第 15→23 层连续通关，第 23 层之后守卫者开始稳赢我方（战败弹窗
+      「很遗憾，这次挑战未能获胜」）。塔是**向上推进**的，没有已验证的"回到低层重刷"入口
+      （「选择楼层」的 1/11/21 预设点了没有改变起始层）。所以升到 80 级不能靠继续刷塔，
+      需要别的产经验路线或先把阵容练厚。代码没有问题，是战力不够。
     budget: {max_minutes: 90, max_battles: 30, max_spend: 0}
     on_failure: pause_and_replan
     evidence:
@@ -529,6 +544,34 @@ nodes:
       等级目标来自 docs 的阵容推论（谱尼主力需要较高等级），**不是本服确认过的最小可行等级**；
       完成判据只认现场复读。塔的可用层数与每日次数上限仍 UNKNOWN（MiniMax 研究报告 §8）。
 
+  - id: puni.prepare.wild_45
+    legacy_id: P0-11
+    title: 野外连战把主力练到 45 级（Round 4 已验证的可靠路线）
+    description: >
+      在已验证的刷怪点（克洛斯星林间 · 蘑菇怪）用 Round 4 真机跑通的连战循环刷经验。
+      比塔慢 25 倍，但**它是本仓库唯一一条连续 11 场全胜、每场 26.8 s 的已验证路线**，
+      而且没有"战力到顶就卡住"的问题。
+    phase: P0
+    priority: 49
+    prerequisites: [puni.prepare.level_up, state.active_pet_level_known]
+    requires_capabilities: [battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_level_at_least
+      args: {pet: 烈焰猩猩, level: 45, aliases: [烈火猴, 小火猴]}
+    status: todo
+    executable: true
+    skill: game.run_battle
+    skill_inputs: {battles: 8, monster: 蘑菇怪}
+    budget: {max_minutes: 60, max_battles: 30, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/progress.md#round-4
+      - docs/state.md#实测吞吐真机
+    notes: >
+      为什么它排在塔后面却仍然可执行：2026-11-06 02:00 起塔已经在第 23 层被战力卡住
+      （见 puni.prepare.level_45 的 blocked_reason），而这条路线不依赖战力上限。
+      每场蘑菇怪 52~106 XP、26.8 s；一晚 5 小时约 600 场。塔的 1300/层更快，但跑不动了。
   # ------------------------------------------------------------------ P1 --
   - id: puni.roster.catch_pipi
     legacy_id: P1-02

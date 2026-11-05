@@ -1,0 +1,30 @@
+{
+ "rounds": 3,
+ "productive_rounds": 0,
+ "floors_won": 0,
+ "xp_income": 0.0,
+ "spend": {},
+ "no_work_streak": 2,
+ "failure_streak": 1,
+ "stopped_because": "",
+ "started_at": "2026-11-06T01:04:23",
+ "last_round": {
+  "index": 8,
+  "started_at": "2026-11-06T01:11:29+08:00",
+  "ended_at": "",
+  "floors_won": 0,
+  "tower_floor_before": null,
+  "tower_floor_after": null,
+  "floors_gained": null,
+  "xp_income": 0.0,
+  "xp_events": [],
+  "spend": {},
+  "currencies_after": {},
+  "outcome": "BLOCKED",
+  "interrupted": false,
+  "blocked": true,
+  "notes": [],
+  "error": "tower dialog did not open (no known entrance in this room)"
+ },
+ "updated_at": "2026-11-06T01:12:01+08:00"
+}

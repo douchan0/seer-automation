@@ -99,6 +99,14 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
         # predicate can never see the progress the grind just earned.
         Step("game.read_active_pet_level", {}, label="回读出战精灵等级/升级所需经验"),
     ),
+    # 野外连战：Round 4 真机验证过的可靠产经验路线（塔被战力卡住时的备份）。
+    "puni.prepare.wild_45": (
+        Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
+             label="传送到已验证的刷怪场景"),
+        Step("game.run_battle", {"battles": 8, "monster": FARM_BOSS, "max_seconds": 420},
+             label="连战 8 场"),
+        Step("game.read_active_pet_level", {}, label="回读出战精灵等级"),
+    ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
              label="传送到已验证的刷怪场景"),

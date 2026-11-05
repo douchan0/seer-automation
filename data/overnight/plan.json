@@ -2,8 +2,8 @@
  "report": {
   "goal": "puni",
   "world": {
-   "scene": "WORLD",
-   "run_id": "bf0e12291fdb"
+   "scene": "DIALOG",
+   "run_id": "33ab23a31169"
   },
   "nodes": [
    {
@@ -25,7 +25,8 @@
     "executable": false,
     "status": "not_executable",
     "unmet": [
-     "missing capability 'battle.escape' (verified=unverified)"
+     "missing capability 'battle.escape' (verified=unverified)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -80,7 +81,9 @@
     "priority": 92,
     "executable": true,
     "status": "completed",
-    "unmet": []
+    "unmet": [
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
+    ]
    },
    {
     "id": "puni.prepare.tutor_room",
@@ -108,8 +111,8 @@
     "title": "试炼之塔把主力练到 45 级（可重复产经验）",
     "phase": "P0",
     "priority": 48,
-    "executable": true,
-    "status": "ready",
+    "executable": false,
+    "status": "blocked",
     "unmet": []
    },
    {
@@ -118,8 +121,8 @@
     "title": "试炼之塔把主力练到 60 级",
     "phase": "P0",
     "priority": 46,
-    "executable": true,
-    "status": "missing_prereq",
+    "executable": false,
+    "status": "blocked",
     "unmet": [
      "prerequisite node 'puni.prepare.level_45' (P0-08 试炼之塔把主力练到 45 级（可重复产经验）) not completed: pet 烈火猴 level 36 < 45 (LIVE_VERIFIED); pet 烈焰猩猩 level UNKNOWN (LIVE_VERIFIED evidence); pet 小火猴 level UNKNOWN (not observed)"
     ]
@@ -130,11 +133,21 @@
     "title": "试炼之塔把主力练到 80 级",
     "phase": "P0",
     "priority": 44,
-    "executable": true,
-    "status": "missing_prereq",
+    "executable": false,
+    "status": "blocked",
     "unmet": [
      "prerequisite node 'puni.prepare.level_60' (P0-09 试炼之塔把主力练到 60 级) not completed: pet 烈火猴 level 36 < 60 (LIVE_VERIFIED); pet 烈焰猩猩 level UNKNOWN (LIVE_VERIFIED evidence); pet 小火猴 level UNKNOWN (not observed)"
     ]
+   },
+   {
+    "id": "puni.prepare.wild_45",
+    "legacy_id": "P0-11",
+    "title": "野外连战把主力练到 45 级（Round 4 已验证的可靠路线）",
+    "phase": "P0",
+    "priority": 49,
+    "executable": true,
+    "status": "ready",
+    "unmet": []
    },
    {
     "id": "puni.roster.catch_pipi",
@@ -146,7 +159,8 @@
     "status": "not_executable",
     "unmet": [
      "missing capability 'catch.pet' (verified=unverified)",
-     "missing capability 'battle.skill_select' (verified=unverified)"
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -158,7 +172,8 @@
     "executable": false,
     "status": "not_executable",
     "unmet": [
-     "missing capability 'catch.pet' (verified=unverified)"
+     "missing capability 'catch.pet' (verified=unverified)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -236,7 +251,9 @@
     "priority": 74,
     "executable": false,
     "status": "not_executable",
-    "unmet": []
+    "unmet": [
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
+    ]
    },
    {
     "id": "puni.roster.spt_naduolei",
@@ -246,7 +263,9 @@
     "priority": 72,
     "executable": false,
     "status": "not_executable",
-    "unmet": []
+    "unmet": [
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
+    ]
    },
    {
     "id": "puni.roster.spt_saiweier",
@@ -257,7 +276,8 @@
     "executable": false,
     "status": "unknown",
     "unmet": [
-     "missing capability 'puni.panel' (verified=unverified)"
+     "missing capability 'puni.panel' (verified=unverified)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -333,7 +353,8 @@
      "missing capability 'battle.pp_read' (verified=unverified)",
      "missing capability 'battle.stage_read' (verified=unverified)",
      "missing capability 'battle.item_use' (verified=unverified)",
-     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -350,7 +371,8 @@
      "missing capability 'battle.log_read' (verified=unverified)",
      "missing capability 'battle.pp_read' (verified=unverified)",
      "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
-     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -366,7 +388,8 @@
      "missing capability 'battle.switch_pet' (verified=unverified)",
      "missing capability 'battle.log_read' (verified=unverified)",
      "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
-     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -382,7 +405,8 @@
      "missing capability 'battle.switch_pet' (verified=unverified)",
      "missing capability 'battle.pp_read' (verified=unverified)",
      "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)",
-     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -403,7 +427,8 @@
      "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
      "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
      "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)",
-     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -420,7 +445,8 @@
      "missing capability 'battle.stage_read' (verified=unverified)",
      "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
      "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
-     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -436,7 +462,8 @@
      "missing capability 'battle.switch_pet' (verified=unverified)",
      "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
      "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
-     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -469,7 +496,8 @@
      "prerequisite node 'puni.seal.samsara_5' (P2-06 封印 5 轮回（4 条命，125 回合）★最难) not completed: feature 'puni.seal.5' never observed (no world.unlocked entry)",
      "prerequisite node 'puni.seal.eternity_6' (P2-07 封印 6 永恒（「打 60 次」，含义 UNKNOWN）) not completed: feature 'puni.seal.6' never observed (no world.unlocked entry)",
      "prerequisite node 'puni.seal.holy_7' (P2-08 封印 7 圣洁（三次龙之意志 + 灭碎阵）) not completed: feature 'puni.seal.7' never observed (no world.unlocked entry)",
-     "prerequisite node 'puni.roster.team_compose' (P1-15 出战队伍编排) not completed: feature 'team.composed' never observed (no world.unlocked entry)"
+     "prerequisite node 'puni.roster.team_compose' (P1-15 出战队伍编排) not completed: feature 'team.composed' never observed (no world.unlocked entry)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -486,7 +514,8 @@
      "missing capability 'battle.stage_read' (verified=unverified)",
      "missing capability 'battle.item_use' (verified=unverified)",
      "prerequisite node 'puni.truebody.enter' (P3-01 真身进场) not completed: feature 'puni.truebody.entered' never observed (no world.unlocked entry)",
-     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -502,7 +531,8 @@
      "missing capability 'battle.skill_select' (verified=unverified)",
      "missing capability 'battle.log_read' (verified=unverified)",
      "prerequisite node 'puni.truebody.life_1_vacuum' (P3-02 命 1 虚无（萨帕克 感应+精神强化+龙息）) not completed: feature 'puni.truebody.life1' never observed (no world.unlocked entry)",
-     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -520,7 +550,8 @@
      "missing capability 'battle.log_read' (verified=unverified)",
      "prerequisite node 'puni.truebody.life_2_element' (P3-03 命 2 元素（塞维尔 锁敌 + 龙之毒）) not completed: feature 'puni.truebody.life2' never observed (no world.unlocked entry)",
      "prerequisite node 'puni.roster.kelida_awaken' (P1-12 克里 → 克罗达（技能唤醒 + 还原 + 验特防6）) not completed: pet 克罗达 not observed (absence of an observation is not absence of the pet)",
-     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -534,7 +565,8 @@
     "unmet": [
      "missing capability 'battle.skill_select' (verified=unverified)",
      "prerequisite node 'puni.truebody.life_3_energy' (P3-04 命 3 能量（相位移动耗 PP → 克罗达漩涡×7）) not completed: feature 'puni.truebody.life3' never observed (no world.unlocked entry)",
-     "prerequisite node 'puni.roster.kelida_awaken' (P1-12 克里 → 克罗达（技能唤醒 + 还原 + 验特防6）) not completed: pet 克罗达 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.kelida_awaken' (P1-12 克里 → 克罗达（技能唤醒 + 还原 + 验特防6）) not completed: pet 克罗达 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -554,7 +586,8 @@
      "prerequisite node 'puni.roster.buy_flash_pipi' (P1-06 交易行买闪光皮皮 → 闪光波克尔) not completed: pet 闪光波克尔 not observed (absence of an observation is not absence of the pet)",
      "prerequisite node 'puni.roster.buy_kaolu' (P1-07 交易行买卡西达 → 卡奥鲁) not completed: pet 卡奥鲁 not observed (absence of an observation is not absence of the pet)",
      "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
-     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -570,7 +603,8 @@
      "missing capability 'battle.pp_read' (verified=unverified)",
      "missing capability 'battle.item_use' (verified=unverified)",
      "prerequisite node 'puni.truebody.life_5_samsara' (P3-06 命 5 轮回（4 条 HP）★第二难) not completed: feature 'puni.truebody.life5' never observed (no world.unlocked entry)",
-     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -585,7 +619,7 @@
      "missing capability 'battle.item_use' (verified=unverified)",
      "missing capability 'battle.hp_read' (verified=unverified)",
      "missing capability 'battle.pp_read' (verified=unverified)",
-     "state prerequisite 'state.scene_is:BATTLE' not satisfied: scene is WORLD, expected BATTLE (LIVE_VERIFIED)"
+     "state prerequisite 'state.scene_is:BATTLE' not satisfied: scene is DIALOG, expected BATTLE (LIVE_VERIFIED)"
     ]
    },
    {
@@ -599,7 +633,7 @@
     "unmet": [
      "missing capability 'battle.switch_pet' (verified=unverified)",
      "missing capability 'battle.log_read' (verified=unverified)",
-     "state prerequisite 'state.scene_is:BATTLE' not satisfied: scene is WORLD, expected BATTLE (LIVE_VERIFIED)"
+     "state prerequisite 'state.scene_is:BATTLE' not satisfied: scene is DIALOG, expected BATTLE (LIVE_VERIFIED)"
     ]
    },
    {
@@ -612,7 +646,8 @@
     "status": "unknown",
     "unmet": [
      "missing capability 'battle.defeat_branch' (verified=unverified)",
-     "missing capability 'daily.quota' (verified=unverified)"
+     "missing capability 'daily.quota' (verified=unverified)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -624,7 +659,8 @@
     "executable": false,
     "status": "not_executable",
     "unmet": [
-     "missing capability 'battle.long_watch' (verified=unverified)"
+     "missing capability 'battle.long_watch' (verified=unverified)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -639,7 +675,8 @@
      "missing capability 'battle.skill_select' (verified=unverified)",
      "missing capability 'battle.switch_pet' (verified=unverified)",
      "missing capability 'battle.log_read' (verified=unverified)",
-     "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -654,7 +691,8 @@
      "missing capability 'battle.skill_select' (verified=unverified)",
      "missing capability 'battle.pp_read' (verified=unverified)",
      "missing capability 'battle.log_read' (verified=unverified)",
-     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)"
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
+     "state prerequisite 'state.battle_capable' not satisfied: battle capability not observable: session.in_battle / session.scene are not live-verified"
     ]
    },
    {
@@ -672,7 +710,7 @@
    }
   ],
   "ready": [
-   "puni.prepare.level_45"
+   "puni.prepare.wild_45"
   ],
   "completed_nodes": [
    "puni.prepare.level_up",
@@ -695,13 +733,12 @@
   ]
  },
  "summary": {
-  "count": 49,
+  "count": 50,
   "by_status": {
    "not_executable": 29,
    "unknown": 8,
+   "blocked": 7,
    "completed": 4,
-   "blocked": 4,
-   "missing_prereq": 2,
    "ready": 1,
    "missing_capability": 1
   },
@@ -719,20 +756,6 @@
   "state_gaps": [],
   "node_gaps": [
    {
-    "name": "puni.prepare.level_45",
-    "count": 1,
-    "nodes": [
-     "puni.prepare.level_60"
-    ]
-   },
-   {
-    "name": "puni.prepare.level_60",
-    "count": 1,
-    "nodes": [
-     "puni.prepare.level_80"
-    ]
-   },
-   {
     "name": "puni.truebody.enter",
     "count": 1,
     "nodes": [
@@ -741,7 +764,7 @@
    }
   ],
   "ready": [
-   "puni.prepare.level_45"
+   "puni.prepare.wild_45"
   ]
  }
 }
