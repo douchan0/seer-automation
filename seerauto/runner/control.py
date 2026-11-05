@@ -26,9 +26,10 @@ class LockHeld(RuntimeError):
 class RunControl:
     """Cooperative pause/stop via control files.
 
-    * ``touch /tmp/seerauto.pause``  -> the run stops *acting* within one
-      observation tick and waits; remove the file to resume (the runner
-      re-observes before acting again, because the game kept moving).
+    * ``touch /tmp/seerauto.pause``  -> at the next cooperative safe point the
+      runner performs a read-only observation, writes a durable checkpoint, marks
+      the run paused, and waits; remove the file to resume. The game itself may
+      continue advancing, so the runner re-observes before the next action.
     * ``touch /tmp/seerauto.stop``   -> the run finishes the current skill,
       writes a checkpoint and exits cleanly.
     """
