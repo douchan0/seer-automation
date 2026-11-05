@@ -313,6 +313,20 @@ def test_control_stop_writes_checkpoint_and_stops(tmp_path):
     assert ck is not None, "a stop must always leave a recovery checkpoint"
 
 
+def test_user_pause_writes_fresh_checkpoint_and_paused_status(tmp_path):
+    r = _runner(tmp_path)
+    # No client is needed to verify the persistence contract; a live run will
+    # replace this with a fresh read-only observation before writing the checkpoint.
+    r.session = None
+    r._checkpoint_pause()
+    ck = r.store.last_checkpoint(r.run_id)
+    run = r.store.get_run(r.run_id)
+    assert ck is not None
+    assert "pause" in str(ck.get("label", "")).lower()
+    assert run["status"] == "paused"
+    assert "checkpoint saved" in str(run.get("stop_reason", ""))
+
+
 def test_budget_stops_the_loop(tmp_path):
     session = FakeSession()
     planner = FakePlanner(PlanDecision(goal="puni", selected_node="puni.prepare.level_up",
