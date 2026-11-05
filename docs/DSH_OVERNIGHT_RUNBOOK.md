@@ -86,12 +86,12 @@
 PYTHONPATH=.pydeps python3 tools/supervise.py \
     --deadline-at '2026-11-06T06:30:00+08:00' \
     --batch-minutes 8 --batch-battles 8 \
-    --max-no-progress 2
+    --max-no-progress 2 --max-spend 10000
 ```
 
 Supervisor 在 NO_WORK / BLOCKED / 连续无验证进展时**有意退出**，由 DSH 上层切到工程/研究任务；不要用 `while true` 重新执行它。硬截止只停止新任务，不得再延后 24 小时。
 
-项目默认 `goal --max-spend 0` 与现有 Supervisor 用的独立 `game.heal_pet` 可能采用不同预算路径：**务必对普通货币消费策略和实际账单做单独审计**。不要把“用户愿意花金币”误当已实现可靠的资源余额识别。
+上面的 `--max-spend 10000` 仅为说明如何显式放开普通游戏内资源预算的示例数值，**不表示已验证为对应货币单位或合理限额**；应先确认余额、货币种类及计费规则。项目默认 `goal --max-spend 0` 与现有 Supervisor 用的独立 `game.heal_pet` 可能采用不同预算路径：**务必对普通货币消费策略和实际账单做单独审计**。不要把“用户愿意花金币”误当已实现可靠的资源余额识别。
 
 ## 7. 工程验收与 DSH 夜间交付
 
