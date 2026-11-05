@@ -696,9 +696,11 @@ class GoalRunner:
                     escalation="pause",
                     data={"recovery": "heal_pet"}))
                 break
-            self.control.wait_while_paused(
-                on_pause=lambda: self.log("[runner] PAUSED (control file)"),
-                on_resume=lambda s: self.log(f"[runner] RESUMED after {s:.1f}s"))
+            paused_s = self.control.wait_while_paused()
+            if paused_s > 0:
+                # The game may continue advancing while the Agent is paused.
+                # Never evaluate a Skill's condition against the pre-pause world.
+                world = self.observe(full=True)
             if not self._step_when(step.when, world):
                 results.append(SkillResult(skill=step.skill, status=Status.SKIPPED,
                                            reason=f"condition {step.when!r} not met"))
