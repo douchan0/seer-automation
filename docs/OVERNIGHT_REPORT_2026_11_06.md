@@ -32,34 +32,39 @@
 
 ### A.2 实际执行轮数 / 是否提前退出
 
-**阶段 1（19:38–23:10，非真机工程）已完成。** 真机阶段从 23:10 开始，本小节在结束时补数。
+| 指标 | 数值 |
+|---|---|
+| 会话时长 | 19:38 → 06:30（**10 小时 52 分**，比计划窗口长） |
+| 真机窗口 | 23:10 → 06:12（约 7 小时） |
+| Goal Runner 批次 | 5 批（1 次 dry-run + 1 次真机被 NotFrontmost 拒 + 3 次被 supervisor 拉起后失败） |
+| `wild_cycle` 轮次 | **100+ 轮**，237 胜、17236 经验（见 `wild_cycle.jsonl`） |
+| 客户端重启 | 6 次（美术包弹窗 ×2、塔内无法退出 ×2、UI 冻屏 ×2） |
+| 是否有轮"提前退出" | 有，且都是**按设计**：NotFrontmost 拒点、NO_WORK 连击、错误预算、暂停/停止文件 |
+| 是否恢复过 | 是 —— 登录失败 5 次全部恢复（冷却 + 错误退避），冻屏 3 次全部靠重启 + 重新登录恢复 |
+| 是否到达截止时间 | 见 §A.4（结束时更新） |
 
-### A.2.1 22:20 的关键状态：目标图**第一次有东西可排程**
+### A.3 这七小时真正"自主"到什么程度（不吹）
 
-在补进 `puni.prepare.level_45/60/80` 三个"刷塔产经验"节点（完成判据 = 现场复读等级）之前，
-`goal start` 的答案永远是 `nothing schedulable`：46 个节点里 executable 只有 5 个，
-其余是 completed / not_executable / 卡在别的节点上。
+**能自主的**：`wild_cycle` 自己决定"回血→导航→连战→复读等级"，自己按轮次记账，自己按
+绝对截止时间收工，自己被冻屏卡住会重启客户端并重新登录；连续跑过 100+ 轮没有人碰过键盘。
 
-现在（离线用 runner 自己的 `build_request` + `DeterministicPlanner` 复算，不点任何东西）：
+**不能自主的**（必须我介入）：
+- 每次客户端重启后的**登录**，`recover_client` 里调 `login.py` 有时 exit 1（原因未定位），
+  手动跑同一条命令就成功 → 这是下一轮最该修的一个 bug。
+- **UI 冻屏的判定**：现在是"导航连续失败两次"就重启，比较粗暴；理想是识别
+  「请选择背面朝向你的精灵」这句话。
+- **没有任何一个谱尼节点被自主推进**：目标图里能自动跑的只有练级，封印/交易行/阵容全部需要
+  新的真机发现（见 §E）。
 
-```
-$ planner.decide(req)  # allow_input=True
-selected: 'puni.prepare.level_45'  capability: game.farm_tower
-reason:   1 node(s) ready; picked puni.prepare.level_45 (priority 48) ... game.farm_tower is registered (real)
-```
+### A.4 与"跑一轮就宣称完成"的区别
 
-也就是说：**23:10 起的真机批次将真的去刷塔，而不是立刻 NO_WORK。**
-这是本晚对"人工智能能不能自己推进"这个问题最实在的一次回答。
-
-### A.3 三个必须解决的可靠性问题及结论
-
-| # | 问题 | 结论 |
-|---|---|---|
-| 1 | `tools/supervise.py` **在 `sys.path.insert(ROOT)` 之前 import `seerauto`** | 真故障。`python3 tools/supervise.py` 直接 `ModuleNotFoundError`，supervisor 一行都跑不了。已修（PR #1 分支） |
-| 2 | `tools/login.py` 把「综合待命中」当"已进世界" | 真故障。选服界面会把世界 HUD 透在弹窗后面，工具因此**谎报成功并卡在选服页**（19:47 实测）。已改为 `PRIMARY_WORLD_MARKERS` + 连续两帧确认 + 排除选服标记 |
-| 3 | 客户端停在「版本检测中…」 | 不是网络问题。是**独立小窗口**「未检测本地有美术包，是否需要导入？」挡住了主窗口。`seerdx win` 只返回最大窗口，所以只信它的代码会一直等。已记录进 `AGENTS.md §5.6`，并让 `login.py::clear_popup` 用前台点击（`clickpid` 打不中） |
-
----
+这次有明确的、可复核的差异：
+1. **子任务失败不会返回 0**：`goal start` 的退出码按 outcome 区分（PR #1 的语义 + 本地
+   的 `outcome.py`），supervisor 也按 outcome 记账；三次失败的批次都被记成 FAILED 而不是成功。
+2. **planner 无任务 ≠ 完成**：`nothing schedulable` 现在会被 classify 成 `NO_WORK`，
+   而且我改掉了目标图让它**真的有东西可排**（`puni.prepare.wild_45`）。
+3. **每轮都有可复核的产出**：`wild_cycle.jsonl` 每轮写 wins/xp/level/frame，
+   `tower_ledger.jsonl` 每层写 floors_won/前后层数。
 
 ## B. 真实谱尼进度
 
