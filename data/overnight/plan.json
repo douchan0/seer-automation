@@ -1,0 +1,1076 @@
+{
+ "report": {
+  "goal": "puni",
+  "world": {
+   "scene": "WORLD",
+   "run_id": "848ed476d307",
+   "observed_at": ""
+  },
+  "nodes": [
+   {
+    "id": "puni.prepare.market_unlock",
+    "legacy_id": "P0-01",
+    "title": "交易行解锁",
+    "phase": "P0",
+    "priority": 95,
+    "executable": false,
+    "status": "unknown",
+    "unmet": []
+   },
+   {
+    "id": "puni.prepare.daily_exp_pool",
+    "legacy_id": "P0-02",
+    "title": "每日 50 万经验（找 50 级野怪开战即逃跑）",
+    "phase": "P0",
+    "priority": 45,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.escape' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.prepare.exp_boost",
+    "legacy_id": "P0-03",
+    "title": "开启 8 倍经验 / 4 倍学习力",
+    "phase": "P0",
+    "priority": 64,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": []
+   },
+   {
+    "id": "puni.prepare.daily_signin",
+    "legacy_id": "P0-04",
+    "title": "每日签到领奖",
+    "phase": "P0",
+    "priority": 30,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": []
+   },
+   {
+    "id": "puni.prepare.animation_off",
+    "legacy_id": "P0-05",
+    "title": "关闭出招动画（呼吸模式 + 压缩超长出招动画）",
+    "phase": "P0",
+    "priority": 65,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'settings.animation' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.prepare.buy_potions",
+    "legacy_id": "P0-06",
+    "title": "采购体力 / 活力药剂",
+    "phase": "P0",
+    "priority": 60,
+    "executable": false,
+    "status": "unknown",
+    "unmet": [
+     "missing capability 'shop.buy' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.prepare.tower_farm",
+    "legacy_id": "P0-07",
+    "title": "货币与经验积累（刷塔）",
+    "phase": "P0",
+    "priority": 92,
+    "executable": true,
+    "status": "completed",
+    "unmet": []
+   },
+   {
+    "id": "puni.prepare.tutor_room",
+    "legacy_id": "P4-05",
+    "title": "到达辅导员训练室（8 倍经验的前置）",
+    "phase": "P0",
+    "priority": 88,
+    "executable": true,
+    "status": "completed",
+    "unmet": []
+   },
+   {
+    "id": "puni.prepare.level_up",
+    "legacy_id": "P1-01",
+    "title": "将主力精灵练到 36 级",
+    "phase": "P0",
+    "priority": 50,
+    "executable": true,
+    "status": "completed",
+    "unmet": []
+   },
+   {
+    "id": "puni.roster.catch_pipi",
+    "legacy_id": "P1-02",
+    "title": "抓皮皮 → 比波（手下留情）",
+    "phase": "P1",
+    "priority": 40,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'catch.pet' (verified=unverified)",
+     "missing capability 'battle.skill_select' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.roster.catch_jier",
+    "legacy_id": "P1-03",
+    "title": "抓吉尔（火山星，融合副宠）",
+    "phase": "P1",
+    "priority": 55,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'catch.pet' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.roster.fuse_flame",
+    "legacy_id": "P1-04",
+    "title": "融合转生 → 炎火猴 → 魔焰猩猩",
+    "phase": "P1",
+    "priority": 70,
+    "executable": false,
+    "status": "unknown",
+    "unmet": [
+     "missing capability 'fuse.pet' (verified=unverified)",
+     "missing capability 'exp.give' (verified=unverified)",
+     "prerequisite node 'puni.roster.catch_jier' (P1-03 抓吉尔（火山星，融合副宠）) not completed: pet 吉尔 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.roster.buy_salake",
+    "legacy_id": "P1-05",
+    "title": "交易行买萨拉 → 萨帕克",
+    "phase": "P1",
+    "priority": 90,
+    "executable": false,
+    "status": "blocked",
+    "unmet": [
+     "missing capability 'market.buy' (verified=unverified)",
+     "prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no world.unlocked entry)"
+    ]
+   },
+   {
+    "id": "puni.roster.buy_flash_pipi",
+    "legacy_id": "P1-06",
+    "title": "交易行买闪光皮皮 → 闪光波克尔",
+    "phase": "P1",
+    "priority": 76,
+    "executable": false,
+    "status": "blocked",
+    "unmet": [
+     "missing capability 'market.buy' (verified=unverified)",
+     "missing capability 'train.effort' (verified=unverified)",
+     "prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no world.unlocked entry)"
+    ]
+   },
+   {
+    "id": "puni.roster.buy_kaolu",
+    "legacy_id": "P1-07",
+    "title": "交易行买卡西达 → 卡奥鲁",
+    "phase": "P1",
+    "priority": 75,
+    "executable": false,
+    "status": "blocked",
+    "unmet": [
+     "missing capability 'market.buy' (verified=unverified)",
+     "prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no world.unlocked entry)"
+    ]
+   },
+   {
+    "id": "puni.roster.buy_nier",
+    "legacy_id": "P1-08",
+    "title": "交易行买尼尔（塞维尔洗性格材料）",
+    "phase": "P1",
+    "priority": 60,
+    "executable": false,
+    "status": "blocked",
+    "unmet": [
+     "missing capability 'market.buy' (verified=unverified)",
+     "prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no world.unlocked entry)"
+    ]
+   },
+   {
+    "id": "puni.roster.spt_hamoleite",
+    "legacy_id": "P1-09",
+    "title": "SPT 哈莫雷特",
+    "phase": "P1",
+    "priority": 74,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": []
+   },
+   {
+    "id": "puni.roster.spt_naduolei",
+    "legacy_id": "P1-10",
+    "title": "SPT 纳多雷",
+    "phase": "P1",
+    "priority": 72,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": []
+   },
+   {
+    "id": "puni.roster.spt_saiweier",
+    "legacy_id": "P1-11",
+    "title": "塞维尔（龙王殿 / 精元孵化）",
+    "phase": "P1",
+    "priority": 68,
+    "executable": false,
+    "status": "unknown",
+    "unmet": [
+     "missing capability 'puni.panel' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.roster.kelida_awaken",
+    "legacy_id": "P1-12",
+    "title": "克里 → 克罗达（技能唤醒 + 还原 + 验特防6）",
+    "phase": "P1",
+    "priority": 66,
+    "executable": false,
+    "status": "unknown",
+    "unmet": [
+     "missing capability 'catch.pet' (verified=unverified)",
+     "missing capability 'battle.skill_select' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.roster.train_effort",
+    "legacy_id": "P1-13",
+    "title": "学习力训练室刷满",
+    "phase": "P1",
+    "priority": 62,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'train.effort' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.roster.exp_pour",
+    "legacy_id": "P1-14",
+    "title": "经验分配器灌注",
+    "phase": "P1",
+    "priority": 58,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'exp.give' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.roster.team_compose",
+    "legacy_id": "P1-15",
+    "title": "出战队伍编排",
+    "phase": "P1",
+    "priority": 70,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'team.compose' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.seal.entry_nav",
+    "legacy_id": "P2-01",
+    "title": "谱尼入口导航 + 每日额度检查",
+    "phase": "P2",
+    "priority": 84,
+    "executable": true,
+    "status": "completed",
+    "unmet": []
+   },
+   {
+    "id": "puni.seal.vacuum_1",
+    "legacy_id": "P2-02",
+    "title": "封印 1 虚无（萨帕克单挑，约 30 回合）",
+    "phase": "P2",
+    "priority": 82,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.hp_read' (verified=unverified)",
+     "missing capability 'battle.pp_read' (verified=unverified)",
+     "missing capability 'battle.stage_read' (verified=unverified)",
+     "missing capability 'battle.item_use' (verified=unverified)",
+     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.seal.element_2",
+    "legacy_id": "P2-03",
+    "title": "封印 2 元素（哈莫耗 PP + 魔焰烧伤）",
+    "phase": "P2",
+    "priority": 71,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "missing capability 'battle.pp_read' (verified=unverified)",
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+    ]
+   },
+   {
+    "id": "puni.seal.energy_3",
+    "legacy_id": "P2-04",
+    "title": "封印 3 能量（同封印 2）",
+    "phase": "P2",
+    "priority": 70,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+    ]
+   },
+   {
+    "id": "puni.seal.life_4",
+    "legacy_id": "P2-05",
+    "title": "封印 4 生命（猩猩消强 → 哈莫单挑）",
+    "phase": "P2",
+    "priority": 69,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.pp_read' (verified=unverified)",
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)",
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.seal.samsara_5",
+    "legacy_id": "P2-06",
+    "title": "封印 5 轮回（4 条命，125 回合）★最难",
+    "phase": "P2",
+    "priority": 67,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "missing capability 'battle.buff_count' (verified=unverified)",
+     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.buy_flash_pipi' (P1-06 交易行买闪光皮皮 → 闪光波克尔) not completed: pet 闪光波克尔 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.buy_kaolu' (P1-07 交易行买卡西达 → 卡奥鲁) not completed: pet 卡奥鲁 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+    ]
+   },
+   {
+    "id": "puni.seal.eternity_6",
+    "legacy_id": "P2-07",
+    "title": "封印 6 永恒（「打 60 次」，含义 UNKNOWN）",
+    "phase": "P2",
+    "priority": 65,
+    "executable": false,
+    "status": "unknown",
+    "unmet": [
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.stage_read' (verified=unverified)",
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+    ]
+   },
+   {
+    "id": "puni.seal.holy_7",
+    "legacy_id": "P2-08",
+    "title": "封印 7 圣洁（三次龙之意志 + 灭碎阵）",
+    "phase": "P2",
+    "priority": 68,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.fuse_flame' (P1-04 融合转生 → 炎火猴 → 魔焰猩猩) not completed: pet 魔焰猩猩 level UNKNOWN (not observed)"
+    ]
+   },
+   {
+    "id": "puni.seal.boss_pp_empty",
+    "legacy_id": "P2-09",
+    "title": "空 PP 窗口识别（圣光气）【横切】",
+    "phase": "P2",
+    "priority": 88,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.log_read' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.truebody.enter",
+    "legacy_id": "P3-01",
+    "title": "真身进场",
+    "phase": "P3",
+    "priority": 66,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'team.compose' (verified=unverified)",
+     "missing capability 'battle.stage_read' (verified=unverified)",
+     "prerequisite node 'puni.seal.vacuum_1' (P2-02 封印 1 虚无（萨帕克单挑，约 30 回合）) not completed: feature 'puni.seal.1' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.seal.element_2' (P2-03 封印 2 元素（哈莫耗 PP + 魔焰烧伤）) not completed: feature 'puni.seal.2' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.seal.energy_3' (P2-04 封印 3 能量（同封印 2）) not completed: feature 'puni.seal.3' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.seal.life_4' (P2-05 封印 4 生命（猩猩消强 → 哈莫单挑）) not completed: feature 'puni.seal.4' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.seal.samsara_5' (P2-06 封印 5 轮回（4 条命，125 回合）★最难) not completed: feature 'puni.seal.5' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.seal.eternity_6' (P2-07 封印 6 永恒（「打 60 次」，含义 UNKNOWN）) not completed: feature 'puni.seal.6' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.seal.holy_7' (P2-08 封印 7 圣洁（三次龙之意志 + 灭碎阵）) not completed: feature 'puni.seal.7' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.roster.team_compose' (P1-15 出战队伍编排) not completed: feature 'team.composed' never observed (no world.unlocked entry)"
+    ]
+   },
+   {
+    "id": "puni.truebody.life_1_vacuum",
+    "legacy_id": "P3-02",
+    "title": "命 1 虚无（萨帕克 感应+精神强化+龙息）",
+    "phase": "P3",
+    "priority": 60,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.hp_read' (verified=unverified)",
+     "missing capability 'battle.stage_read' (verified=unverified)",
+     "missing capability 'battle.item_use' (verified=unverified)",
+     "prerequisite node 'puni.truebody.enter' (P3-01 真身进场) not completed: feature 'puni.truebody.entered' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.truebody.life_2_element",
+    "legacy_id": "P3-03",
+    "title": "命 2 元素（塞维尔 锁敌 + 龙之毒）",
+    "phase": "P3",
+    "priority": 58,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "prerequisite node 'puni.truebody.life_1_vacuum' (P3-02 命 1 虚无（萨帕克 感应+精神强化+龙息）) not completed: feature 'puni.truebody.life1' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.truebody.life_3_energy",
+    "legacy_id": "P3-04",
+    "title": "命 3 能量（相位移动耗 PP → 克罗达漩涡×7）",
+    "phase": "P3",
+    "priority": 56,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.pp_read' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "prerequisite node 'puni.truebody.life_2_element' (P3-03 命 2 元素（塞维尔 锁敌 + 龙之毒）) not completed: feature 'puni.truebody.life2' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.roster.kelida_awaken' (P1-12 克里 → 克罗达（技能唤醒 + 还原 + 验特防6）) not completed: pet 克罗达 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.truebody.life_4_life",
+    "legacy_id": "P3-05",
+    "title": "命 4 生命（克罗达 偏激防守弹伤）",
+    "phase": "P3",
+    "priority": 54,
+    "executable": false,
+    "status": "unknown",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "prerequisite node 'puni.truebody.life_3_energy' (P3-04 命 3 能量（相位移动耗 PP → 克罗达漩涡×7）) not completed: feature 'puni.truebody.life3' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.roster.kelida_awaken' (P1-12 克里 → 克罗达（技能唤醒 + 还原 + 验特防6）) not completed: pet 克罗达 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.truebody.life_5_samsara",
+    "legacy_id": "P3-06",
+    "title": "命 5 轮回（4 条 HP）★第二难",
+    "phase": "P3",
+    "priority": 52,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.buff_count' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "prerequisite node 'puni.truebody.life_4_life' (P3-05 命 4 生命（克罗达 偏激防守弹伤）) not completed: feature 'puni.truebody.life4' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.roster.buy_salake' (P1-05 交易行买萨拉 → 萨帕克) not completed: pet 萨帕克 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.buy_flash_pipi' (P1-06 交易行买闪光皮皮 → 闪光波克尔) not completed: pet 闪光波克尔 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.buy_kaolu' (P1-07 交易行买卡西达 → 卡奥鲁) not completed: pet 卡奥鲁 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)",
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.truebody.life_6_final",
+    "legacy_id": "P3-07",
+    "title": "命 6（塞维尔 重踏 + 毒循环）",
+    "phase": "P3",
+    "priority": 50,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.pp_read' (verified=unverified)",
+     "missing capability 'battle.item_use' (verified=unverified)",
+     "prerequisite node 'puni.truebody.life_5_samsara' (P3-06 命 5 轮回（4 条 HP）★第二难) not completed: feature 'puni.truebody.life5' never observed (no world.unlocked entry)",
+     "prerequisite node 'puni.roster.spt_saiweier' (P1-11 塞维尔（龙王殿 / 精元孵化）) not completed: pet 塞维尔 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.crosscut.item_use",
+    "legacy_id": "P4-01",
+    "title": "战斗内用药（体力 / 活力）",
+    "phase": "P4",
+    "priority": 80,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.item_use' (verified=unverified)",
+     "missing capability 'battle.hp_read' (verified=unverified)",
+     "missing capability 'battle.pp_read' (verified=unverified)",
+     "state prerequisite 'state.scene_is:BATTLE' not satisfied: scene is WORLD, expected BATTLE (LIVE_VERIFIED)"
+    ]
+   },
+   {
+    "id": "puni.crosscut.switch_pet",
+    "legacy_id": "P4-02",
+    "title": "战斗内换精灵",
+    "phase": "P4",
+    "priority": 79,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "state prerequisite 'state.scene_is:BATTLE' not satisfied: scene is WORLD, expected BATTLE (LIVE_VERIFIED)"
+    ]
+   },
+   {
+    "id": "puni.crosscut.defeat_retry",
+    "legacy_id": "P4-03",
+    "title": "战败 / 重试判定",
+    "phase": "P4",
+    "priority": 78,
+    "executable": false,
+    "status": "unknown",
+    "unmet": [
+     "missing capability 'battle.defeat_branch' (verified=unverified)",
+     "missing capability 'daily.quota' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.crosscut.long_battle_watch",
+    "legacy_id": "P4-04",
+    "title": "长战看护（165 回合、弹窗/断线恢复）",
+    "phase": "P4",
+    "priority": 86,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.long_watch' (verified=unverified)"
+    ]
+   },
+   {
+    "id": "puni.crosscut.attribute_reverse",
+    "legacy_id": "P4-06",
+    "title": "属性反转（纳多雷）—— 6/7 封印与真身 3/5 命的公共机制【横切】",
+    "phase": "P4",
+    "priority": 90,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.switch_pet' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "prerequisite node 'puni.roster.spt_naduolei' (P1-10 SPT 纳多雷) not completed: pet 纳多雷 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.crosscut.pp_drain",
+    "legacy_id": "P4-07",
+    "title": "耗 PP（回避/相位移动）—— 所有谱尼战斗的共同前提【横切】",
+    "phase": "P4",
+    "priority": 89,
+    "executable": false,
+    "status": "not_executable",
+    "unmet": [
+     "missing capability 'battle.skill_select' (verified=unverified)",
+     "missing capability 'battle.pp_read' (verified=unverified)",
+     "missing capability 'battle.log_read' (verified=unverified)",
+     "prerequisite node 'puni.roster.spt_hamoleite' (P1-09 SPT 哈莫雷特) not completed: pet 哈莫雷特 not observed (absence of an observation is not absence of the pet)"
+    ]
+   },
+   {
+    "id": "puni.truebody.detect_life",
+    "legacy_id": "P3-08",
+    "title": "真身命数检测（读「第N命」）",
+    "phase": "P3",
+    "priority": 88,
+    "executable": true,
+    "status": "missing_capability",
+    "unmet": [
+     "missing capability 'observe.truebody_life' (verified=unverified)",
+     "prerequisite node 'puni.truebody.enter' (P3-01 真身进场) not completed: feature 'puni.truebody.entered' never observed (no world.unlocked entry)"
+    ]
+   }
+  ],
+  "ready": [],
+  "capabilities_registered": [
+   "battle.repeat",
+   "budget.stop",
+   "input.click",
+   "map.open",
+   "observe.capture",
+   "observe.ocr",
+   "observe.template",
+   "observe.window",
+   "puni.entrance",
+   "spt.navigate",
+   "spt.panel"
+  ]
+ },
+ "summary": {
+  "count": 46,
+  "by_status": {
+   "not_executable": 29,
+   "unknown": 8,
+   "completed": 4,
+   "blocked": 4,
+   "missing_capability": 1
+  },
+  "capability_gaps": [
+   {
+    "capability": "battle.skill_select",
+    "blocks": 15,
+    "nodes": [
+     "puni.roster.catch_pipi",
+     "puni.roster.kelida_awaken",
+     "puni.seal.vacuum_1",
+     "puni.seal.element_2",
+     "puni.seal.energy_3",
+     "puni.seal.life_4",
+     "puni.seal.eternity_6",
+     "puni.seal.holy_7"
+    ]
+   },
+   {
+    "capability": "battle.log_read",
+    "blocks": 11,
+    "nodes": [
+     "puni.seal.element_2",
+     "puni.seal.energy_3",
+     "puni.seal.samsara_5",
+     "puni.seal.eternity_6",
+     "puni.seal.boss_pp_empty",
+     "puni.truebody.life_2_element",
+     "puni.truebody.life_3_energy",
+     "puni.truebody.life_5_samsara"
+    ]
+   },
+   {
+    "capability": "battle.switch_pet",
+    "blocks": 10,
+    "nodes": [
+     "puni.seal.element_2",
+     "puni.seal.energy_3",
+     "puni.seal.life_4",
+     "puni.seal.samsara_5",
+     "puni.seal.holy_7",
+     "puni.truebody.life_2_element",
+     "puni.truebody.life_3_energy",
+     "puni.truebody.life_5_samsara"
+    ]
+   },
+   {
+    "capability": "battle.pp_read",
+    "blocks": 7,
+    "nodes": [
+     "puni.seal.vacuum_1",
+     "puni.seal.element_2",
+     "puni.seal.life_4",
+     "puni.truebody.life_3_energy",
+     "puni.truebody.life_6_final",
+     "puni.crosscut.item_use",
+     "puni.crosscut.pp_drain"
+    ]
+   },
+   {
+    "capability": "market.buy",
+    "blocks": 4,
+    "nodes": [
+     "puni.roster.buy_salake",
+     "puni.roster.buy_flash_pipi",
+     "puni.roster.buy_kaolu",
+     "puni.roster.buy_nier"
+    ]
+   },
+   {
+    "capability": "battle.stage_read",
+    "blocks": 4,
+    "nodes": [
+     "puni.seal.vacuum_1",
+     "puni.seal.eternity_6",
+     "puni.truebody.enter",
+     "puni.truebody.life_1_vacuum"
+    ]
+   },
+   {
+    "capability": "battle.item_use",
+    "blocks": 4,
+    "nodes": [
+     "puni.seal.vacuum_1",
+     "puni.truebody.life_1_vacuum",
+     "puni.truebody.life_6_final",
+     "puni.crosscut.item_use"
+    ]
+   },
+   {
+    "capability": "catch.pet",
+    "blocks": 3,
+    "nodes": [
+     "puni.roster.catch_pipi",
+     "puni.roster.catch_jier",
+     "puni.roster.kelida_awaken"
+    ]
+   },
+   {
+    "capability": "battle.hp_read",
+    "blocks": 3,
+    "nodes": [
+     "puni.seal.vacuum_1",
+     "puni.truebody.life_1_vacuum",
+     "puni.crosscut.item_use"
+    ]
+   },
+   {
+    "capability": "exp.give",
+    "blocks": 2,
+    "nodes": [
+     "puni.roster.fuse_flame",
+     "puni.roster.exp_pour"
+    ]
+   },
+   {
+    "capability": "train.effort",
+    "blocks": 2,
+    "nodes": [
+     "puni.roster.buy_flash_pipi",
+     "puni.roster.train_effort"
+    ]
+   },
+   {
+    "capability": "team.compose",
+    "blocks": 2,
+    "nodes": [
+     "puni.roster.team_compose",
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "capability": "battle.buff_count",
+    "blocks": 2,
+    "nodes": [
+     "puni.seal.samsara_5",
+     "puni.truebody.life_5_samsara"
+    ]
+   },
+   {
+    "capability": "battle.escape",
+    "blocks": 1,
+    "nodes": [
+     "puni.prepare.daily_exp_pool"
+    ]
+   },
+   {
+    "capability": "settings.animation",
+    "blocks": 1,
+    "nodes": [
+     "puni.prepare.animation_off"
+    ]
+   },
+   {
+    "capability": "shop.buy",
+    "blocks": 1,
+    "nodes": [
+     "puni.prepare.buy_potions"
+    ]
+   },
+   {
+    "capability": "fuse.pet",
+    "blocks": 1,
+    "nodes": [
+     "puni.roster.fuse_flame"
+    ]
+   },
+   {
+    "capability": "puni.panel",
+    "blocks": 1,
+    "nodes": [
+     "puni.roster.spt_saiweier"
+    ]
+   },
+   {
+    "capability": "battle.defeat_branch",
+    "blocks": 1,
+    "nodes": [
+     "puni.crosscut.defeat_retry"
+    ]
+   },
+   {
+    "capability": "daily.quota",
+    "blocks": 1,
+    "nodes": [
+     "puni.crosscut.defeat_retry"
+    ]
+   },
+   {
+    "capability": "battle.long_watch",
+    "blocks": 1,
+    "nodes": [
+     "puni.crosscut.long_battle_watch"
+    ]
+   },
+   {
+    "capability": "observe.truebody_life",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.detect_life"
+    ]
+   }
+  ],
+  "state_gaps": [
+   {
+    "state": "state.scene_is:BATTLE",
+    "blocks": 2,
+    "nodes": [
+     "puni.crosscut.item_use",
+     "puni.crosscut.switch_pet"
+    ]
+   }
+  ],
+  "node_gaps": [
+   {
+    "node": "puni.roster.spt_hamoleite",
+    "blocks": 7,
+    "nodes": [
+     "puni.seal.element_2",
+     "puni.seal.energy_3",
+     "puni.seal.life_4",
+     "puni.seal.samsara_5",
+     "puni.seal.eternity_6",
+     "puni.seal.holy_7",
+     "puni.crosscut.pp_drain"
+    ]
+   },
+   {
+    "node": "puni.roster.fuse_flame",
+    "blocks": 6,
+    "nodes": [
+     "puni.seal.element_2",
+     "puni.seal.energy_3",
+     "puni.seal.life_4",
+     "puni.seal.samsara_5",
+     "puni.seal.eternity_6",
+     "puni.seal.holy_7"
+    ]
+   },
+   {
+    "node": "puni.roster.spt_naduolei",
+    "blocks": 5,
+    "nodes": [
+     "puni.seal.samsara_5",
+     "puni.seal.eternity_6",
+     "puni.seal.holy_7",
+     "puni.truebody.life_5_samsara",
+     "puni.crosscut.attribute_reverse"
+    ]
+   },
+   {
+    "node": "puni.roster.spt_saiweier",
+    "blocks": 5,
+    "nodes": [
+     "puni.seal.samsara_5",
+     "puni.truebody.life_2_element",
+     "puni.truebody.life_3_energy",
+     "puni.truebody.life_5_samsara",
+     "puni.truebody.life_6_final"
+    ]
+   },
+   {
+    "node": "puni.prepare.market_unlock",
+    "blocks": 4,
+    "nodes": [
+     "puni.roster.buy_salake",
+     "puni.roster.buy_flash_pipi",
+     "puni.roster.buy_kaolu",
+     "puni.roster.buy_nier"
+    ]
+   },
+   {
+    "node": "puni.roster.buy_salake",
+    "blocks": 4,
+    "nodes": [
+     "puni.seal.vacuum_1",
+     "puni.seal.samsara_5",
+     "puni.truebody.life_1_vacuum",
+     "puni.truebody.life_5_samsara"
+    ]
+   },
+   {
+    "node": "puni.roster.buy_flash_pipi",
+    "blocks": 2,
+    "nodes": [
+     "puni.seal.samsara_5",
+     "puni.truebody.life_5_samsara"
+    ]
+   },
+   {
+    "node": "puni.roster.buy_kaolu",
+    "blocks": 2,
+    "nodes": [
+     "puni.seal.samsara_5",
+     "puni.truebody.life_5_samsara"
+    ]
+   },
+   {
+    "node": "puni.truebody.enter",
+    "blocks": 2,
+    "nodes": [
+     "puni.truebody.life_1_vacuum",
+     "puni.truebody.detect_life"
+    ]
+   },
+   {
+    "node": "puni.roster.kelida_awaken",
+    "blocks": 2,
+    "nodes": [
+     "puni.truebody.life_3_energy",
+     "puni.truebody.life_4_life"
+    ]
+   },
+   {
+    "node": "puni.roster.catch_jier",
+    "blocks": 1,
+    "nodes": [
+     "puni.roster.fuse_flame"
+    ]
+   },
+   {
+    "node": "puni.seal.vacuum_1",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.seal.element_2",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.seal.energy_3",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.seal.life_4",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.seal.samsara_5",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.seal.eternity_6",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.seal.holy_7",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.roster.team_compose",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.enter"
+    ]
+   },
+   {
+    "node": "puni.truebody.life_1_vacuum",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.life_2_element"
+    ]
+   },
+   {
+    "node": "puni.truebody.life_2_element",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.life_3_energy"
+    ]
+   },
+   {
+    "node": "puni.truebody.life_3_energy",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.life_4_life"
+    ]
+   },
+   {
+    "node": "puni.truebody.life_4_life",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.life_5_samsara"
+    ]
+   },
+   {
+    "node": "puni.truebody.life_5_samsara",
+    "blocks": 1,
+    "nodes": [
+     "puni.truebody.life_6_final"
+    ]
+   }
+  ],
+  "ready": []
+ }
+}

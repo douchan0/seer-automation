@@ -196,6 +196,37 @@ python3 bench/bench_all.py
 5. **窗口选择要选面积最大的那个**，不能取"第一个匹配"：游戏 App 还拥有 52×20 的辅助窗口。
 6. **stage 偏移每次会话都可能变**，必须从画面算，不能写死（`docs/TEMPLATE_CANDIDATES.md` 有实测对比）。
 
+## 5.6 前台焦点、实验性后台输入与用户暂停协议（2026-11-05 真机结论）
+
+- **后台 PID 通道在本客户端上是死的，已验证。** `tools/bg_probe.py` 做了一次
+  受控对照：同一坐标 `(2151,347)`，`clickpid`（`CGEvent.postToPid`）打不开 SPT 面板，
+  前台 `click`（全局 HID）立刻打开。证据：`data/overnight/bg_probe.json`，
+  判定 `BACKGROUND_INPUT_BLOCKED`。所以：
+  - `LiveSession(background=True)` 对**原生窗口**（如美术包弹窗）以外的游戏画布无效；
+  - **后台输入失败时禁止自动退回前台点击**（那会直接抢走用户鼠标）。
+- **不要在用户使用电脑时跑前台真机**。前台路径会真实移动鼠标、占用键盘。
+  先用 `--dry-run` 或只读观察（`./scripts/seerctl wl` / `seerdx shot|ocr`，不点不移动）。
+- **不要在无人值守时依赖 `tools/login.py` 的前台登录**去抢焦点；
+  后台模式下它必须拒绝（`clear_popup(background=True)` 已直接返回 False）。
+- **`版本检测中…` 不是网络问题。** 客户端启动时会弹一个**独立小窗口**
+  「未检测本地有美术包，是否需要导入？」；它开着时主窗口永远停在「版本检测中」。
+  必须先关它（选 `暂不导入`）。`scripts/seerctl wl` 能看到两个 SeerGame 窗口，
+  `seerdx win` 只返回最大的那个，所以只信 `win` 的代码会一直等下去。
+- **「已进入世界」不能靠 `综合待命中` / `公屏聊天` 判断**：选服界面会把世界 HUD
+  透在弹窗后面，两者都会出现。2026-11-05 19:47 `tools/login.py` 因此误报
+  「already in the world」而卡在选服页。判据已改为
+  `PRIMARY_WORLD_MARKERS` + 连续两次确认 + 排除选服/登录标记。
+- 用户说 **“暂停，保存”**：立即创建 `/tmp/seerauto.master.pause`，
+  `python3 -m seerauto goal pause`；Runner 在下一个合作式安全点做**只读重观察**、
+  写 SQLite checkpoint、状态置 `paused` 并等待（`_pause_checkpoint`）。
+  **不要 SIGKILL，不要删 checkpoint，不要自行恢复。**
+- 用户说 **“开始”**：清除暂停标记，`python3 -m seerauto goal resume --allow-input`；
+  输入通道从 run 的 `options.background` 恢复，不会中途切换通道。
+  恢复后必须重新观察场景/几何/战斗/资源再动手。
+- 暂停只冻结**本机 Agent 的输入与派发**；游戏服务器不会暂停，所以恢复必须重观察。
+
+---
+
 ## 6. 当前阻塞项 / 已知缺口
 
 | # | 项 | 状态 |
