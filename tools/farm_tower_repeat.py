@@ -58,6 +58,7 @@ from seerauto.world.model import GameWorldState  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LEDGER_DIR = os.path.join(ROOT, "data", "overnight")
 LEDGER_PATH = os.path.join(LEDGER_DIR, "tower_ledger.jsonl")
+FRAME_DIR = os.path.join(LEDGER_DIR, "frames")
 STATE_PATH = os.path.join(LEDGER_DIR, "tower_state.json")
 PAUSE_FILE = "/tmp/seerauto.pause"
 STOP_FILE = "/tmp/seerauto.stop"
@@ -90,6 +91,7 @@ def load_previous_rounds(path: str = LEDGER_PATH) -> list[dict]:
 
 def append_round(record: RoundRecord, path: str = LEDGER_PATH) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(FRAME_DIR, exist_ok=True)
     with open(path, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
 
@@ -124,6 +126,27 @@ def read_rewards(session) -> list[dict]:
         return parse_reward(session.ocr(min_conf=0.25))
     except Exception:  # noqa: BLE001 - measurement is optional, never fatal
         return []
+
+
+def travel_to_tower(skills, ctx, destination: str = "tutor_room") -> bool:
+    """Get to the room that holds the tower before fighting anything.
+
+    The guardian click is a fixed pixel in the tower; from any other scene it lands
+    on scenery and the round dies with "guardian click did not start a battle".
+    Arrival is checked by the skill itself, not by a sleep.
+    """
+
+    skill = skills.get("game.travel")
+    if skill is None:
+        return False
+    try:
+        res = skill(ctx, destination=destination)
+    except Exception as exc:  # noqa: BLE001
+        log(f"travel raised: {exc}")
+        return False
+    ok = bool((res.after or {}).get("arrived")) and res.status.value == "PASS"
+    log(f"travel {destination}: {res.status.value} {(res.proof or res.reason or '')[:90]}")
+    return ok
 
 
 def read_floor(skills, ctx) -> int | None:
@@ -173,6 +196,14 @@ def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
                             if "经验" in str(r.get("kind") or ""))
         if read_floor_wanted and not dry_run:
             rec.tower_floor_after = read_floor(skills, ctx)
+        # Keep the frame every round: a ledger number nobody can look at is a claim,
+        # not evidence.  One shot per round is ~0.5 s against a ~30 s round.
+        try:
+            path = os.path.join(FRAME_DIR, f"round_{index:03d}.png")
+            ctx.session.client.send("shot", path=path)
+            rec.notes.append(f"frame {path}")
+        except Exception:  # noqa: BLE001 - evidence is best-effort, not fatal
+            pass
         if rec.floors_won and not rec.xp_income:
             rec.notes.append(
                 f"xp not measured on screen; estimate {rec.floors_won * XP_PER_FLOOR_ESTIMATE:.0f}")
@@ -195,6 +226,10 @@ def main() -> int:
                     help="absolute ISO time with tz, e.g. 2026-11-06T06:30:00+08:00")
     ap.add_argument("--max-no-work", type=int, default=2)
     ap.add_argument("--max-failures", type=int, default=3)
+    ap.add_argument("--destination", default="tutor_room",
+                    help="map destination that holds the tower (default tutor_room)")
+    ap.add_argument("--no-travel", action="store_true",
+                    help="assume the client is already inside the tower")
     ap.add_argument("--floor-read-every", type=int, default=0,
                     help="read the painted floor number every N rounds (0 = only the "
                          "first and last round); each read is a slow VLM call")
@@ -244,6 +279,13 @@ def main() -> int:
                                                                    max_actions=120),
                        options={"control": control})
     index = len(previous)
+    if not args.no_travel and not args.dry_run:
+        if not travel_to_tower(skills, ctx, args.destination):
+            log("cannot reach the tower; refusing to burn the night clicking scenery")
+            ledger.stopped_because = "cannot reach the training room"
+            write_state(ledger, {"dry_run": args.dry_run})
+            session.close()
+            return 11
     try:
         while True:
             if control.stop_requested():
@@ -272,6 +314,10 @@ def main() -> int:
             ledger.add(rec)
             append_round(rec)
             write_state(ledger, {"dry_run": args.dry_run})
+            if (not args.no_travel and not args.dry_run
+                    and ledger.failure_streak == 2):
+                log("two rounds failed in a row; re-travelling before the next attempt")
+                travel_to_tower(skills, ctx, args.destination)
             log(f"round {index}: {rec.outcome} won={rec.floors_won} "
                 f"xp={rec.xp_income:.0f} floor {rec.tower_floor_before}"
                 f"->{rec.tower_floor_after}"

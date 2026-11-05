@@ -1,17 +1,17 @@
 {
- "rounds": 2,
+ "rounds": 1,
  "productive_rounds": 0,
  "floors_won": 0,
  "xp_income": 0,
  "spend": {},
- "no_work_streak": 2,
- "failure_streak": 2,
- "stopped_because": "round budget 2 reached",
- "started_at": "2026-11-05T21:33:01",
+ "no_work_streak": 1,
+ "failure_streak": 1,
+ "stopped_because": "round budget 1 reached",
+ "started_at": "2026-11-05T21:40:19",
  "last_round": {
-  "index": 3,
-  "started_at": "2026-11-05T21:33:28+08:00",
-  "ended_at": "2026-11-05T21:33:57+08:00",
+  "index": 4,
+  "started_at": "2026-11-05T21:40:19+08:00",
+  "ended_at": "2026-11-05T21:40:45+08:00",
   "floors_won": 0,
   "tower_floor_before": null,
   "tower_floor_after": null,
@@ -23,10 +23,11 @@
   "outcome": "BLOCKED",
   "interrupted": false,
   "notes": [
-   "guardian click did not start a battle"
+   "guardian click did not start a battle",
+   "frame /Users/ceontou/Documents/code/seer-automation-night/data/overnight/frames/round_004.png"
   ],
   "error": "farm_tower FAIL: guardian click did not start a battle"
  },
  "dry_run": true,
- "updated_at": "2026-11-05T21:33:57+08:00"
+ "updated_at": "2026-11-05T21:40:45+08:00"
 }
