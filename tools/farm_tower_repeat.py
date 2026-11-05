@@ -137,16 +137,33 @@ def travel_to_tower(skills, ctx, destination: str = "tutor_room") -> bool:
     """
 
     skill = skills.get("game.travel")
-    if skill is None:
-        return False
-    try:
-        res = skill(ctx, destination=destination)
-    except Exception as exc:  # noqa: BLE001
-        log(f"travel raised: {exc}")
-        return False
-    ok = bool((res.after or {}).get("arrived")) and res.status.value == "PASS"
-    log(f"travel {destination}: {res.status.value} {(res.proof or res.reason or '')[:90]}")
-    return ok
+    if skill is not None:
+        try:
+            res = skill(ctx, destination=destination)
+        except Exception as exc:  # noqa: BLE001
+            log(f"travel raised: {exc}")
+            res = None
+        if res is not None:
+            ok = bool((res.after or {}).get("arrived")) and res.status.value == "PASS"
+            log(f"travel {destination}: {res.status.value} "
+                f"{(res.proof or res.reason or '')[:90]}")
+            if ok:
+                return True
+    # The map path is the cheap route; the dedicated navigation skill is the retry.
+    # Both are verified skills, so a failure here means the client is not where the
+    # tool thinks it is, and the caller should be told instead of clicking scenery.
+    fallback = skills.get("game.goto_tutor_room")
+    if fallback is not None and destination == "tutor_room":
+        try:
+            res = fallback(ctx)
+        except Exception as exc:  # noqa: BLE001
+            log(f"goto_tutor_room raised: {exc}")
+            return False
+        ok = res.status.value == "PASS"
+        log(f"goto_tutor_room fallback: {res.status.value} "
+            f"{(res.proof or res.reason or '')[:90]}")
+        return ok
+    return False
 
 
 def read_floor(skills, ctx) -> int | None:
