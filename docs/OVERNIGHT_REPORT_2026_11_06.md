@@ -93,6 +93,37 @@
 
 ---
 
+## C.0 独立审查（MiniMax）与随之修复的 12 个 BLOCKER
+
+这是今晚第二重要的成果：**我写的代码在第一轮独立审查里被找出 12 个 BLOCKER，全部复核属实**。
+其中至少 4 个会在真机上直接造成事故或谎报。
+
+| # | 问题 | 后果 | 处置 |
+|---|---|---|---|
+| B-1 | `bg_probe` 用"两个 None 相等"证明"焦点未变" | 在测不到的状态下**宣称测到了** | `front_measured` / `cursor_measured` 先测后比 |
+| B-2 | 任何前置不满足都输出 `BACKGROUND_INPUT_BLOCKED` | 把"客户端在选服页"说成"输入通道被封" | 三态判决，只有"后台失败 + 前台同坐标成功"才叫 BLOCKED |
+| B-3 | 被四处引用的 `bg_probe.json` **从未生成** | 一条项目级结论没有证据文件 | 已加 `--check` 隔离，真机时生成并入库 |
+| B-4 | 刷塔工具把「暂停」当失败直接退出（退出码 10、不写 checkpoint） | 用户的暂停变成"失败" | 改为**等待**，暂停/停止退出码 20 |
+| B-5 | **刷塔工具从来没进过塔**（`travel` 只到训练室），守卫者坐标必然打在布景上 | 整夜空转 | 进塔改由 `game.tower_status` 完成（它才点塔入口） |
+| B-6 | `GiveExp` 标题 OCR 漏读时可能点到自己面板的「确认」 | **重复灌注** | 面板体文字判定 + 不再无条件 dismiss |
+| B-7 | `GiveExp` 写 `pets.active.level`，而节点谓词读 `world.unlocked` | 真机成功也**永远完不成节点** | 改写成 `unlocked["exp_giver.poured"]` |
+| B-8 | `login.py` 把 76% 的「正在加载星球资源」判成"已进世界" | 与 19:47 同类的**假成功** | 新增 `loading` 类且优先级最高 |
+| B-9 | `login.py` 把**窗口内坐标当全局坐标**发给 `drag`，落点在窗口外 740pt | **在动用户的真实鼠标** | 统一走 `geo.global_pt_from_game_px` |
+| B-10 | 服务器编号框从不清空，反复执行会 `1→11→111` | **可能进错服** | cmd+A 清空 + 回读校验 |
+| B-11 | `explain_goal` 的能力缺口数字虚高约 7 倍 | 把整晚路线指向错误的工作量 | 拆成 `unblocks` / `blocks` 两列，并**改掉据此写下的路线判断** |
+| B-12 | `explain_goal` 通过 `open_runner` **再开一条 seerdx 采集流** | 在真机跑着时执行它 = 搞坏正在用的流 | 改为直接读 SQLite，永不 open session |
+
+B-11 直接推翻了我在 21:30 写下的结论。修正后的事实：
+
+- 46 个节点中 `executable=true` 只有 **5 个**，`not_executable=29`；
+- 补 `battle.skill_select` **只会立刻解开 1 个节点**（不是 13 个）；
+- 全图"仅缺一个能力即可开跑"的节点共 **6 个**。
+
+→ 所以今晚不能靠"补能力"打开局面；目标图本身需要重新设计（这也是**下一轮最该做的事**）。
+
+
+---
+
 ## D. MiniMax 研究
 
 ### D.1 任务与产出
@@ -134,9 +165,9 @@
 真身命数读取，以及 7 个测试文件（`test_battle_log.py`、`test_battle_watch.py`、`test_outcome.py`、
 `test_supervise.py`、`test_tower.py`、`test_truebody_life.py`、`test_observe_skills.py` 增量）。
 
-| 项 | PR #1 分支 | 本地 main |
+| 项 | PR #1 分支 | 本地 main（今晚基线） |
 |---|---|---|
-| 测试 | 476 passed / 2 skipped | **613→619 passed / 2 skipped** |
+| 测试 | 476 passed / 2 skipped | **637 passed / 2 skipped**（本轮新增 24 项） |
 | `tools/supervise.py` | ❌ 启动即崩（import 顺序） | ✅ 可运行 |
 | 战役/观察能力 | 缺 | ✅ 有 |
 | `--deadline-at` 绝对截止 | ✅ 独有 | ❌ 缺（已移植） |

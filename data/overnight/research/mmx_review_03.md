@@ -1,0 +1,1 @@
+I'll start by examining the repository state and the changes.
