@@ -30,18 +30,29 @@ import sys
 import time
 from datetime import datetime, timedelta
 
-from seerauto.runner.outcomes import classify_run
-from seerauto.world.store import WorldStore
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# `python3 tools/supervise.py` puts `tools/` on sys.path, not the repo root, so the
+# package import has to happen after the root is inserted. Doing it above this line
+# made the whole supervisor die with ModuleNotFoundError before it ran a single batch.
+sys.path.insert(0, ROOT)
+
+from seerauto.runner.outcomes import classify_run  # noqa: E402
+from seerauto.world.store import WorldStore  # noqa: E402
+
 LOG_PATH = os.path.join(ROOT, "data", "supervisor.log")
 REPORT = os.path.join(ROOT, "data", "supervisor.json")
 
-WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "综合待命中")
-LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险")
-SERVER_MARKERS = ("选择服务器", "快速进入")
+#: 「公屏聊天」/「综合待命中」 are not world proof: the server-selection screen draws
+#: the world HUD behind its own panel.  Trusting them made this supervisor believe a
+#: client parked on 选择服务器 was ready for battle (2026-11-05).
+WORLD_MARKERS = ("卫兵", "当前回合", "XIN计划，启动", "已连接公屏聊天")
+LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险", "忘记密码")
+SERVER_MARKERS = ("选择服务器", "快速进入", "查看全部服务器", "请输入服务器编号")
+#: The art-pack dialog is a separate native window; while it is up the playfield stays
+#: on 「版本检测中…」 forever, which reads like a network hang and is not one.
+POPUP_MARKERS = ("版本检测中",)
+WORLD_CONFIRM_GAP_S = 1.5
 
 
 def log(msg: str) -> None:
@@ -93,6 +104,21 @@ def has(texts: list[str], markers) -> bool:
     return any(m in joined for m in markers)
 
 
+def in_world_texts(texts: list[str]) -> bool:
+    """World means: a world-only marker present AND no modal screen marker present."""
+
+    return has(texts, WORLD_MARKERS) and not has(texts, LOGIN_MARKERS + SERVER_MARKERS)
+
+
+def confirm_in_world(tries: int = 2) -> bool:
+    for i in range(tries):
+        if in_world_texts(screen_text()):
+            return True
+        if i + 1 < tries:
+            time.sleep(WORLD_CONFIRM_GAP_S)
+    return False
+
+
 def ensure_in_game(*, background: bool = False) -> bool:
     """Window up and character in the world. Background mode never foregrounds login."""
 
@@ -101,17 +127,23 @@ def ensure_in_game(*, background: bool = False) -> bool:
         subprocess.run(["open", "-a", "/Applications/SeerGame.app"], check=False)
         time.sleep(20)
     texts = screen_text()
-    if has(texts, WORLD_MARKERS) and not has(texts, LOGIN_MARKERS + SERVER_MARKERS):
+    if in_world_texts(texts):
         return True
+    if has(texts, POPUP_MARKERS):
+        # Let the login tool clear the native art-pack dialog; it OCRs that window
+        # on its own and clicks 暂不导入 with a real HID click.
+        log("playfield is stuck on 版本检测中 (art-pack popup) -> clearing it")
     if background:
         log(f"background mode: not in the world ({texts[:4]}); refusing foreground login")
         return False
     log(f"not in the world ({texts[:4]}) -> running the login tool")
-    code, out = run([sys.executable, "tools/login.py", "--timeout", "180"], timeout=400)
+    code, out = run([sys.executable, "tools/login.py", "--timeout", "240"], timeout=460)
     tail = " | ".join(out.strip().splitlines()[-3:])
     log(f"login tool exited {code}: {tail}")
-    texts = screen_text()
-    return has(texts, WORLD_MARKERS)
+    if code != 0:
+        return False
+    # Never trust the child's exit code alone; re-observe the screen ourselves.
+    return confirm_in_world()
 
 
 def heal_if_needed(*, background: bool = False) -> bool:

@@ -1,0 +1,97 @@
+{
+ "started_at": "2026-11-05T19:51:45+08:00",
+ "checks": {
+  "world_before": true,
+  "spt_absent_before": true,
+  "spt_opened": false,
+  "spt_closed_again": true,
+  "frontmost_unchanged": true,
+  "cursor_unchanged": true,
+  "no_key_events_sent": true
+ },
+ "frames": {},
+ "before": {
+  "front": {
+   "asn": "ASN:0x0-0x6866860:",
+   "name": "SeerGame"
+  },
+  "cursor": {
+   "x": 1274.651123046875,
+   "y": 308.5
+  },
+  "texts": [
+   "公屏聊天 • 在线",
+   "系统：已连接公屏聊天",
+   "小XIN要来挑战我",
+   "吗！",
+   "主播纽斯",
+   "xin计划（1.0.8.9）",
+   "BET",
+   "卫兵",
+   "00",
+   "hello",
+   "11:59"
+  ],
+  "frame": "/Users/ceontou/Documents/code/seer-automation-night/data/overnight/frames/bgprobe_01_before.png"
+ },
+ "mid": {
+  "texts": [
+   "公屏聊天 • 在线",
+   "系统：已连接公屏聊天",
+   "主播纽斯",
+   "xin计划（1.0.8.9）",
+   "XIN先锋队任务",
+   "卫兵",
+   "00",
+   "hello",
+   "11:59"
+  ],
+  "frame": "/Users/ceontou/Documents/code/seer-automation-night/data/overnight/frames/bgprobe_02_panel.png"
+ },
+ "after": {
+  "texts": [
+   "公屏聊天 • 在线",
+   "系统：已连接公屏聊天",
+   "主播纽斯",
+   "xin计划（1.0.8.9）",
+   "BET",
+   "卫兵",
+   "00",
+   "hello",
+   "11:59"
+  ],
+  "frame": "/Users/ceontou/Documents/code/seer-automation-night/data/overnight/frames/bgprobe_03_after.png",
+  "front": {
+   "asn": "ASN:0x0-0x6866860:",
+   "name": "SeerGame"
+  },
+  "cursor": {
+   "x": 1274.651123046875,
+   "y": 308.5
+  }
+ },
+ "verdict": "BACKGROUND_INPUT_BLOCKED",
+ "finished_at": "2026-11-05T19:51:51+08:00",
+ "ab_control": {
+  "why": "A negative probe alone is ambiguous: maybe the coordinates are wrong. So the identical coordinates were re-tested through the foreground lane.",
+  "foreground_click_same_coords": {
+   "opened_spt_panel": true,
+   "evidence_frame": "data/overnight/frames/ab_fg_01.png",
+   "observed_texts": [
+    "SPT 挑战",
+    "帕诺星系",
+    "卡兰星系",
+    "太空站左翼",
+    "蘑菇怪",
+    "击败后解锁交易行资格"
+   ],
+   "closed_again": true
+  },
+  "background_clickpid_same_coords": {
+   "opened_spt_panel": false,
+   "evidence_frame": "data/overnight/frames/bgprobe_02_panel.png"
+  },
+  "conclusion": "PID-directed CGEvent.postToPid does not reach the PepperFlash game canvas, while a global HID click at the same point does. The lane is safe (no focus change, no cursor move) but functionally dead for the playfield, so BACKGROUND_INPUT_BLOCKED is the honest verdict.",
+  "checked_at": "2026-11-05T19:57+08:00"
+ }
+}

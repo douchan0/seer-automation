@@ -50,3 +50,6 @@ data/*.sqlite3-wal
 data/reports/
 data/ai/
 data/live_run.log
+
+# OpenCode/MiniMax sandbox redirect dirs
+.ocxdg/

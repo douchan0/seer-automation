@@ -31,9 +31,36 @@ from seerauto.live import LiveSession, list_game_windows  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "XIN计划，启动", "综合待命中")
+#: Markers that only exist once the character is really standing in the world.
+#: 「公屏聊天」/「综合待命中」 are deliberately **not** here: the server-list screen
+#: renders the world HUD behind its own translucent panel, so both strings are
+#: visible before a server has been chosen.  Trusting them made this tool report
+#: "already in the world" while the client sat on 选择服务器 — a false success that
+#: cost a whole session (2026-11-05, 19:47).
+WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "XIN计划，启动")
+PRIMARY_WORLD_MARKERS = ("卫兵", "当前回合", "XIN计划，启动", "已连接公屏聊天")
 LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险", "忘记密码")
-SERVER_MARKERS = ("选择服务器", "快速进入", "查看全部服务器")
+SERVER_MARKERS = ("选择服务器", "快速进入", "查看全部服务器", "请输入服务器编号")
+ANNOUNCE_MARKERS = ("我已知晓", "我知道了")
+#: Two consecutive observations, this far apart, must agree before we claim the
+#: world.  A single frame during the login->server transition looks world-ish.
+WORLD_CONFIRM_GAP_S = 1.5
+WORLD_CONFIRM_FRAMES = 2
+
+
+def screen_kind(texts) -> str:
+    """Classify one observation.  Order matters: the modal wins over the HUD."""
+
+    joined = " ".join(str(t) for t in texts)
+    if any(m in joined for m in SERVER_MARKERS):
+        return "server"
+    if any(m in joined for m in ANNOUNCE_MARKERS):
+        return "announcement"
+    if any(m in joined for m in LOGIN_MARKERS):
+        return "login"
+    if any(m in joined for m in PRIMARY_WORLD_MARKERS):
+        return "world"
+    return "unknown"
 #: Measured on the 1200x800 client (game_px).
 LOGIN_BTN = (1624, 1157)
 SCROLLBAR_X = 2023
@@ -57,12 +84,23 @@ def has(texts: list[str], markers) -> bool:
     return any(m in joined for m in markers)
 
 
-def clear_popup() -> bool:
-    """The art-pack dialog lives in its own small window and blocks the playfield."""
+def clear_popup(background: bool = False) -> bool:
+    """The art-pack dialog lives in its own small window and blocks the playfield.
+
+    While it is up the main window stays on 「版本检测中…」 forever, which looks like a
+    network hang.  The dialog is a *native* window, so it is OCRd on its own; the click
+    has to be a global HID click because the PID lane (`clickpid`) provably does not
+    reach this client (tools/bg_probe.py: same coordinates, foreground works, PID
+    does not).  In background mode there is nothing safe to do, so say so.
+    """
 
     aux = [w for w in list_game_windows() if w["aux"]]
     if not aux:
         return True
+    if background:
+        log("art-pack popup is up and only a foreground click can dismiss it; "
+            "refusing to steal focus")
+        return False
     win = aux[0]
     path = "/tmp/seerauto_login_aux.png"
     subprocess.run(["screencapture", "-x",
@@ -80,8 +118,9 @@ def clear_popup() -> bool:
             log(f"popup has no 暂不导入: {[i.get('text') for i in items][:6]}")
             return False
         cx = win["x"] + (best["x"] + best["w"] / 2.0) * win["w"]
+        # Vision's y is bottom-up, so the top-left screen y is 1 - (y + h/2).
         cy = win["y"] + (1.0 - (best["y"] + best["h"] / 2.0)) * win["h"]
-        client.send("clickpid", x=cx, y=cy, n=1)
+        client.send("click", x=cx, y=cy, n=1)
         time.sleep(1.6)
         log(f"popup dismissed at ({cx:.0f},{cy:.0f})")
         return True
@@ -143,9 +182,52 @@ def find_server(session: LiveSession, name: str, tries: int = 6) -> tuple[float,
     return None
 
 
+def enter_server_by_number(session: LiveSession, number: int) -> bool:
+    """Type the server id into 请输入服务器编号 and press 快速进入.
+
+    This is the path that actually worked on 2026-11-05: the list is sorted by
+    population and 啦公星 (server 1) is not on the first page, so looking for the
+    name there can never succeed.  The label sits inside the input, so the click is
+    offset to the right of it to land past the placeholder text.
+    """
+
+    items = session.ocr(min_conf=0.2)
+    box = session.find_text(items, ("服务器编号", "请输入服务器"))
+    go = session.find_text(items, ("快速", "进入"))
+    if box is None:
+        log("server-number field not found")
+        return False
+    session.click_px(box["px"][0] + 120, box["px"][1], "focus server number field")
+    time.sleep(0.7)
+    session.client.send("type", text=str(number))
+    time.sleep(0.9)
+    if go is None:
+        items = session.ocr(min_conf=0.2)
+        go = session.find_text(items, ("快速", "进入"))
+    if go is None:
+        log("快速进入 button not found after typing the server number")
+        return False
+    session.click_px(go["px"][0], go["px"][1], f"quick-enter server {number}")
+    log(f"typed server {number} and pressed 快速进入")
+    return True
+
+
+def confirmed_world(session: LiveSession) -> bool:
+    """Claim the world only after PRIMARY_WORLD_MARKERS on two spaced observations."""
+
+    for i in range(WORLD_CONFIRM_FRAMES):
+        if screen_kind(screen_text(session)) != "world":
+            return False
+        if i + 1 < WORLD_CONFIRM_FRAMES:
+            time.sleep(WORLD_CONFIRM_GAP_S)
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--server", default="啦公星")
+    ap.add_argument("--server-number", type=int, default=1,
+                    help="server id for the 请输入服务器编号 quick-enter path")
     ap.add_argument("--timeout", type=float, default=180.0)
     args = ap.parse_args()
 
@@ -153,7 +235,9 @@ def main() -> int:
         log("no game window; relaunching the client")
         subprocess.run(["open", "-a", "/Applications/SeerGame.app"], check=False)
         time.sleep(18)
-    clear_popup()
+    if not clear_popup():
+        log("cannot clear the art-pack popup; not logging in")
+        return 5
 
     session = LiveSession(dry_run=False, enable_input=True).open()
     # The user authorised focus stealing for this session; without it every click
@@ -164,21 +248,30 @@ def main() -> int:
     try:
         while time.time() < deadline:
             texts = screen_text(session)
-            if has(texts, WORLD_MARKERS) and not has(texts, LOGIN_MARKERS + SERVER_MARKERS):
-                log("already in the world")
-                return 0
-            if has(texts, SERVER_MARKERS):
+            kind = screen_kind(texts)
+            if kind == "world":
+                if confirmed_world(session):
+                    log("confirmed in the world")
+                    return 0
+                log("world markers looked transient; re-checking")
+                continue
+            if kind == "server":
                 log("at the server list")
-                pos = find_server(session, args.server)
+                pos = find_server(session, args.server, tries=2)
                 if pos:
                     session.click_px(pos[0], pos[1], f"enter {args.server}")
                     time.sleep(14)
                     continue
-                log("server not found in the list")
-            elif has(texts, ("我已知晓", "我知道了")):
-                click_text_or(session, ("我已知晓", "我知道了"), None, "dismiss announcement")
+                log(f"server {args.server!r} is not on the visible page; "
+                    f"using the number field instead")
+                if enter_server_by_number(session, args.server_number):
+                    time.sleep(16)
+                    continue
+                time.sleep(3)
+            elif kind == "announcement":
+                click_text_or(session, ANNOUNCE_MARKERS, None, "dismiss announcement")
                 time.sleep(1.2)
-            elif has(texts, LOGIN_MARKERS):
+            elif kind == "login":
                 session.client.send("activate")
                 time.sleep(0.5)
                 click_text_or(session, ("登录，开启", "登录", "账密登录"), LOGIN_BTN, "log in",
