@@ -1139,3 +1139,144 @@ __all__ = [
     "enemy_defeated",
     "holy_light_seen",
 ]
+
+
+# --------------------------------------------------------------------------- #
+# 经验分配器 (exp allocator)
+# --------------------------------------------------------------------------- #
+#: The panel is the only route this account has to turn the 积累经验 pool into
+#: levels without fighting, so its numbers are worth reading precisely.
+#: Transcribed from `frames/02_spirit_day1/f_00019.png` (video 1280x720) with a
+#: read-only `seerdx ocr`; every label below appears verbatim in that frame:
+#:
+#:     经验分配器 / 序号：008 / 名字：烈火猴 / 等级：17 / 性格：孤独
+#:     升级所需经验值：316 / 该精灵增加 (500) 点经验值 / 积累经验：18744927
+#:     确认
+#:
+#: The numeric values are separate OCR boxes from their captions, so each one is
+#: paired by geometry, and a caption with no adjacent number is `None` rather
+#: than 0 (rule 1 of this module).
+_EXP_FIELD_LABELS = {
+    "序号": "index",
+    "名字": "name",
+    "等级": "level",
+    "性格": "nature",
+    "升级所需经验值": "xp_to_next",
+    "积累经验": "pool",
+}
+_EXP_PANEL_TITLE = "经验分配器"
+#: A number that belongs to a caption sits on the same line or just below it.
+#: Measured on f_00019: 升级所需经验值 and 316 are ~40 px apart at 2400x1600
+#: scale, while the next unrelated number (the input) is ~180 px away.
+EXP_FIELD_DY = 70.0
+EXP_FIELD_DX = 400.0
+_EXP_NUMBER = re.compile(r"^\d[\d,]*$")
+
+
+def _nearest_number(items: Sequence[Item], label: Box, *, used: set[int],
+                    max_dx: float = EXP_FIELD_DX,
+                    max_dy: float = EXP_FIELD_DY) -> tuple[float | None, int | None]:
+    best: tuple[float, float, int] | None = None
+    for i, item in enumerate(items):
+        if i in used:
+            continue
+        text = text_of(item)
+        if not _EXP_NUMBER.match(text.replace(" ", "")):
+            continue
+        box = box_of(item)
+        if box is None:
+            continue
+        dy = abs(box.cy - label.cy)
+        dx = box.cx - label.cx
+        if dy > max_dy or dx < 0 or dx > max_dx:
+            continue
+        score = dy * 1000.0 + dx
+        if best is None or score < best[0]:
+            best = (score, float(text.replace(",", "")), i)
+    if best is None:
+        return None, None
+    return best[1], best[2]
+
+
+def parse_exp_allocator(items: Iterable[Item]) -> dict[str, Any] | None:
+    """Read the 经验分配器 panel, or ``None`` when it is not on screen.
+
+    Returns ``{"index", "name", "level", "nature", "xp_to_next", "pool",
+    "title_seen"}``.  Every numeric field is ``None`` unless a number was actually
+    adjacent to its caption, because "the OCR dropped it" and "it is zero" are
+    different statements about an account.
+
+    The panel is identified by its title; a bag detail panel that merely contains
+    「等级」 is not this panel and must not be parsed as one.
+    """
+
+    items = list(items)
+    if not any(_EXP_PANEL_TITLE in text_of(i) for i in items):
+        return None
+    out: dict[str, Any] = {name: None for name in _EXP_FIELD_LABELS.values()}
+    out["title_seen"] = True
+    used: set[int] = set()
+    for i, item in enumerate(items):
+        text = text_of(item)
+        for label, field in _EXP_FIELD_LABELS.items():
+            # the caption is matched as a prefix so "等级：17" and a bare "等级" both work
+            if not text.startswith(label):
+                continue
+            inline = text[len(label):]
+            if inline.startswith(("：", ":")):
+                inline = inline[1:]
+            inline = inline.strip()
+            if field in ("name", "nature"):
+                # these are words, not numbers -- they sit on the caption line
+                if inline:
+                    out[field] = inline
+                continue
+            if inline and _EXP_NUMBER.match(inline.replace(" ", "")):
+                out[field] = float(inline.replace(",", ""))
+                used.add(i)
+                continue
+            label_box = box_of(item)
+            if label_box is None:
+                continue
+            value, index = _nearest_number(items, label_box, used=used)
+            if value is not None and index is not None:
+                out[field] = value
+                used.add(index)
+            break
+    # ``该精灵增加 ___ 点经验值`` is the amount that would be poured.  In the
+    # recorded frame the value is its own box ("500g", an OCR misread of 500)
+    # sitting between the caption and 「点经验值」 on the same line, so fall back
+    # to geometry: nearest number to the right, on that line.
+    for item in items:
+        text = text_of(item)
+        if "该精灵增加" not in text:
+            continue
+        leftover = text.split("该精灵增加", 1)[1]
+        match = re.search(r"(\d[\d,]*)", leftover)
+        if match:
+            out["pending_amount"] = float(match.group(1).replace(",", ""))
+            break
+        label_box = box_of(item)
+        if label_box is None:
+            continue
+        best: tuple[float, float] | None = None
+        for other in items:
+            digits = re.match(r"^(\d[\d,]*)\D{0,2}$", text_of(other))
+            if not digits:
+                continue
+            box = box_of(other)
+            if box is None:
+                continue
+            dy = abs(box.cy - label_box.cy)
+            dx = box.cx - label_box.cx
+            if dy > 30.0 or dx <= 0 or dx > EXP_FIELD_DX:
+                continue
+            if best is None or dx < best[0]:
+                best = (dx, float(digits.group(1).replace(",", "")))
+        if best is not None:
+            out["pending_amount"] = best[1]
+        break
+    return out
+
+
+__all__ += ["parse_exp_allocator"]
