@@ -996,8 +996,16 @@ class GoalRunner:
                 except Exception:  # noqa: BLE001
                     pass
             self.store.append_event(run_id, "run.stopped", end_reason)
-            self.store.update_run(run_id, status="paused" if "stop requested" in end_reason
-                                  else "finished", stop_reason=end_reason,
+            final_status = (
+                "paused" if "stop requested" in end_reason or "interrupted" in end_reason
+                else "failed" if "crashed:" in end_reason or "error budget" in end_reason
+                else "blocked" if (
+                    "planner refused" in end_reason or "client is not showing" in end_reason
+                    or end_reason.startswith("blocked:") or "login" in end_reason.lower()
+                    or "not in the game" in end_reason.lower()
+                ) else "finished"
+            )
+            self.store.update_run(run_id, status=final_status, stop_reason=end_reason,
                                   stats={"battles": self._battles, "actions": self._actions,
                                          "errors": self._errors, "loops": self._loops,
                                          "elapsed_s": round(self.elapsed_s, 1)})
