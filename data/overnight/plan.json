@@ -3,7 +3,7 @@
   "goal": "puni",
   "world": {
    "scene": "WORLD",
-   "run_id": "d74ced5da0c9"
+   "run_id": "bf0e12291fdb"
   },
   "nodes": [
    {
@@ -111,6 +111,30 @@
     "executable": true,
     "status": "ready",
     "unmet": []
+   },
+   {
+    "id": "puni.prepare.level_60",
+    "legacy_id": "P0-09",
+    "title": "试炼之塔把主力练到 60 级",
+    "phase": "P0",
+    "priority": 46,
+    "executable": true,
+    "status": "missing_prereq",
+    "unmet": [
+     "prerequisite node 'puni.prepare.level_45' (P0-08 试炼之塔把主力练到 45 级（可重复产经验）) not completed: pet 烈火猴 level 36 < 45 (LIVE_VERIFIED); pet 烈焰猩猩 level UNKNOWN (LIVE_VERIFIED evidence); pet 小火猴 level UNKNOWN (not observed)"
+    ]
+   },
+   {
+    "id": "puni.prepare.level_80",
+    "legacy_id": "P0-10",
+    "title": "试炼之塔把主力练到 80 级",
+    "phase": "P0",
+    "priority": 44,
+    "executable": true,
+    "status": "missing_prereq",
+    "unmet": [
+     "prerequisite node 'puni.prepare.level_60' (P0-09 试炼之塔把主力练到 60 级) not completed: pet 烈火猴 level 36 < 60 (LIVE_VERIFIED); pet 烈焰猩猩 level UNKNOWN (LIVE_VERIFIED evidence); pet 小火猴 level UNKNOWN (not observed)"
+    ]
    },
    {
     "id": "puni.roster.catch_pipi",
@@ -671,12 +695,13 @@
   ]
  },
  "summary": {
-  "count": 47,
+  "count": 49,
   "by_status": {
    "not_executable": 29,
    "unknown": 8,
    "completed": 4,
    "blocked": 4,
+   "missing_prereq": 2,
    "ready": 1,
    "missing_capability": 1
   },
@@ -772,6 +797,20 @@
   ],
   "state_gaps": [],
   "node_gaps": [
+   {
+    "name": "puni.prepare.level_45",
+    "count": 1,
+    "nodes": [
+     "puni.prepare.level_60"
+    ]
+   },
+   {
+    "name": "puni.prepare.level_60",
+    "count": 1,
+    "nodes": [
+     "puni.prepare.level_80"
+    ]
+   },
    {
     "name": "puni.roster.catch_jier",
     "count": 1,

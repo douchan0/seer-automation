@@ -477,6 +477,58 @@ nodes:
       playbook 必须先把「进塔」做掉：game.tower_status 才是点塔入口的那个技能，
       只 travel 到训练室会让守卫者点击打在布景上（2026-11-05 独立审查 B-5）。
       完成判据只认现场复读的等级，历史读数不算（HISTORICAL → None）。
+  - id: puni.prepare.level_60
+    legacy_id: P0-09
+    title: 试炼之塔把主力练到 60 级
+    description: >
+      继续用试炼之塔连战把整条火系主力推到 60 级。塔层 1300 积累经验/层，是野外的 25 倍，
+      这是当前账号唯一可重复的产经验路线。
+    phase: P0
+    priority: 46
+    prerequisites: [puni.prepare.level_45, state.active_pet_level_known]
+    requires_capabilities: [battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_level_at_least
+      args: {pet: 烈焰猩猩, level: 60, aliases: [烈火猴, 小火猴]}
+    status: todo
+    executable: true
+    skill: game.farm_tower
+    skill_inputs: {floors: 3}
+    budget: {max_minutes: 90, max_battles: 30, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/state.md#2026-11-04-夜本轮新标定真机
+    notes: >
+      等级目标来自 docs 的阵容推论（谱尼主力需要较高等级），**不是本服确认过的最小可行等级**；
+      完成判据只认现场复读。塔的可用层数与每日次数上限仍 UNKNOWN（MiniMax 研究报告 §8）。
+
+  - id: puni.prepare.level_80
+    legacy_id: P0-10
+    title: 试炼之塔把主力练到 80 级
+    description: >
+      继续用试炼之塔连战把整条火系主力推到 80 级。塔层 1300 积累经验/层，是野外的 25 倍，
+      这是当前账号唯一可重复的产经验路线。
+    phase: P0
+    priority: 44
+    prerequisites: [puni.prepare.level_60, state.active_pet_level_known]
+    requires_capabilities: [battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_level_at_least
+      args: {pet: 烈焰猩猩, level: 80, aliases: [烈火猴, 小火猴]}
+    status: todo
+    executable: true
+    skill: game.farm_tower
+    skill_inputs: {floors: 3}
+    budget: {max_minutes: 90, max_battles: 30, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/state.md#2026-11-04-夜本轮新标定真机
+    notes: >
+      等级目标来自 docs 的阵容推论（谱尼主力需要较高等级），**不是本服确认过的最小可行等级**；
+      完成判据只认现场复读。塔的可用层数与每日次数上限仍 UNKNOWN（MiniMax 研究报告 §8）。
+
   # ------------------------------------------------------------------ P1 --
   - id: puni.roster.catch_pipi
     legacy_id: P1-02

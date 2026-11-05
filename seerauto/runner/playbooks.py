@@ -66,6 +66,18 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
         Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
              label="连战塔层守卫 3 层"),
     ),
+    "puni.prepare.level_60": (
+        Step("game.travel", {"destination": "tutor_room"}, label="地图→辅导员训练室"),
+        Step("game.tower_status", {}, label="进塔并读「你当前到达第N层」"),
+        Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
+             label="连战塔层守卫 3 层"),
+    ),
+    "puni.prepare.level_80": (
+        Step("game.travel", {"destination": "tutor_room"}, label="地图→辅导员训练室"),
+        Step("game.tower_status", {}, label="进塔并读「你当前到达第N层」"),
+        Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
+             label="连战塔层守卫 3 层"),
+    ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
              label="传送到已验证的刷怪场景"),
