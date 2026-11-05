@@ -202,6 +202,28 @@ def enter_tower_and_read_floor(skills, ctx) -> int | None:
         return None
 
 
+def reset_between_rounds(skills, ctx, destination: str) -> None:
+    """Leave the tower, heal, come back.
+
+    The tower interior has no bottom bar and no map (see FarmTower's docstring), so the
+    heal button is unreachable from inside it.  A long grind therefore has to be able
+    to walk out, refill HP/PP, and walk back in — otherwise the first exhausted pet
+    ends the night with "click landed but no battle started".
+    """
+
+    log("reset: leaving the tower to heal, then re-entering")
+    travel_to_tower(skills, ctx, destination)
+    heal = skills.get("game.heal_pet")
+    if heal is not None:
+        try:
+            res = heal(ctx)
+            log(f"heal: {res.status.value} {(res.proof or res.reason or '')[:90]}")
+        except Exception as exc:  # noqa: BLE001
+            log(f"heal raised: {exc}")
+    travel_to_tower(skills, ctx, destination)
+    log(f"reset: back in the tower, floor={enter_tower_and_read_floor(skills, ctx)}")
+
+
 def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
               dry_run: bool, control=None) -> RoundRecord:
     """One floor-farming pass.  The floor read is opt-in because it is expensive.
@@ -397,8 +419,8 @@ def main() -> int:
                 write_state(ledger, {"dry_run": False})
             if (not args.no_travel and not args.dry_run
                     and ledger.failure_streak == 2):
-                log("two rounds failed in a row; re-travelling before the next attempt")
-                travel_to_tower(skills, ctx, args.destination)
+                log("two rounds failed in a row; resetting (heal + re-enter)")
+                reset_between_rounds(skills, ctx, args.destination)
             log(f"round {index}: {rec.outcome} won={rec.floors_won} "
                 f"xp={rec.xp_income:.0f} floor {rec.tower_floor_before}"
                 f"->{rec.tower_floor_after}"
