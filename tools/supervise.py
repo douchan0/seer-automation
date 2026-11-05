@@ -213,6 +213,12 @@ def main() -> int:
         # PP exhaustion looks like "everything is 0/NN": the same 精灵恢复 that refills
         # HP refills uses, so treat a PP-stop as a reason to heal before the next batch.
 
+        before_store = WorldStore(os.path.join(ROOT, "data", "goalrunner.sqlite3"))
+        try:
+            previous = before_store.latest_run()
+        finally:
+            before_store.close()
+        previous_run_id = previous.get("run_id") if previous else None
         batches += 1
         log(f"batch {batches}: goal run, {args.batch_minutes:.0f} min / "
             f"{args.batch_battles} battles")
@@ -237,7 +243,14 @@ def main() -> int:
             store.close()
         summary = last or {"status": "failed", "stop_reason": "no run record"}
         outcome = classify_run(summary)
-        if code == 124:
+        # The CLI can fail before it ever creates a run. Never reuse the
+        # previous batch's successful status as evidence for this invocation.
+        if summary.get("run_id") == previous_run_id or code not in {
+                0, 10, 11, 12, 130}:
+            outcome = "FAILED"
+        elif code != {"PROGRESS": 0, "NO_WORK": 10, "BLOCKED": 11,
+                     "UNVERIFIED_ACTIVITY": 12, "DRY_RUN": 0,
+                     "INTERRUPTED": 130, "FAILED": 1}.get(outcome, 1):
             outcome = "FAILED"
         entry["run_id"] = summary.get("run_id")
         entry["stop_reason"] = summary.get("stop_reason")
