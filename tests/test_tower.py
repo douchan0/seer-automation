@@ -97,7 +97,10 @@ def test_panel_records_reached_but_never_cleared(no_ui):
     """
 
     world = GameWorldState()
-    session = _Session([{"text": "你当前到达第14层", "conf": 0.9, "px": (500, 300)}])
+    # The number lives inside the 挑战试炼之塔 dialog; without the dialog there is
+    # no reason to believe a stray 「第N层」 anywhere on screen.
+    session = _Session([{"text": "挑战试炼之塔", "conf": 0.9, "px": (900, 300)},
+                        {"text": "你当前到达第14层", "conf": 0.9, "px": (500, 300)}])
     result = ReadTowerFloor().run(_ctx(session, world))
 
     assert result.ok
@@ -107,7 +110,8 @@ def test_panel_records_reached_but_never_cleared(no_ui):
 
 def test_floor_one_means_nothing_cleared_yet(no_ui):
     world = GameWorldState()
-    session = _Session([{"text": "你当前到达第1层", "conf": 0.9, "px": (500, 300)}])
+    session = _Session([{"text": "挑战试炼之塔", "conf": 0.9, "px": (900, 300)},
+                        {"text": "你当前到达第1层", "conf": 0.9, "px": (500, 300)}])
     ReadTowerFloor().run(_ctx(session, world))
     assert world.facts["counters.tower.floors_reached"].value == 1
     assert "counters.tower.floors_cleared" not in world.facts
@@ -136,7 +140,10 @@ def test_panel_leaves_an_existing_cleared_count_alone(no_ui):
     world = GameWorldState()
     world.facts["counters.tower.floors_cleared"] = Fact(
         20, Evidence.live("earlier battle wins"))
-    session = _Session([{"text": "你当前到达第14层", "conf": 0.9, "px": (500, 300)}])
+    # The number lives inside the 挑战试炼之塔 dialog; without the dialog there is
+    # no reason to believe a stray 「第N层」 anywhere on screen.
+    session = _Session([{"text": "挑战试炼之塔", "conf": 0.9, "px": (900, 300)},
+                        {"text": "你当前到达第14层", "conf": 0.9, "px": (500, 300)}])
     ReadTowerFloor().run(_ctx(session, world))
     assert world.facts["counters.tower.floors_cleared"].value == 20
 
@@ -228,3 +235,18 @@ def test_farm_tower_returns_measured_payout_not_a_guess(monkeypatch):
                              max_seconds=30)
     assert result.after["xp"] == 1300.0
     assert result.after["rewards"][0]["kind"] == "经验"
+
+
+def test_a_floor_number_outside_the_dialog_is_not_believed(no_ui):
+    """Live 2026-11-06: a stray 「第490层」 on screen became a PASS.
+
+    The number only means anything inside the 挑战试炼之塔 dialog; reading it from
+    arbitrary text made `tower_status` claim progress it had not observed.
+    """
+
+    world = GameWorldState()
+    session = _Session([{"text": "第490层", "conf": 0.9, "px": (500, 300)},
+                        {"text": "公屏聊天 在线", "conf": 0.9, "px": (100, 100)}])
+    result = ReadTowerFloor().run(_ctx(session, world))
+    assert not result.ok
+    assert "counters.tower.floors_reached" not in world.facts

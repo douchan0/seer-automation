@@ -1840,11 +1840,19 @@ class ReadTowerFloor(_Base):
         floor = None
         vision_only = False
         import re as _re
-        for it in items:
-            m = _re.search(r"第\s*(\d+)\s*层", str(it.get("text") or ""))
-            if m:
-                floor = int(m.group(1))
-                break
+        # Only believe a floor number that came with the tower dialog.  Live 2026-11-06:
+        # this skill reported 「第15层」 from a dialog a *previous* interaction had left
+        # open, and later read 「第490层」 off unrelated text — both false PASSes that
+        # then made the farm click scenery.
+        joined = " ".join(str(it.get("text") or "") for it in items)
+        dialog_up = ("挑战试炼之塔" in joined or "继续挑战" in joined
+                     or "选择楼层" in joined)
+        if dialog_up:
+            for it in items:
+                m = _re.search(r"第\s*(\d+)\s*层", str(it.get("text") or ""))
+                if m:
+                    floor = int(m.group(1))
+                    break
         if floor is None:
             # Inside the tower the entry panel is unreachable, but the floor number is
             # painted on the stairway in artwork (no OCR).  One VLM read of a single
