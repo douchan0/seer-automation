@@ -1867,6 +1867,119 @@ class ReadTowerFloor(_Base):
         )
 
 
+
+class EnterTower(_Base):
+    """Walk through the 挑战试炼之塔 dialog into the tower interior.
+
+    Why this exists (2026-11-05, live): `game.tower_status` clicks the tower entrance
+    and reads 「你当前到达第 N 层」 off the *dialog*, which it then reports as "reached".
+    The dialog is not the tower.  `game.farm_tower` then clicks the guardian's pixel —
+    which lands on the dialog's artwork — and every floor attempt dies with
+    "guardian click landed but no battle started".
+
+    The dialog has exactly two buttons, 「选择楼层」 and 「继续挑战」; entering is the
+    second one.  It is found by its text, never by a coordinate, because the dialog
+    position follows the window.
+    """
+
+    spec = SkillSpec(
+        id="game.enter_tower",
+        kind=SkillKind.ACT,
+        summary="点「继续挑战」穿过试炼之塔对话框，真正进入塔内（可验证：对话框消失）",
+        inputs={},
+        outputs={"entered": "bool", "floor": "int"},
+        max_duration_s=90.0,
+        max_actions=5,
+        requires_input=True,
+        verified="real",
+        evidence=("data/overnight/frames/live_after_batch1.png",),
+    )
+
+    TOWER_ENTRY = (1195, 1150)
+    ENTER_WORDS = ("继续挑战",)
+    #: Strings that only the dialog carries; their absence is how we know we left it.
+    DIALOG_MARKERS = ("挑战试炼之塔", "选择楼层", "继续挑战")
+    FLOOR_RE = None  # set in run(), keeps the import local
+
+    def _dialog_open(self, ctx: SkillContext, items) -> bool:
+        joined = " ".join(str(i.get("text") or "") for i in items)
+        return any(m in joined for m in self.DIALOG_MARKERS)
+
+    def run(self, ctx: SkillContext) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        import re
+
+        s = ctx.session
+        ensure_world(ctx)
+        _dismiss_dialogs(ctx, limit=2)
+        items = s.ocr(min_conf=0.25)
+        opened = self._dialog_open(ctx, items)
+        floor = None
+        for it in items:
+            m = re.search(r"第\s*(\d+)\s*层", str(it.get("text") or ""))
+            if m:
+                floor = int(m.group(1))
+                break
+        if not opened:
+            # Not at the dialog yet: open it the same way tower_status does.
+            ok, why = _click(ctx, self.TOWER_ENTRY, "点击 试炼之塔")
+            if not ok:
+                return SkillResult.blocked(self.id, f"click refused: {why}",
+                                           escalation="pause")
+            time.sleep(2.0)
+            items = s.ocr(min_conf=0.25)
+            opened = self._dialog_open(ctx, items)
+            for it in items:
+                m = re.search(r"第\s*(\d+)\s*层", str(it.get("text") or ""))
+                if m:
+                    floor = int(m.group(1))
+                    break
+        if not opened:
+            return SkillResult.fail(
+                self.id, "试炼之塔 dialog did not open (tower entrance not found)",
+                data={"text": [str(i.get("text")) for i in items][:10]})
+
+        hit = None
+        for it in items:
+            if any(w in str(it.get("text") or "") for w in self.ENTER_WORDS):
+                hit = it
+                break
+        if hit is None:
+            return SkillResult.fail(
+                self.id, "dialog has no 继续挑战 button",
+                data={"text": [str(i.get("text")) for i in items][:12]})
+        ok, why = _click(ctx, hit["px"], "点击「继续挑战」进入试炼之塔")
+        if not ok:
+            return SkillResult.blocked(self.id, f"click refused: {why}",
+                                       escalation="pause")
+        # The dialog disappearing is the observable proof; wait for it, don't sleep.
+        gone = False
+        deadline = time.perf_counter() + 15.0
+        while time.perf_counter() < deadline:
+            time.sleep(0.8)
+            items = s.ocr(min_conf=0.25)
+            if not self._dialog_open(ctx, items):
+                gone = True
+                break
+        if not gone:
+            return SkillResult.fail(self.id, "dialog stayed open after 继续挑战")
+        ctx.world.observations["tower_entered"] = True
+        if floor is not None:
+            ctx.world.observations["tower_floor"] = floor
+        return SkillResult.pass_(
+            self.id,
+            proof=(f"entered the tower interior (dialog closed"
+                   + (f", 第{floor}层" if floor is not None else "") + ")"),
+            after={"entered": True, "floor": floor},
+            changed=True,
+            actions=2,
+            evidence=[Evidence.live("enter_tower", detail="dialog closed after 继续挑战")],
+        )
+
+
+
 class FarmTower(_Base):
     """Fight the 试炼之塔 floor guardian repeatedly — the 25x experience route.
 
@@ -2201,6 +2314,7 @@ def build_act_skills() -> list[Skill]:
         HealPet(),
         DismissStartupPopup(),
         ReadTowerFloor(),
+        EnterTower(),
         FarmTower(),
         GiveExp(),
     ]
@@ -2222,6 +2336,7 @@ __all__ = [
     "HealPet",
     "DismissStartupPopup",
     "ReadTowerFloor",
+    "EnterTower",
     "FarmTower",
     "GiveExp",
     "MAP_DESTINATIONS",
