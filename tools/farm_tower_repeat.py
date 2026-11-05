@@ -373,8 +373,13 @@ def main() -> int:
                             read_floor_wanted=first_or_last, dry_run=args.dry_run,
                             control=control)
             ledger.add(rec)
-            append_round(rec)
-            write_state(ledger, {"dry_run": args.dry_run})
+            if args.dry_run:
+                # A dry run must not pollute the production ledger: those rounds never
+                # clicked anything, and counting them later would read as failures.
+                write_state(ledger, {"dry_run": True, "note": "dry run, not appended"})
+            else:
+                append_round(rec)
+                write_state(ledger, {"dry_run": False})
             if (not args.no_travel and not args.dry_run
                     and ledger.failure_streak == 2):
                 log("two rounds failed in a row; re-travelling before the next attempt")

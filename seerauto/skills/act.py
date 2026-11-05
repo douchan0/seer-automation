@@ -1909,10 +1909,17 @@ class FarmTower(_Base):
             scene = s.scene().scene
             if scene is not Scene.BATTLE:
                 _dismiss_dialogs(ctx, limit=2)
-                _click(ctx, self.GUARDIAN, "点击塔层守护者")
+                clicked, why = _click(ctx, self.GUARDIAN, "点击塔层守护者")
+                if not clicked:
+                    # "The click was refused" and "the click missed" are different
+                    # faults with different fixes; reporting the second for the first
+                    # (dry run / not frontmost) sends the reader hunting scenery.
+                    notes.append(f"guardian click refused: {why[:100]}")
+                    break
                 entered = s.wait_for(lambda f: s.scene(f).scene is Scene.BATTLE, timeout_s=12.0)
                 if not entered:
-                    notes.append("guardian click did not start a battle")
+                    notes.append("guardian click landed but no battle started "
+                                 "(not in the tower interior?)")
                     break
             battle = RunBattle()(ctx, battles=1, max_seconds=240.0)
             if battle.ok:
