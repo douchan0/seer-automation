@@ -1903,9 +1903,18 @@ class FarmTower(_Base):
         rewards_seen: list[dict[str, Any]] = []
         xp_seen = 0.0
         while won < floors and time.perf_counter() - started < max_seconds:
-            if ctx.options.get("control") and ctx.options["control"].stop_requested():
+            control = ctx.options.get("control")
+            if control and control.stop_requested():
                 notes.append("stop requested")
                 break
+            if control:
+                # A pause inside a long grind must take effect here: the runner's own
+                # wait sits *between* skills, and one farm pass can run for minutes.
+                paused_s = control.wait_while_paused()
+                if paused_s > 0:
+                    notes.append(f"resumed after {paused_s:.1f}s")
+                    # The fight may have advanced while we were not looking.
+                    _dismiss_dialogs(ctx, limit=2)
             scene = s.scene().scene
             if scene is not Scene.BATTLE:
                 _dismiss_dialogs(ctx, limit=2)
