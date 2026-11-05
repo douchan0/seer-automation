@@ -186,6 +186,11 @@ def drag_server_list(session: LiveSession, *, down: bool = True) -> None:
     if geo is None:
         log("no geometry; refusing to drag the server list")
         return
+    # A drag is real mouse movement over whatever is frontmost; without the window
+    # raised it drags some other app's content.
+    if not session.ensure_frontmost():
+        log("game window is not frontmost; refusing to drag the desktop")
+        return
     p1 = geo.global_pt_from_game_px(SCROLLBAR_X, top)
     p2 = geo.global_pt_from_game_px(SCROLLBAR_X, bottom)
     session.client.send("drag", x1=p1.x, y1=p1.y, x2=p2.x, y2=p2.y, steps=18)

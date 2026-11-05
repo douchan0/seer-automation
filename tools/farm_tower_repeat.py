@@ -417,8 +417,10 @@ def main() -> int:
             else:
                 append_round(rec)
                 write_state(ledger, {"dry_run": False})
+            # Reset every second consecutive failure, not only on exactly the second:
+            # a `== 2` test never fires again once the streak reaches 3.
             if (not args.no_travel and not args.dry_run
-                    and ledger.failure_streak == 2):
+                    and ledger.failure_streak >= 2 and ledger.failure_streak % 2 == 0):
                 log("two rounds failed in a row; resetting (heal + re-enter)")
                 reset_between_rounds(skills, ctx, args.destination)
             log(f"round {index}: {rec.outcome} won={rec.floors_won} "
