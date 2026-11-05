@@ -1019,6 +1019,22 @@ class ReadPetLevel(_Base):
         )
 
 
+
+def _bottom_bar_visible(session: Any) -> bool | None:
+    """Is the normal scene's bottom bar on screen?
+
+    The tower interior has no bottom bar, which is the cheapest reliable way to tell
+    "inside the tower" from "standing in a room".  ``None`` means the template could
+    not be scored at all, and callers must fall back to their old behaviour.
+    """
+
+    try:
+        probe = session.score(session.latest(), "live_map_icon", (300, 1300, 2100, 1450))
+        return bool(probe.score >= 0.55)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _dismiss_dialogs(ctx: SkillContext, *, limit: int = 4) -> int:
     """Dismiss up to ``limit`` known dialogs, returning how many were clicked.
 
@@ -1816,8 +1832,10 @@ class ReadTowerFloor(_Base):
         s = ctx.session
         ensure_world(ctx)
         _dismiss_dialogs(ctx, limit=3)
-        _click(ctx, self.TOWER_ENTRY, "点击 试炼之塔")
-        time.sleep(2.0)
+        inside = _bottom_bar_visible(s) is False
+        if not inside:
+            _click(ctx, self.TOWER_ENTRY, "点击 试炼之塔")
+            time.sleep(2.0)
         items = s.ocr(min_conf=0.25)
         floor = None
         vision_only = False
@@ -1916,6 +1934,12 @@ class EnterTower(_Base):
         _dismiss_dialogs(ctx, limit=2)
         items = s.ocr(min_conf=0.25)
         opened = self._dialog_open(ctx, items)
+        if not opened and _bottom_bar_visible(s) is False:
+            # Already in the interior (no bottom bar, no dialog): re-entering is a
+            # no-op, and clicking the entrance pixel from in here hits scenery.
+            return SkillResult.pass_(
+                self.id, proof="already inside the tower (no bottom bar, no dialog)",
+                after={"entered": True, "already": True}, changed=False, actions=0)
         floor = None
         for it in items:
             m = re.search(r"第\s*(\d+)\s*层", str(it.get("text") or ""))

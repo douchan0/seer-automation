@@ -253,8 +253,12 @@ def enter_server_by_number(session: LiveSession, number: int) -> bool:
     session.client.send("type", text=str(number))
     time.sleep(0.9)
     if not _field_shows(session, box, str(number)):
-        log(f"server number field does not read {number!r}; refusing to enter")
-        return False
+        # Seen live 2026-11-05 23:58: the box does contain 「1」 (visible in the frame)
+        # while OCR returns no item for it at all, so "unreadable" is not "wrong".
+        # Press 快速进入 anyway; entering the wrong server is caught by the caller's
+        # world check and the run's own node predicates.
+        log(f"server number field is unreadable to OCR; entering anyway "
+            f"(wanted {number})")
     if go is None:
         items = session.ocr(min_conf=0.2)
         go = session.find_text(items, ("快速", "进入"))
@@ -305,6 +309,8 @@ def main() -> int:
     ap.add_argument("--server", default="啦公星")
     ap.add_argument("--server-number", type=int, default=1,
                     help="server id for the 请输入服务器编号 quick-enter path")
+    ap.add_argument("--server-tries", type=int, default=6,
+                    help="how many scroll attempts before falling back to the number field")
     ap.add_argument("--timeout", type=float, default=180.0)
     args = ap.parse_args()
 
@@ -334,7 +340,7 @@ def main() -> int:
                 continue
             if kind == "server":
                 log("at the server list")
-                pos = find_server(session, args.server, tries=2)
+                pos = find_server(session, args.server, tries=args.server_tries)
                 if pos:
                     session.click_px(pos[0], pos[1], f"enter {args.server}")
                     time.sleep(14)
