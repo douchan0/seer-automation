@@ -96,6 +96,7 @@ class RunConfig:
             "goal": self.goal, "planner": self.planner, "dry_run": self.dry_run,
             "allow_input": self.allow_input, "budgets": self.budgets,
             "db_path": self.db_path, "ai_dir": self.ai_dir, "run_id": self.run_id,
+            "background": self.background,
         }
 
 
@@ -783,17 +784,61 @@ class GoalRunner:
         return (status == "completed"), evidence[1], world
 
     # -- the loop ---------------------------------------------------------- #
+    def _checkpoint_pause(self) -> None:
+        """Persist a fresh read-only world snapshot before waiting for the user."""
+        if self.store is None or not self.run_id:
+            return
+        try:
+            world = self.observe(full=True)
+            self.store.save_world(world, run_id=self.run_id,
+                                  note="user pause: fresh read-only observation")
+            self.store.checkpoint(
+                self.run_id, "user pause checkpoint", world,
+                payload={"pause_requested": True, "safe_to_resume": True},
+                verified=False,
+            )
+            self.store.update_run(
+                self.run_id, status="paused",
+                stop_reason="user requested pause; checkpoint saved; waiting for resume",
+            )
+            self.store.append_event(
+                self.run_id, "run.paused",
+                "user pause acknowledged; fresh observation and checkpoint saved",
+            )
+            self.log("[runner] PAUSED: fresh observation checkpoint saved; waiting")
+        except Exception as exc:  # noqa: BLE001 - pause must remain safe even if capture fails
+            try:
+                self.store.update_run(self.run_id, status="paused",
+                                      stop_reason=f"pause requested; checkpoint failed: {exc}")
+                self.store.append_event(self.run_id, "run.pause_checkpoint_failed", str(exc))
+            except Exception:
+                pass
+            self.log(f"[runner] PAUSED but checkpoint capture failed: {exc}")
+
+    def _resume_after_pause(self, elapsed: float) -> None:
+        if self.store is not None and self.run_id:
+            self.store.update_run(self.run_id, status="running", stop_reason=None)
+            self.store.append_event(
+                self.run_id, "run.resumed",
+                f"user resumed after {elapsed:.1f}s; fresh observation required",
+            )
+        self.log(f"[runner] RESUMED after {elapsed:.1f}s; re-observing before next action")
+
     def run(self) -> dict[str, Any]:
         assert self.store is not None and self.graph is not None
         cfg = self.config
         self._started = time.monotonic()
-        self.control.clear()
+        # Clear a stale stop request, but never erase a pause the user has just
+        # requested before this process starts.
+        self.control.clear_stop()
         if self.run_id and self.store.get_run(self.run_id):
             run_id = self.run_id                     # resuming an existing run
         else:
             run_id = self.store.start_run(cfg.goal, cfg.planner, budgets=cfg.budgets,
                                           options=cfg.to_dict())
         self.run_id = run_id
+        self.control.on_pause = self._checkpoint_pause
+        self.control.on_resume = self._resume_after_pause
         self.store.update_run(run_id, status="running")
         self.store.append_event(run_id, "run.started",
                                 f"goal={cfg.goal} planner={cfg.planner} dry_run={cfg.dry_run}",
@@ -812,12 +857,7 @@ class GoalRunner:
                 if self.control.stop_requested():
                     end_reason = "stop requested"
                     break
-                if self.control.wait_while_paused(
-                        on_pause=lambda: (self.log("[runner] PAUSED (control file)"),
-                                          self.store.update_run(run_id, status="paused")),
-                        on_resume=lambda s: (self.log(f"[runner] RESUMED after {s:.1f}s"),
-                                             self.store.update_run(run_id, status="running"))):
-                    pass
+                self.control.wait_while_paused()
 
                 self._loops += 1
                 world = self.observe()
@@ -1129,7 +1169,9 @@ def open_runner(config: RunConfig, *, log: Any = print) -> GoalRunner:
 
             if any(w["aux"] for w in list_game_windows()):
                 log("[runner] auxiliary game window detected — clearing the startup popup")
-                session_probe = LiveSession(dry_run=False, enable_input=True)
+                session_probe = LiveSession(
+                    dry_run=False, enable_input=True, background=config.background
+                )
                 try:
                     session_probe.open()
                 except Exception:  # noqa: BLE001 - the popup may be the only window
