@@ -3,6 +3,7 @@ artifacts/video/
 artifacts/unpacked/
 frames/
 .pydeps/
+.pydeps
 __pycache__/
 *.pyc
 scripts/__pycache__/
