@@ -134,7 +134,10 @@ def run_arm(lane: str, *, check_only: bool) -> dict:
             except Exception as exc:  # noqa: BLE001
                 arm["close_error"] = f"{type(exc).__name__}: {exc}"
         arm["panel_closed"] = closed
-        arm["left_dirty"] = (not closed) and (not arm["spt_opened"])
+        # Dirty = the probe changed the screen and could not undo it.  A panel that
+        # opened and stayed open is exactly that, and the next live run would then
+        # start from a state this tool created.
+        arm["left_dirty"] = bool(arm["spt_opened"]) and not closed
 
         arm["front_after"] = frontmost()
         arm["cursor_after"] = session.client.send("cursorpos") or {}
@@ -165,13 +168,13 @@ def verdict_for(arms: dict) -> tuple[str, list[str], str]:
     failed: list[str] = []
     if not bg:
         return ("PROBE_INCONCLUSIVE", ["no background arm"], "nothing was measured")
+    if "spt_opened" not in bg:
+        return ("PROBE_INCONCLUSIVE", ["no click was performed (--check)"],
+                "observation only; nothing was tested")
     if not bg.get("world_before") or not bg.get("spt_absent_before"):
         return ("PROBE_INCONCLUSIVE", ["not in the world with the panel closed"],
                 "the probe needs a clean world screen before it can attribute a change "
                 "to the input lane")
-    if "spt_opened" not in bg:
-        return ("PROBE_INCONCLUSIVE", ["no click was performed (--check)"],
-                "observation only; nothing was tested")
     if bg.get("click_error"):
         return ("PROBE_INCONCLUSIVE", [f"click refused: {bg['click_error']}"],
                 "the background click never left the process")
