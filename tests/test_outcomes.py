@@ -60,3 +60,9 @@ def test_real_progress_requires_explicit_node_completion_reason():
                "stop_reason": "goal progressed: node completed",
                "stats": {"actions": 12, "battles": 3}}
     assert classify_run(summary) == "PROGRESS"
+
+
+def test_verified_node_progress_survives_a_later_budget_stop():
+    summary = {"status": "finished", "stop_reason": "time budget 8 min reached",
+               "stats": {"actions": 44, "battles": 5, "verified_nodes": 1}}
+    assert classify_run(summary) == "PROGRESS"
