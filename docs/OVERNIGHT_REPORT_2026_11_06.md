@@ -32,7 +32,24 @@
 
 ### A.2 实际执行轮数 / 是否提前退出
 
-（夜间结束时填）
+**阶段 1（19:38–23:10，非真机工程）已完成。** 真机阶段从 23:10 开始，本小节在结束时补数。
+
+### A.2.1 22:20 的关键状态：目标图**第一次有东西可排程**
+
+在补进 `puni.prepare.level_45/60/80` 三个"刷塔产经验"节点（完成判据 = 现场复读等级）之前，
+`goal start` 的答案永远是 `nothing schedulable`：46 个节点里 executable 只有 5 个，
+其余是 completed / not_executable / 卡在别的节点上。
+
+现在（离线用 runner 自己的 `build_request` + `DeterministicPlanner` 复算，不点任何东西）：
+
+```
+$ planner.decide(req)  # allow_input=True
+selected: 'puni.prepare.level_45'  capability: game.farm_tower
+reason:   1 node(s) ready; picked puni.prepare.level_45 (priority 48) ... game.farm_tower is registered (real)
+```
+
+也就是说：**23:10 起的真机批次将真的去刷塔，而不是立刻 NO_WORK。**
+这是本晚对"人工智能能不能自己推进"这个问题最实在的一次回答。
 
 ### A.3 三个必须解决的可靠性问题及结论
 
