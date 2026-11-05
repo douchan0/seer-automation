@@ -1954,6 +1954,149 @@ class FarmTower(_Base):
         )
 
 
+
+class GiveExp(_Base):
+    """Pour 积累经验 into the selected pet through the 经验分配器 panel.
+
+    Why this is worth a skill: the pool grows from every fight, but the *spending*
+    side has never been automated, so the account has been accumulating a currency it
+    cannot use.  `docs/MACHINE_MAP.md` records the panel as NOT FOUND after a 190-point
+    hover sweep, so this skill does not try to open it: it assumes the panel is on
+    screen (a caller can find it with ``tools/probe_panels.py``) and refuses otherwise.
+
+    The verification is self-contained, which is the point: the panel itself prints
+    「等级：N」 and 「积累经验：M」, so after pressing 确认 the *same panel* proves or
+    disproves the effect — 等级 must rise and the pool must fall.  No second
+    navigation, no guess.
+
+    Every click is text-anchored.  The amount box sits between 「该精灵增加」 and
+    「点经验值」, so the midpoint of those two boxes is the input, whatever the panel's
+    absolute position turns out to be.
+    """
+
+    spec = SkillSpec(
+        id="game.give_exp",
+        kind=SkillKind.ACT,
+        summary="经验分配器：读面板→填数值→确认→用面板自身证明等级上升",
+        inputs={"amount": {"type": "int", "required": False},
+                "fraction": {"type": "float", "required": False}},
+        outputs={"pool_before": "float", "pool_after": "float", "level_before": "int",
+                 "level_after": "int", "granted": "float"},
+        max_duration_s=120.0,
+        max_actions=8,
+        requires_input=True,
+        verified="unverified",
+        evidence=("docs/NEXT_SESSION_PLAYBOOK.md#4",),
+    )
+
+    #: Never pour the whole pool in one shot: the panel's per-pour cap is unknown for
+    #: this server (the guide video shows 1,000,000 once).  A caller can pass an
+    #: explicit amount to override.
+    DEFAULT_FRACTION = 0.5
+
+    @staticmethod
+    def _panel(ctx: SkillContext) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+        from .parsers import parse_exp_allocator
+
+        items = ctx.session.ocr(min_conf=0.2)
+        return parse_exp_allocator(items), items
+
+    def run(self, ctx: SkillContext, amount: int | None = None,
+            fraction: float | None = None) -> SkillResult:
+        guard = self.guard(ctx)
+        if guard:
+            return guard
+        panel, items = self._panel(ctx)
+        if panel is None:
+            return SkillResult(skill=self.id, status=Status.SKIPPED, changed=False,
+                               reason="经验分配器 panel is not on screen")
+        pool = panel.get("pool")
+        level_before = panel.get("level")
+        if not pool or pool <= 0:
+            return SkillResult(skill=self.id, status=Status.SKIPPED, changed=False,
+                               reason=f"积累经验 pool is {pool!r}; nothing to pour",
+                               after={"pool_before": pool})
+        want = int(amount) if amount else int(pool * float(
+            self.DEFAULT_FRACTION if fraction is None else fraction))
+        want = max(1, min(want, int(pool)))
+        # Locate the input comfortably between the two captions.  ``box_of`` is used
+        # rather than ``item["px"]`` because it works from either the canonical
+        # pixel pair or Vision's normalised box, and the canonical space *is* the
+        # 2400x1600 game_px space that click_px expects.
+        from .parsers import box_of
+
+        add_box = next((box_of(i) for i in items
+                        if "该精灵增加" in str(i.get("text") or "")), None)
+        tail_box = next((box_of(i) for i in items
+                         if "点经验值" in str(i.get("text") or "")), None)
+        if add_box is None or tail_box is None:
+            return SkillResult.fail(
+                self.id, "cannot locate the amount row (该精灵增加 / 点经验值 missing)")
+        input_px = ((add_box.cx + tail_box.cx) / 2.0, (add_box.cy + tail_box.cy) / 2.0)
+        ok, why = _click(ctx, input_px, "聚焦「该精灵增加」输入框")
+        if not ok:
+            return SkillResult.fail(self.id, f"cannot focus the amount field: {why}")
+        time.sleep(0.4)
+        ctx.session.client.send("type", text=str(want))
+        time.sleep(0.6)
+        after_typing, _ = self._panel(ctx)
+        typed = None if after_typing is None else after_typing.get("pending_amount")
+        if typed is None or int(typed) != want:
+            return SkillResult.fail(
+                self.id, f"typed {want} but the panel reads {typed!r}; not pressing 确认")
+        ok, why = self._click_text(ctx, ("确认", "確定", "确定"))
+        if not ok:
+            return SkillResult.fail(self.id, f"cannot press 确认: {why}")
+        time.sleep(1.2)
+        after_panel, _ = self._panel(ctx)
+        if after_panel is None:
+            # Only clear a dialog when the panel actually disappeared.  Dismissing
+            # unconditionally would find the panel's own 确认 button and pour twice.
+            _dismiss_dialogs(ctx, limit=1)
+            time.sleep(0.8)
+            after_panel, _ = self._panel(ctx)
+        level_after = None if after_panel is None else after_panel.get("level")
+        pool_after = None if after_panel is None else after_panel.get("pool")
+        rose = (level_before is not None and level_after is not None
+                and level_after > level_before)
+        spent = (pool - pool_after) if (pool_after is not None) else None
+        if rose or (spent is not None and spent > 0):
+            if level_after is not None:
+                ctx.world.facts["pets.active.level"] = Fact(
+                    level_after, Evidence.live(
+                        f"经验分配器 panel re-read after pouring {want}"))
+            return SkillResult(
+                skill=self.id, status=Status.PASS,
+                reason="level rose" if rose else "pool fell (level read missing)",
+                after={"pool_before": pool, "pool_after": pool_after,
+                       "level_before": level_before, "level_after": level_after,
+                       "granted": spent},
+                changed=True,
+                proof=(f"poured {want}; 等级 {level_before}->{level_after}; "
+                       f"积累经验 {pool:.0f}->{pool_after if pool_after is not None else '?'}"))
+        return SkillResult(
+            skill=self.id, status=Status.FAIL, changed=False,
+            reason=(f"panel shows no change after 确认 (等级 {level_before}->{level_after}, "
+                    f"pool {pool}->{pool_after})"),
+            after={"pool_before": pool, "pool_after": pool_after,
+                   "level_before": level_before, "level_after": level_after})
+
+    @staticmethod
+    def _click_text(ctx: SkillContext, words) -> tuple[bool, str]:
+        from .parsers import box_of
+
+        items = ctx.session.ocr(min_conf=0.2)
+        for word in words:
+            for item in items:
+                if word in str(item.get("text") or ""):
+                    box = box_of(item)
+                    if box is None:
+                        continue
+                    return _click(ctx, (box.cx, box.cy), f"点击「{word}」")
+        return False, f"no text matching {words}"
+
+
+
 def build_act_skills() -> list[Skill]:
     return [
         OpenPanel(),
@@ -1972,6 +2115,7 @@ def build_act_skills() -> list[Skill]:
         DismissStartupPopup(),
         ReadTowerFloor(),
         FarmTower(),
+        GiveExp(),
     ]
 
 
@@ -1992,6 +2136,7 @@ __all__ = [
     "DismissStartupPopup",
     "ReadTowerFloor",
     "FarmTower",
+    "GiveExp",
     "MAP_DESTINATIONS",
     "build_act_skills",
     "ICON",
