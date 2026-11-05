@@ -196,6 +196,18 @@ python3 bench/bench_all.py
 5. **窗口选择要选面积最大的那个**，不能取"第一个匹配"：游戏 App 还拥有 52×20 的辅助窗口。
 6. **stage 偏移每次会话都可能变**，必须从画面算，不能写死（`docs/TEMPLATE_CANDIDATES.md` 有实测对比）。
 
+
+## 5.6 前台焦点、实验性后台输入与用户暂停协议
+
+- 默认前台输入会占用系统焦点；`tools/ctl.py` 的 click/type/key、`tools/battle_run.py` 和 `tools/login.py` 含前台激活/前台输入路径。用户要同时使用 Mac 时，不得擅自调用这些路径。
+- 已有实验性无焦点通道：`LiveSession(background=True)` → `clickpid`/`movepid` → `CGEvent.postToPid`。CLI 可通过 `goal start --background` 或 `tools/supervise.py --background` opt-in。它不应移动真实鼠标，也不应调用 `activate`。
+- **不要把实验通道当成可用事实。** `docs/DELIVERY_2026_11_04.md` 的真机结论是：PID 定向事件对原生窗口有效，但对本客户端的 Flash/PepperFlash 游戏画布无效。必须先做可逆、无消耗的后台点击探针，同时证明游戏状态变化、frontmost App 不变、真实鼠标坐标不变，才能标记 `BACKGROUND_INPUT_LIVE_PASS`。
+- 探针失败时标记 `BACKGROUND_INPUT_BLOCKED`；不允许自动退回全局 HID/前台点击，不允许私有 API、内存注入或反作弊规避。改用暂停协议或只做不需要 GUI 输入的研究/开发。
+- 后台模式遇到登录/验证码时不调用 `tools/login.py`；它会激活客户端。不得为了后台运行而自动抢焦点。
+- 用户说 **“暂停，保存”**：DSH 停止派发所有新任务/子 Agent，写入 `/tmp/seerauto.master.pause`，并执行 `PYTHONPATH=.pydeps python3 -m seerauto goal pause`。Runner 在下一个合作式安全点做只读重观察、写 SQLite checkpoint、更新为 `paused`，保持执行器锁并等待；不要 kill 进程。
+- 用户说 **“开始”**：清除 `/tmp/seerauto.master.pause`，执行 `PYTHONPATH=.pydeps python3 -m seerauto goal resume --allow-input --planner <原planner>`。后台模式默认从该 run 保存的配置恢复。恢复后必须重新观察游戏场景、窗口几何、战斗和资源，再执行下一步。
+- 暂停只冻结 Agent 的输入与任务派发；**不保证冻结游戏服务器或游戏内计时**。恢复必须重观察，不得沿用暂停前的旧场景假设。
+
 ## 6. 当前阻塞项 / 已知缺口
 
 | # | 项 | 状态 |
