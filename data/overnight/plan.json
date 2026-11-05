@@ -103,6 +103,16 @@
     "unmet": []
    },
    {
+    "id": "puni.prepare.level_45",
+    "legacy_id": "P0-08",
+    "title": "试炼之塔把主力练到 45 级（可重复产经验）",
+    "phase": "P0",
+    "priority": 48,
+    "executable": true,
+    "status": "ready",
+    "unmet": []
+   },
+   {
     "id": "puni.roster.catch_pipi",
     "legacy_id": "P1-02",
     "title": "抓皮皮 → 比波（手下留情）",
@@ -637,7 +647,9 @@
     ]
    }
   ],
-  "ready": [],
+  "ready": [
+   "puni.prepare.level_45"
+  ],
   "completed_nodes": [
    "puni.prepare.level_up",
    "puni.prepare.tower_farm",
@@ -659,12 +671,13 @@
   ]
  },
  "summary": {
-  "count": 46,
+  "count": 47,
   "by_status": {
    "not_executable": 29,
    "unknown": 8,
    "completed": 4,
    "blocked": 4,
+   "ready": 1,
    "missing_capability": 1
   },
   "schedulable_but_missing_capability": 1,
@@ -809,6 +822,8 @@
     ]
    }
   ],
-  "ready": []
+  "ready": [
+   "puni.prepare.level_45"
+  ]
  }
 }

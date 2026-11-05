@@ -225,8 +225,12 @@ def enter_server_by_number(session: LiveSession, number: int) -> bool:
     time.sleep(0.7)
     # Clear first: this runs on every pass through the server screen, and without a
     # clear the field accumulates ("1" -> "11" -> "111") and 快速进入 goes elsewhere.
-    session.client.send("key", code=0)          # cmd+A
-    time.sleep(0.25)
+    # Backspace, NOT "cmd+A": seerdx's `key` op posts a bare virtual-key code with no
+    # modifiers, so code 0 types the letter "a" into the field instead of selecting it.
+    for _ in range(6):
+        session.client.send("key", code=51)     # 51 = delete/backspace
+        time.sleep(0.08)
+    time.sleep(0.3)
     session.client.send("type", text=str(number))
     time.sleep(0.9)
     if not _field_shows(session, box, str(number)):

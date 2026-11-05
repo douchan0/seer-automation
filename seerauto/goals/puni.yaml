@@ -448,6 +448,35 @@ nodes:
       另：连战约 20 场就会把全员打到 0 血（见 docs/BLOCKER_PET_HP.md），所以真实用法是
       '打 15~20 场 → 回血 → resume'，而不是一口气 45 场。"
     notes: "这是本图当前唯一 executable 的节点（判据：动作集合完全落在 Round 4 真机验证过的能力里，且场景已可达）：动作集合 = 已验证的 battle.repeat（野外连战）+ observe.* + input.click，且场景已在 Round 4 真机到达过。等级事实已过期：docs/state.md（2026-11-02）看到主力是烈火猴（小火猴已进化），等级只从窗口徽章读到「约 15 级」，此后未复读 → HISTORICAL，predicate 返回 None（历史证据不能完成任务），必须现场重读等级。进化链 小火猴→烈火猴→(36)烈焰猩猩 改用 aliases 覆盖，避免进化改名让节点永远判不完成；「36 级是否本服一致」仍未验证。文档里它属于 P1（docs §4.2），本图归入 P0 因为它是所有阵容节点的公共前置。"
+  - id: puni.prepare.level_45
+    legacy_id: P0-08
+    title: 试炼之塔把主力练到 45 级（可重复产经验）
+    description: >
+      用试炼之塔连战（每层约 1300 积累经验，是野外 52/场的 25 倍）把火系主力从 36 级推到 45 级。
+      与 P1-01 的区别是产线不同：P1-01 走野外连战，本节点走塔层守卫连战，单位时间经验高一个数量级。
+    phase: P0
+    priority: 48
+    prerequisites: [puni.prepare.tower_farm, state.active_pet_level_known]
+    requires_capabilities: [battle.repeat]
+    completion:
+      type: verified_account_state
+      predicate: pet_level_at_least
+      args: {pet: 烈焰猩猩, level: 45, aliases: [烈火猴, 小火猴]}
+    status: todo
+    executable: true
+    skill: game.farm_tower
+    skill_inputs: {floors: 3}
+    budget: {max_minutes: 45, max_battles: 12, max_spend: 0}
+    on_failure: pause_and_replan
+    evidence:
+      - docs/state.md#2026-11-04-夜本轮新标定真机
+      - docs/DELIVERY_2026_11_04.md
+    notes: >
+      真机依据：2026-11-04 夜实测塔层胜利给约 1300 积累经验，塔已到第 14 层；
+      2026-11-05 结果状态 xp_to_next=4689（Lv36），所以 45 级约需 9 级 × 4 层 ≈ 36 层。
+      playbook 必须先把「进塔」做掉：game.tower_status 才是点塔入口的那个技能，
+      只 travel 到训练室会让守卫者点击打在布景上（2026-11-05 独立审查 B-5）。
+      完成判据只认现场复读的等级，历史读数不算（HISTORICAL → None）。
   # ------------------------------------------------------------------ P1 --
   - id: puni.roster.catch_pipi
     legacy_id: P1-02

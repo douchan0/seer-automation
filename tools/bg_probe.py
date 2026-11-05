@@ -97,12 +97,21 @@ def shot(session: LiveSession, tag: str) -> str:
 
 
 def run_arm(lane: str, *, check_only: bool) -> dict:
-    """Open the SPT panel through one input lane and record what happened."""
+    """Open the SPT panel through one input lane and record what happened.
+
+    The foreground arm *must* raise the window (that is what "foreground" means, and
+    `LiveSession.click_px` refuses with NotFrontmost otherwise).  The background arm
+    must not: raising the window there would invalidate the very invariant it measures.
+    """
 
     background = lane == "background"
     session = LiveSession(dry_run=False, enable_input=True, background=background).open()
     arm: dict = {"lane": lane}
     try:
+        if not background and not check_only:
+            session.client.send("activate")
+            time.sleep(0.8)
+            arm["activated"] = True
         arm["front_before"] = frontmost()
         arm["cursor_before"] = session.client.send("cursorpos") or {}
         arm["texts_before"] = texts(session)
@@ -232,6 +241,14 @@ def main() -> int:
         "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
     os.makedirs(os.path.dirname(args.json), exist_ok=True)
+    if (not args.check and verdict == "PROBE_INCONCLUSIVE"
+            and os.path.exists(args.json) and not os.environ.get("BG_PROBE_FORCE")):
+        # Never let a weaker run erase a stronger piece of evidence.
+        print(f"refusing to overwrite {args.json} with an INCONCLUSIVE result "
+              "(set BG_PROBE_FORCE=1 to override)")
+        print(json.dumps({"verdict": verdict, "basis": basis, "failed": failed},
+                         ensure_ascii=False, indent=1))
+        return 4
     with open(args.json, "w", encoding="utf-8") as fh:
         json.dump(evidence, fh, ensure_ascii=False, indent=1)
     print(json.dumps({"verdict": verdict, "basis": basis, "failed": failed,

@@ -59,6 +59,13 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
     "puni.truebody.detect_life": (
         Step("game.observe_truebody_life", {}, label="读画面正中「第N命（X封印）」"),
     ),
+    # 刷塔产经验：必须先进塔（game.tower_status 点塔入口），否则守卫者点击打在布景上。
+    "puni.prepare.level_45": (
+        Step("game.travel", {"destination": "tutor_room"}, label="地图→辅导员训练室"),
+        Step("game.tower_status", {}, label="进塔并读「你当前到达第N层」"),
+        Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
+             label="连战塔层守卫 3 层"),
+    ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
              label="传送到已验证的刷怪场景"),
