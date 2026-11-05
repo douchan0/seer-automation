@@ -1202,7 +1202,9 @@ def open_runner(config: RunConfig, *, log: Any = print) -> GoalRunner:
 
             if any(w["aux"] for w in list_game_windows()):
                 log("[runner] auxiliary game window detected — clearing the startup popup")
-                session_probe = LiveSession(dry_run=False, enable_input=True)
+                session_probe = LiveSession(
+                    dry_run=False, enable_input=True, background=config.background
+                )
                 try:
                     session_probe.open()
                 except Exception:  # noqa: BLE001 - the popup may be the only window
