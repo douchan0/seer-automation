@@ -72,7 +72,7 @@
 | 美术包弹窗关闭 | — | — | ✅ 手动关过一次（19:46） | 真机成功，但**尚无一键自动化**（`clickpid` 无效已改前台点击，待复验） |
 | Runner 暂停 checkpoint | ✅ 3 项 | — | 待真机 | — |
 | `--deadline-at` 绝对截止 | ✅ 4 项 | — | — | 单元级 |
-| `tools/farm_tower_repeat.py` | ✅ 13 项（账本） | — | 待真机 | — |
+| `tools/farm_tower_repeat.py` | ✅ 16 项（账本） | — | ⚠️ 只有 dry-run（4/4 `BLOCKED`，符合预期） | **未跑通**：首版从未进塔（只到训练室），已改为 `game.tower_status` 先进塔 |
 | `parse_exp_allocator` 面板解析 | ✅ 5 项（真帧 fixture） | ✅ 用视频帧 | 待真机（面板未找到） | — |
 | `game.give_exp` 经验灌注 | ✅ 6 项 | — | 待真机（面板未找到） | — |
 

@@ -16,3 +16,15 @@
 - 21:40 MiniMax 研究完成（35k 字符）：Xin 服机制不能套页游；谱尼每日 4 次；碎片→精元→孵化；经验分配器是唯一免战斗升级通道。
 - 21:45 `mmx vision` 离线读塔层 = **14**（真帧 `artifacts/round6/tower_floor14.png`），验证 `game.tower_status` 的 VLM 通道可用。
 - 21:47 报告骨架 + 快照工具落盘。
+- 21:58 **独立审查（MiniMax）回来 12 个 BLOCKER**，全部复核属实，已逐条修：
+  - `bg_probe` 判决比证据强（`None == None` 也算"焦点未变"；任何前置不满足都报 BLOCKED）→ 改成同代码 A/B 双通道 + 三态判决。
+  - `explain_goal` 会 `open_runner` → 再开一条 seerdx 采集流，**在真机跑着时执行它会搞坏正在用的流** → 改为直接读 SQLite。
+  - `explain_goal` 的能力缺口数字虚高约 7 倍（`battle.skill_select` 实际只"立刻解开 1 个节点"，不是 13 个）→ 已拆分 `unblocks` / `blocks` 两列，并同步改掉据此写下的路线判断。
+  - `login.py` 滚动条把**窗口内坐标当全局坐标**发出去，落点在窗口外 740pt → 已经在动用户的鼠标。
+  - `login.py` 服务器编号输入框从不清空，反复执行会变成 `1→11→111`，可能进错服。
+  - `login.py` 把 76% 的「正在加载星球资源」判成"已进世界"（因为含 `XIN计划，启动`）。
+  - `farm_tower_repeat` **从没进过塔**（`travel` 只到训练室），4 轮账本全败的真因。
+  - 账本的轮次分类依赖"有没有备注"，而工具每轮都加备注 → NO_WORK 全被记成 FAILED。
+  - `GiveExp` 标题漏读时可能点到自己面板的「确认」→ 重复灌注。
+  - `GiveExp` 写的是 `pets.active.level`，而节点谓词读的是 `world.unlocked`，真机成功也永远完不成节点。
+- 22:05 全部修复完成，**636 tests passed / 2 skipped**。

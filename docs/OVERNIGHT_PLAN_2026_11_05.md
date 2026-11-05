@@ -30,8 +30,8 @@
 | 后台输入探针（§14.2） | ✅ **`BACKGROUND_INPUT_BLOCKED`**，含 A/B 对照（见 `data/overnight/bg_probe.json`） |
 | 登录工具误判修复 | ✅ 「综合待命中」不再算"已进世界"；补上按服务器编号进入（真机实测有效） |
 | 美术包弹窗 | ✅ 手动关闭成功一次；`login.py::clear_popup` 由 `clickpid` 改为前台点击 |
-| 可重复刷塔工作流 | ✅ `tools/farm_tower_repeat.py` + 纯账本 `seerauto/farm/ledger.py` |
-| 目标图解释器 | ✅ `tools/explain_goal.py`（回答"为什么 planner 拒绝"） |
+| 可重复刷塔工作流 | ⚠️ **仅单测 + dry-run**。`tools/farm_tower_repeat.py` + `seerauto/farm/ledger.py` 在 dry-run 下 4/4 轮报告 `guardian click refused`（输入禁用，符合预期）。**真机尚未跑通**：第一版从没进过塔（只到训练室），已按审查意见改为先 `game.tower_status` 进塔。 |
+| 目标图解释器 | ✅ `tools/explain_goal.py`（回答"为什么 planner 拒绝"；已改为不 open session，避免开第二条采集流） |
 | 经验分配器面板解析 | ✅ `parse_exp_allocator`，用视频真帧做 fixture，离线测试通过 |
 
 ---
