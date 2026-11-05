@@ -1,5 +1,48 @@
 # NEXT_ACTIONS — 下一轮执行计划
 
+## 【2026-11-06 晨】下一轮计划（最新，优先读这一段）
+
+> 本轮做了什么、证据在哪：`docs/OVERNIGHT_REPORT_2026_11_06.md`、
+> `docs/OVERNIGHT_PLAN_2026_11_05.md`（作战计划）、`docs/LIVE_RUN_PROTOCOL.md`（真机照抄步骤）。
+
+### 一句话状态
+
+**目标图第一次有东西可排程**（新增 `puni.prepare.level_45/60/80` 刷塔练级节点，
+`goal start --allow-input` 会被 planner 选中并执行），
+**但"能力 → 节点"的依赖方向是错的**：46→49 个节点里 executable 只有 6 个，
+补一个能力最多只立刻解开 1 个节点（不是 13 个，见审查 B-11）。
+
+### P0 · 重建目标图的依赖形状（不做这个，后面每一步都卡）
+
+| 任务 | 做什么 | 验收 |
+|---|---|---|
+| 0.1 | 把 `not_executable: 29` 逐个归类：**缺前置节点** / **缺能力** / **机制 UNKNOWN** | 一张表，每行给出"补什么会解开它" |
+| 0.2 | 对"缺能力"的节点，先补**已实现但未登记**的能力（`battle.skill_select`/`pp_read`/`hp_read`/`log_read` 都在代码里跑着，只是 `verified: unverified`） | 真机打一场 → 用 `capability_demonstrated` 谓词登记，并把证据路径写进 yaml |
+| 0.3 | 删掉/降级"按设计不该跑"的节点，让 planner 的 blocker 列表只剩真问题 | `goal start` 的拒绝理由 ≤ 5 条且每条可行动 |
+
+### P1 · 找到经验分配器（唯一"不打架也能升级"的通道）
+
+`docs/MACHINE_MAP.md` 仍记 NOT FOUND。三条线索按序：
+1. 精灵背包**顶部**图标行（`tools/probe_panels.py --region 900,440,2350,580 --step 64`）；
+2. 战斗结算界面（先打一场，再扫结算画面）；
+3. 未进入过的 `动力室` / `精灵中心`。
+
+找到后：`parse_exp_allocator` 已能读面板，`game.give_exp` 已能灌注并**用面板自身证明**等级上升。
+验收：面板前后 `等级` / `积累经验` 两个数都变，且 `world.unlocked["exp_giver.poured"]` 被写入。
+
+### P2 · 交易行前置的真机读数（只读，30 分钟）
+
+打开交易行 → OCR 前置条目原文与进度；打开 SPT 面板 → 确认「谱尼 / 太空站左翼」卡片状态。
+验收：`puni.prepare.market_unlock` 从 `unknown` 变成有具体证据的状态。
+
+### P3 · PR #1 的去留（需要人决定）
+
+PR #1 基于过期 `origin/main`，缺本地 10 个 commit / +15065 行；其独有修复（绝对截止、
+退出码透传、暂停 checkpoint、resume 保留通道）已移植到 `night/20261105-puni-v2`。
+建议：**关闭 PR #1**，或让它重基于本地 `main` 后重开。不要直接合并。
+
+---
+
 ## 【2026-11-05 夜】本轮结束后的下一轮计划（最新，优先读这一段）
 
 > 本轮做了什么、证据在哪：`docs/OVERNIGHT_REPORT_2026_11_05.md`。
