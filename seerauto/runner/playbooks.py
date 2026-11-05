@@ -68,6 +68,10 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
         Step("game.enter_tower", {}, label="点「继续挑战」进入塔内"),
         Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
              label="连战塔层守卫 3 层"),
+        # Re-read the level from the pet panel: the battle HUD alone does not move
+        # `pets.*.level` in the world, so without this the node's own completion
+        # predicate can never see the progress the grind just earned.
+        Step("game.read_active_pet_level", {}, label="回读出战精灵等级/升级所需经验"),
     ),
     "puni.prepare.level_60": (
         Step("game.travel", {"destination": "tutor_room"}, label="地图→辅导员训练室"),
@@ -77,6 +81,10 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
         Step("game.enter_tower", {}, label="点「继续挑战」进入塔内"),
         Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
              label="连战塔层守卫 3 层"),
+        # Re-read the level from the pet panel: the battle HUD alone does not move
+        # `pets.*.level` in the world, so without this the node's own completion
+        # predicate can never see the progress the grind just earned.
+        Step("game.read_active_pet_level", {}, label="回读出战精灵等级/升级所需经验"),
     ),
     "puni.prepare.level_80": (
         Step("game.travel", {"destination": "tutor_room"}, label="地图→辅导员训练室"),
@@ -86,6 +94,10 @@ PLAYBOOKS: dict[str, tuple[Step, ...]] = {
         Step("game.enter_tower", {}, label="点「继续挑战」进入塔内"),
         Step("game.farm_tower", {"floors": 3, "max_seconds": 600},
              label="连战塔层守卫 3 层"),
+        # Re-read the level from the pet panel: the battle HUD alone does not move
+        # `pets.*.level` in the world, so without this the node's own completion
+        # predicate can never see the progress the grind just earned.
+        Step("game.read_active_pet_level", {}, label="回读出战精灵等级/升级所需经验"),
     ),
     "puni.prepare.level_up": (
         Step("game.navigate_spt_boss", {"boss": FARM_BOSS}, when="no_monster_idle",
