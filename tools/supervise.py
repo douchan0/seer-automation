@@ -30,6 +30,9 @@ import sys
 import time
 from datetime import datetime, timedelta
 
+from seerauto.runner.outcomes import classify_run
+from seerauto.world.store import WorldStore
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -112,7 +115,7 @@ def heal_if_needed() -> bool:
     """Ask the heal skill to top the pet up; harmless when HP is already fine."""
 
     code, out = run([sys.executable, "-c", HEAL_SNIPPET], timeout=300)
-    ok = "healed" in out.lower() or "hp alive" in out.lower() or code == 0
+    ok = code == 0 and ("hp fine (" in out.lower() or "healed: pass" in out.lower())
     log(f"heal pass exited {code}: {' | '.join(out.strip().splitlines()[-2:])}")
     return ok
 
@@ -150,40 +153,63 @@ s.close()
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--minutes", type=float, default=240.0)
-    ap.add_argument("--until", default=None, help="HH:MM local deadline, e.g. 06:30")
+    ap.add_argument("--until", default=None, help="HH:MM local deadline (legacy)")
+    ap.add_argument("--deadline-at", default=None,
+                    help="Absolute ISO timestamp with timezone, e.g. 2026-11-06T06:30:00+08:00")
+    ap.add_argument("--max-no-progress", type=int, default=2)
     ap.add_argument("--batch-minutes", type=float, default=8.0)
     ap.add_argument("--batch-battles", type=int, default=8)
     ap.add_argument("--planner", default="deterministic")
     ap.add_argument("--max-failures", type=int, default=4)
     args = ap.parse_args()
 
-    if args.until:
-        now = datetime.now()
+    if args.deadline_at:
+        deadline = datetime.fromisoformat(args.deadline_at)
+        if deadline.tzinfo is None or deadline.utcoffset() is None:
+            ap.error("--deadline-at must include timezone offset")
+        now = datetime.now(deadline.tzinfo)
+        if deadline <= now:
+            ap.error("--deadline-at is in the past; refusing to roll over")
+    elif args.until:
+        # Legacy clock-only option; do not reuse after the planned night.
+        now = datetime.now().astimezone()
         hh, mm = (int(x) for x in args.until.split(":"))
         target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
         if target <= now:
+            if now.hour < 12:
+                ap.error("--until already passed this morning; use --deadline-at")
             target += timedelta(days=1)
         deadline = target
     else:
-        deadline = datetime.now() + timedelta(minutes=args.minutes)
+        deadline = datetime.now().astimezone() + timedelta(minutes=args.minutes)
 
     log("=" * 68)
     log(f"supervisor start; deadline {deadline:%m-%d %H:%M}")
 
     batches = 0
     failures = 0
+    no_progress = 0
     history: list[dict] = []
-    while datetime.now() < deadline:
+    terminal_outcome = "DEADLINE_REACHED"
+    while datetime.now(deadline.tzinfo) < deadline:
+        if os.path.exists("/tmp/seerauto.stop"):
+            terminal_outcome = "INTERRUPTED"
+            log("stop file present; ending supervisor without clearing user request")
+            break
         started = time.time()
         if not ensure_in_game():
             failures += 1
             log(f"cannot reach the world (failure {failures}/{args.max_failures})")
             if failures >= args.max_failures:
+                terminal_outcome = "BLOCKED"
                 log("giving up: the client will not come back on its own")
                 break
             time.sleep(30)
             continue
-        heal_if_needed()
+        if not heal_if_needed():
+            terminal_outcome = "BLOCKED"
+            log("healing could not be verified; refusing another live batch")
+            break
         # PP exhaustion looks like "everything is 0/NN": the same 精灵恢复 that refills
         # HP refills uses, so treat a PP-stop as a reason to heal before the next batch.
 
@@ -204,24 +230,51 @@ def main() -> int:
             heal_if_needed()
         entry = {"batch": batches, "code": code, "elapsed_s": round(time.time() - started, 1),
                  "tail": tail}
-        code2, status = run([sys.executable, "-m", "seerauto", "goal", "status"], timeout=90)
-        entry["status"] = [ln for ln in status.splitlines() if ln.strip()][:6]
+        store = WorldStore(os.path.join(ROOT, "data", "goalrunner.sqlite3"))
+        try:
+            last = store.latest_run()
+        finally:
+            store.close()
+        summary = last or {"status": "failed", "stop_reason": "no run record"}
+        outcome = classify_run(summary)
+        if code == 124:
+            outcome = "FAILED"
+        entry["run_id"] = summary.get("run_id")
+        entry["stop_reason"] = summary.get("stop_reason")
+        entry["stats"] = summary.get("stats")
+        entry["outcome"] = outcome
         history.append(entry)
-        if code != 0:
+        log(f"batch {batches} outcome={outcome} reason={entry['stop_reason']}")
+        if outcome in ("NO_WORK", "BLOCKED", "INTERRUPTED"):
+            terminal_outcome = outcome
+        elif outcome == "FAILED":
             failures += 1
-        else:
+            if failures >= args.max_failures:
+                terminal_outcome = "FAILED"
+        elif outcome == "PROGRESS":
+            no_progress = 0
             failures = 0
-        with open(REPORT, "w", encoding="utf-8") as fh:
+        else:
+            no_progress += 1
+            if no_progress >= args.max_no_progress:
+                terminal_outcome = "NO_WORK"
+                log("consecutive batches without verified node progress; handing control back")
+        os.makedirs(os.path.dirname(REPORT), exist_ok=True)
+        tmp_report = REPORT + ".tmp"
+        with open(tmp_report, "w", encoding="utf-8") as fh:
             json.dump({"deadline": deadline.isoformat(timespec="seconds"),
                        "batches": batches, "failures": failures,
+                       "no_progress": no_progress,
+                       "outcome": terminal_outcome if terminal_outcome != "DEADLINE_REACHED" else "RUNNING",
                        "history": history}, fh, ensure_ascii=False, indent=1)
-        if failures >= args.max_failures:
-            log("stopping after repeated failures")
+        os.replace(tmp_report, REPORT)
+        if terminal_outcome != "DEADLINE_REACHED":
             break
         time.sleep(3)
 
-    log(f"supervisor done: {batches} batches, {failures} consecutive failures")
-    return 0
+    log(f"supervisor stopped: outcome={terminal_outcome} batches={batches}, failures={failures}")
+    return {"DEADLINE_REACHED": 0, "NO_WORK": 10, "BLOCKED": 11,
+            "INTERRUPTED": 130, "FAILED": 1}.get(terminal_outcome, 1)
 
 
 if __name__ == "__main__":
