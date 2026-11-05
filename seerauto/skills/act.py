@@ -1844,9 +1844,16 @@ class FarmTower(_Base):
         started = time.perf_counter()
         notes: list[str] = []
         while won < floors and time.perf_counter() - started < max_seconds:
-            if ctx.options.get("control") and ctx.options["control"].stop_requested():
+            control = ctx.options.get("control")
+            if control and control.stop_requested():
                 notes.append("stop requested")
                 break
+            if control:
+                paused_s = control.wait_while_paused()
+                if paused_s > 0:
+                    notes.append(f"resumed after {paused_s:.1f}s; re-observing tower")
+            # Read the scene after any pause; the battle may have advanced while
+            # the automation was waiting for the user.
             scene = s.scene().scene
             if scene is not Scene.BATTLE:
                 _dismiss_dialogs(ctx, limit=2)
