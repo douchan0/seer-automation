@@ -93,8 +93,8 @@ def has(texts: list[str], markers) -> bool:
     return any(m in joined for m in markers)
 
 
-def ensure_in_game() -> bool:
-    """Window up and character in the world.  Returns True when ready."""
+def ensure_in_game(*, background: bool = False) -> bool:
+    """Window up and character in the world. Background mode never foregrounds login."""
 
     if not game_windows():
         log("no game window -> relaunching the client")
@@ -103,6 +103,9 @@ def ensure_in_game() -> bool:
     texts = screen_text()
     if has(texts, WORLD_MARKERS) and not has(texts, LOGIN_MARKERS + SERVER_MARKERS):
         return True
+    if background:
+        log(f"background mode: not in the world ({texts[:4]}); refusing foreground login")
+        return False
     log(f"not in the world ({texts[:4]}) -> running the login tool")
     code, out = run([sys.executable, "tools/login.py", "--timeout", "180"], timeout=400)
     tail = " | ".join(out.strip().splitlines()[-3:])
@@ -111,10 +114,13 @@ def ensure_in_game() -> bool:
     return has(texts, WORLD_MARKERS)
 
 
-def heal_if_needed() -> bool:
-    """Ask the heal skill to top the pet up; harmless when HP is already fine."""
+def heal_if_needed(*, background: bool = False) -> bool:
+    """Ask the heal skill to top the pet up; background mode never activates the app."""
 
-    code, out = run([sys.executable, "-c", HEAL_SNIPPET], timeout=300)
+    cmd = [sys.executable, "-c", HEAL_SNIPPET]
+    if background:
+        cmd.append("--background")
+    code, out = run(cmd, timeout=300)
     ok = code == 0 and ("hp fine (" in out.lower() or "healed: pass" in out.lower())
     log(f"heal pass exited {code}: {' | '.join(out.strip().splitlines()[-2:])}")
     return ok
@@ -123,11 +129,13 @@ def heal_if_needed() -> bool:
 HEAL_SNIPPET = r"""
 import sys; sys.path.insert(0, '.')
 from seerauto.live import LiveSession
+background = "--background" in sys.argv
 from seerauto.skills.base import SkillContext, Budget
 from seerauto.skills.act import build_act_skills, ensure_world, _dismiss_dialogs
 from seerauto.world.model import GameWorldState
-s = LiveSession(dry_run=False, enable_input=True).open()
-s.client.send('activate'); 
+s = LiveSession(dry_run=False, enable_input=True, background=background).open()
+if not background:
+    s.client.send('activate')
 ctx = SkillContext(session=s, world=GameWorldState(), dry_run=False, allow_input=True,
                    budget=Budget(max_duration_s=180, max_actions=12))
 ensure_world(ctx); _dismiss_dialogs(ctx, limit=3)
@@ -161,6 +169,8 @@ def main() -> int:
     ap.add_argument("--batch-battles", type=int, default=8)
     ap.add_argument("--max-spend", type=float, default=0.0,
                     help="Goal Runner spending budget per batch; 0 by default")
+    ap.add_argument("--background", action="store_true",
+                    help="use experimental PID-routed input; never fall back to foreground")
     ap.add_argument("--planner", default="deterministic")
     ap.add_argument("--max-failures", type=int, default=4)
     args = ap.parse_args()
@@ -187,19 +197,34 @@ def main() -> int:
 
     log("=" * 68)
     log(f"supervisor start; deadline {deadline:%m-%d %H:%M}")
+    log(f"input lane: {'BACKGROUND PID (experimental; no foreground fallback)' if args.background else 'FOREGROUND (may take focus)'}")
 
     batches = 0
     failures = 0
     no_progress = 0
     history: list[dict] = []
     terminal_outcome = "DEADLINE_REACHED"
+    pause_file = "/tmp/seerauto.pause"
+    stop_file = "/tmp/seerauto.stop"
+
+    def wait_if_paused() -> bool:
+        if not os.path.exists(pause_file):
+            return not os.path.exists(stop_file)
+        log("PAUSED: saving current run state and waiting for the user to say start")
+        while os.path.exists(pause_file):
+            if os.path.exists(stop_file):
+                return False
+            time.sleep(0.2)
+        log("RESUMED: re-observing the game before any further action")
+        return not os.path.exists(stop_file)
+
     while datetime.now(deadline.tzinfo) < deadline:
-        if os.path.exists("/tmp/seerauto.stop"):
+        if not wait_if_paused():
             terminal_outcome = "INTERRUPTED"
-            log("stop file present; ending supervisor without clearing user request")
+            log("stop requested while paused; ending supervisor")
             break
         started = time.time()
-        if not ensure_in_game():
+        if not ensure_in_game(background=args.background):
             failures += 1
             log(f"cannot reach the world (failure {failures}/{args.max_failures})")
             if failures >= args.max_failures:
@@ -208,7 +233,10 @@ def main() -> int:
                 break
             time.sleep(30)
             continue
-        if not heal_if_needed():
+        if not wait_if_paused():
+            terminal_outcome = "INTERRUPTED"
+            break
+        if not heal_if_needed(background=args.background):
             terminal_outcome = "BLOCKED"
             log("healing could not be verified; refusing another live batch")
             break
@@ -224,11 +252,14 @@ def main() -> int:
         batches += 1
         log(f"batch {batches}: goal run, {args.batch_minutes:.0f} min / "
             f"{args.batch_battles} battles")
-        code, out = run([sys.executable, "-m", "seerauto", "goal", "start", "puni",
-                         "--planner", args.planner, "--allow-input",
-                         "--max-minutes", str(args.batch_minutes),
-                         "--max-battles", str(args.batch_battles),
-                         "--max-spend", str(args.max_spend)],
+        goal_cmd = [sys.executable, "-m", "seerauto", "goal", "start", "puni",
+                    "--planner", args.planner, "--allow-input",
+                    "--max-minutes", str(args.batch_minutes),
+                    "--max-battles", str(args.batch_battles),
+                    "--max-spend", str(args.max_spend)]
+        if args.background:
+            goal_cmd.append("--background")
+        code, out = run(goal_cmd,
                         # a batch's own clock stops between skills, so give the
                         # subprocess room for the last skill to finish
                         timeout=args.batch_minutes * 60 + 480)
@@ -236,7 +267,7 @@ def main() -> int:
         log(f"batch {batches} exited {code}: {' | '.join(tail)}")
         if any("out of uses" in t or "PP exhausted" in t for t in tail):
             log("PP exhausted in that batch -> healing before the next one")
-            heal_if_needed()
+            heal_if_needed(background=args.background)
         entry = {"batch": batches, "code": code, "elapsed_s": round(time.time() - started, 1),
                  "tail": tail}
         store = WorldStore(os.path.join(ROOT, "data", "goalrunner.sqlite3"))
