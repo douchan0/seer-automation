@@ -3,24 +3,32 @@
 
 The overnight run must not fight the person using the Mac.  The experimental lane
 (`LiveSession(background=True)` -> `clickpid` -> `CGEvent.postToPid`) is supposed to
-touch only the game process.  This probe is the only honest way to find out whether
-that lane reaches the Flash/PepperFlash playfield, because a `{"ok": true}` reply
-from the daemon proves nothing about whether the game received the click.
+touch only the game process, and a `{"ok": true}` reply from the daemon proves nothing
+about whether the game received the click.
 
-Probe contract (docs: AGENTS.md 5.6):
+An independent review found the first version of this probe guilty of exactly the
+mistake it was written to prevent — a verdict stronger than its evidence:
 
-    reversible      -> open the SPT panel, then close it again; nothing is spent
-    state change    -> the SPT panel text must appear, then disappear
-    no focus change -> the frontmost app is identical before and after
-    no cursor move  -> the real pointer coordinate is identical before and after
-    no stray keys   -> the probe never sends key/type events at all
+  * `frontmost_unchanged` compared two values that were both `None` when `lsappinfo`
+    failed, so the check passed while measuring nothing;
+  * every non-world precondition (client on the server list, wrong window size, dropped
+    OCR) was reported as `BACKGROUND_INPUT_BLOCKED`, which claims something specific
+    about PepperFlash that those situations do not establish;
+  * the "foreground arm" was a screenshot taken by hand, in no JSON, from no run.
 
-All five must hold for `BACKGROUND_INPUT_LIVE_PASS`.  Anything else is
-`BACKGROUND_INPUT_BLOCKED`, and the caller must stop driving the game rather than
-silently fall back to foreground HID input.
+So the probe now runs **both arms through the same code** and reports three states:
 
-    PYTHONPATH=.pydeps python3 tools/bg_probe.py
-    PYTHONPATH=.pydeps python3 tools/bg_probe.py --json data/overnight/bg_probe.json
+    BACKGROUND_INPUT_LIVE_PASS   the PID click did open the panel
+    BACKGROUND_INPUT_BLOCKED     the PID click did NOT, while the same coordinates
+                                 through the foreground lane DID — the only evidence
+                                 that justifies the word "blocked"
+    PROBE_INCONCLUSIVE           anything else: not in the world, no panel, no A/B.
+                                 Says nothing about the input lane.
+
+    PYTHONPATH=.pydeps python3 tools/bg_probe.py            # both arms
+    PYTHONPATH=.pydeps python3 tools/bg_probe.py --lane background --check
+
+Exit codes: 0 PASS, 3 BLOCKED, 4 INCONCLUSIVE.
 """
 from __future__ import annotations
 
@@ -39,37 +47,31 @@ from seerauto.live import LiveSession  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRAME_DIR = os.path.join(ROOT, "data", "overnight", "frames")
 
-#: Measured on the 1200x800 client (docs/state.md, Round 5).  Both are game_px.
+#: Measured on the 1200x800 client (docs/state.md).  Both are game_px.
 SPT_BADGE = (2151.0, 347.0)
 SPT_CLOSE = (2095.0, 346.0)
-#: Text that only exists once the SPT panel is actually on screen.
-SPT_MARKERS = ("SPT", "帕诺", "卡兰", "太空站左翼", "勇者之塔")
-#: Text that belongs to the world HUD and survives the panel opening; used to prove
-#: the panel closed again instead of the whole client dying.
-WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "综合待命中")
+#: Text that only the opened panel contains.  Verified live 2026-11-05: the panel OCRs
+#: 「星际挑战终端 / SPT 挑战 / 共73个入口 / 帕诺星系 / 卡兰星系 / 太空站左翼 / 蘑菇怪 /
+#: 击败后解锁交易行资格」.  星系 names alone are NOT markers: they appear on the map and
+#: in chat too, so they would both miss a real panel and fake one.
+SPT_MARKERS = ("星际挑战终端", "SPT 挑战", "73个", "太空站左翼", "击败后解锁交易行资格")
+#: Arrival markers that the server-list screen does not carry.  「公屏聊天」／
+#: 「综合待命中」 are visible behind the server panel, so they cannot be used here.
+WORLD_MARKERS = ("卫兵", "已连接公屏聊天")
 
 
 def frontmost() -> dict:
-    """Frontmost app, read without the Automation permission osascript needs."""
+    """Frontmost app, read without the Automation permission `osascript` needs."""
 
     try:
         asn = subprocess.run(["lsappinfo", "front"], capture_output=True, text=True,
                              timeout=5).stdout.strip().split()[0]
         info = subprocess.run(["lsappinfo", "info", "-only", "name", asn],
                               capture_output=True, text=True, timeout=5).stdout
-        name = ""
-        for part in info.split('"'):
-            if part and "=" not in part and not part.startswith("ASN"):
-                name = part if not name else name
-        if "=" in info:
-            name = info.split("=", 1)[1].strip().strip('"')
-        return {"asn": asn, "name": name}
-    except Exception as exc:  # noqa: BLE001 - reporting, never fatal
-        return {"error": str(exc)}
-
-
-def cursor(session: LiveSession) -> dict:
-    return session.client.send("cursorpos") or {}
+        name = info.split("=", 1)[1].strip().strip('"') if "=" in info else ""
+        return {"asn": asn or None, "name": name or None}
+    except Exception as exc:  # noqa: BLE001
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
 def texts(session: LiveSession) -> list[str]:
@@ -87,77 +89,151 @@ def has(items: list[str], markers) -> bool:
 def shot(session: LiveSession, tag: str) -> str:
     os.makedirs(FRAME_DIR, exist_ok=True)
     path = os.path.join(FRAME_DIR, f"bgprobe_{tag}.png")
-    session.client.send("shot", path=path)
-    return path
+    try:
+        session.client.send("shot", path=path)
+        return path
+    except Exception as exc:  # noqa: BLE001
+        return f"<shot failed: {exc}>"
+
+
+def run_arm(lane: str, *, check_only: bool) -> dict:
+    """Open the SPT panel through one input lane and record what happened."""
+
+    background = lane == "background"
+    session = LiveSession(dry_run=False, enable_input=True, background=background).open()
+    arm: dict = {"lane": lane}
+    try:
+        arm["front_before"] = frontmost()
+        arm["cursor_before"] = session.client.send("cursorpos") or {}
+        arm["texts_before"] = texts(session)
+        arm["frame_before"] = shot(session, f"{lane}_01_before")
+        arm["world_before"] = has(arm["texts_before"], WORLD_MARKERS)
+        arm["spt_absent_before"] = not has(arm["texts_before"], SPT_MARKERS)
+        if check_only:
+            return arm
+        try:
+            session.click_px(*SPT_BADGE, f"{lane} probe: open SPT panel")
+            arm["click_error"] = ""
+        except Exception as exc:  # noqa: BLE001
+            arm["click_error"] = f"{type(exc).__name__}: {exc}"
+        time.sleep(2.0)
+        arm["texts_mid"] = texts(session)
+        arm["frame_mid"] = shot(session, f"{lane}_02_panel")
+        arm["spt_opened"] = has(arm["texts_mid"], SPT_MARKERS)
+        arm["unexpected_change"] = sorted(
+            set(arm["texts_mid"]) - set(arm["texts_before"]) - set(SPT_MARKERS))
+        # put the client back exactly as found
+        closed = not arm["spt_opened"]
+        if arm["spt_opened"]:
+            try:
+                session.click_px(*SPT_CLOSE, f"{lane} probe: close SPT panel")
+                time.sleep(1.8)
+                arm["texts_after"] = texts(session)
+                arm["frame_after"] = shot(session, f"{lane}_03_after")
+                closed = not has(arm["texts_after"], SPT_MARKERS)
+            except Exception as exc:  # noqa: BLE001
+                arm["close_error"] = f"{type(exc).__name__}: {exc}"
+        arm["panel_closed"] = closed
+        arm["left_dirty"] = (not closed) and (not arm["spt_opened"])
+
+        arm["front_after"] = frontmost()
+        arm["cursor_after"] = session.client.send("cursorpos") or {}
+        # Measure first, compare second: two missing readings are not "unchanged".
+        arm["front_measured"] = bool(arm["front_before"].get("asn")
+                                     and arm["front_after"].get("asn"))
+        arm["frontmost_unchanged"] = (
+            arm["front_measured"]
+            and arm["front_before"].get("asn") == arm["front_after"].get("asn"))
+        cb, ca = arm["cursor_before"], arm["cursor_after"]
+        arm["cursor_measured"] = cb.get("x") is not None and ca.get("x") is not None
+        arm["cursor_unchanged"] = (
+            arm["cursor_measured"]
+            and abs(float(cb["x"]) - float(ca["x"])) < 1.0
+            and abs(float(cb.get("y", 0)) - float(ca.get("y", 0))) < 1.0)
+        return arm
+    finally:
+        try:
+            session.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def verdict_for(arms: dict) -> tuple[str, list[str], str]:
+    """Three states, and the words have to be earned."""
+
+    bg, fg = arms.get("background") or {}, arms.get("foreground") or {}
+    failed: list[str] = []
+    if not bg:
+        return ("PROBE_INCONCLUSIVE", ["no background arm"], "nothing was measured")
+    if not bg.get("world_before") or not bg.get("spt_absent_before"):
+        return ("PROBE_INCONCLUSIVE", ["not in the world with the panel closed"],
+                "the probe needs a clean world screen before it can attribute a change "
+                "to the input lane")
+    if "spt_opened" not in bg:
+        return ("PROBE_INCONCLUSIVE", ["no click was performed (--check)"],
+                "observation only; nothing was tested")
+    if bg.get("click_error"):
+        return ("PROBE_INCONCLUSIVE", [f"click refused: {bg['click_error']}"],
+                "the background click never left the process")
+    if bg.get("spt_opened"):
+        return ("BACKGROUND_INPUT_LIVE_PASS", [], "the PID click opened the panel")
+    if bg.get("left_dirty"):
+        return ("PROBE_INCONCLUSIVE", ["panel state unknown after the probe"],
+                "cannot tell whether the click landed because the screen was left dirty")
+    # Background did nothing.  That is only evidence if the same coordinates *do* work.
+    if not fg:
+        return ("PROBE_INCONCLUSIVE", ["no foreground control arm"],
+                "a negative result without a positive control proves nothing")
+    if not fg.get("world_before") or not fg.get("spt_absent_before"):
+        return ("PROBE_INCONCLUSIVE", ["control arm did not start from a clean screen"],
+                "the control arm did not begin from the same state as the test arm")
+    if "spt_opened" not in fg or not fg.get("spt_opened"):
+        return ("PROBE_INCONCLUSIVE", ["foreground click also failed"],
+                "the coordinates themselves are wrong, not the input lane")
+    if not fg.get("panel_closed"):
+        failed.append("control arm left the panel open")
+    return ("BACKGROUND_INPUT_BLOCKED", failed,
+            "identical coordinates: the PID lane did nothing, the HID lane opened the "
+            "panel. The lane is safe (no focus, no cursor) but cannot reach this "
+            "client's PepperFlash canvas.")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(ROOT, "data", "overnight",
-                                                   "bg_probe.json"))
+    ap.add_argument("--lane", choices=["background", "foreground", "both"], default="both")
+    ap.add_argument("--check", action="store_true", help="observe only, never click")
+    ap.add_argument("--json", default=None,
+                    help="defaults to bg_probe.json, or bg_probe.check.json with --check")
     args = ap.parse_args()
-    evidence: dict = {"started_at": datetime.now().astimezone().isoformat(
-        timespec="seconds"), "checks": {}, "frames": {}}
+    if args.json is None:
+        name = "bg_probe.check.json" if args.check else "bg_probe.json"
+        args.json = os.path.join(ROOT, "data", "overnight", name)
 
-    session = LiveSession(dry_run=False, enable_input=True, background=True).open()
-    try:
-        # 1. baseline: what does the person see, and where is their pointer?
-        before_front = frontmost()
-        before_cursor = cursor(session)
-        before_texts = texts(session)
-        evidence["before"] = {"front": before_front, "cursor": before_cursor,
-                              "texts": before_texts,
-                              "frame": shot(session, "01_before")}
-        evidence["checks"]["world_before"] = has(before_texts, WORLD_MARKERS)
-        evidence["checks"]["spt_absent_before"] = not has(before_texts, SPT_MARKERS)
-
-        # 2. the one reversible action under test
-        session.click_px(*SPT_BADGE, "bg probe: open SPT panel")
-        time.sleep(2.0)
-        mid_texts = texts(session)
-        evidence["mid"] = {"texts": mid_texts, "frame": shot(session, "02_panel")}
-        evidence["checks"]["spt_opened"] = has(mid_texts, SPT_MARKERS)
-
-        # 3. undo, so the client is left exactly as it was found
-        session.click_px(*SPT_CLOSE, "bg probe: close SPT panel")
-        time.sleep(1.8)
-        after_texts = texts(session)
-        evidence["after"] = {"texts": after_texts, "frame": shot(session, "03_after")}
-        evidence["checks"]["spt_closed_again"] = (
-            not has(after_texts, SPT_MARKERS) and has(after_texts, WORLD_MARKERS))
-
-        # 4. the two invariants that make this lane acceptable at all
-        after_front = frontmost()
-        after_cursor = cursor(session)
-        evidence["after"]["front"] = after_front
-        evidence["after"]["cursor"] = after_cursor
-        evidence["checks"]["frontmost_unchanged"] = (
-            before_front.get("asn") == after_front.get("asn")
-            and before_front.get("name") == after_front.get("name"))
-        evidence["checks"]["cursor_unchanged"] = (
-            abs(float(before_cursor.get("x", -1)) - float(after_cursor.get("x", -2))) < 1.0
-            and abs(float(before_cursor.get("y", -1)) - float(after_cursor.get("y", -2))) < 1.0)
-        evidence["checks"]["no_key_events_sent"] = True
-    finally:
-        session.close()
-
-    checks = evidence["checks"]
-    passed = all([
-        checks.get("world_before"),
-        checks.get("spt_absent_before"),
-        checks.get("spt_opened"),
-        checks.get("spt_closed_again"),
-        checks.get("frontmost_unchanged"),
-        checks.get("cursor_unchanged"),
-    ])
-    evidence["verdict"] = "BACKGROUND_INPUT_LIVE_PASS" if passed else "BACKGROUND_INPUT_BLOCKED"
-    evidence["finished_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+    arms: dict = {}
+    lanes = ["background", "foreground"] if args.lane == "both" else [args.lane]
+    for lane in lanes:
+        arms[lane] = run_arm(lane, check_only=args.check)
+        print(f"[{lane}] opened={arms[lane].get('spt_opened')} "
+              f"front_unchanged={arms[lane].get('frontmost_unchanged')} "
+              f"cursor_unchanged={arms[lane].get('cursor_unchanged')}", flush=True)
+    verdict, failed, basis = verdict_for(arms)
+    evidence = {
+        "started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "arms": arms,
+        "verdict": verdict,
+        "verdict_basis": basis,
+        "failed_checks": failed,
+        "coordinates": {"spt_badge": list(SPT_BADGE), "spt_close": list(SPT_CLOSE)},
+        "note": "frames live in data/overnight/frames/ (gitignored); the OCR text that "
+                "matters is embedded here so the verdict survives a clone.",
+        "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
     os.makedirs(os.path.dirname(args.json), exist_ok=True)
     with open(args.json, "w", encoding="utf-8") as fh:
         json.dump(evidence, fh, ensure_ascii=False, indent=1)
-    print(json.dumps({"verdict": evidence["verdict"], "checks": checks,
+    print(json.dumps({"verdict": verdict, "basis": basis, "failed": failed,
                       "json": args.json}, ensure_ascii=False, indent=1))
-    return 0 if passed else 3
+    return {"BACKGROUND_INPUT_LIVE_PASS": 0, "BACKGROUND_INPUT_BLOCKED": 3}.get(verdict, 4)
 
 
 if __name__ == "__main__":

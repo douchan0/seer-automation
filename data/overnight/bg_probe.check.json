@@ -1,0 +1,72 @@
+{
+ "started_at": "2026-11-05T21:57:54+08:00",
+ "arms": {
+  "background": {
+   "lane": "background",
+   "front_before": {
+    "asn": "ASN:0x0-0x68ad8a7:",
+    "name": "Safari浏览器"
+   },
+   "cursor_before": {
+    "x": 815.69921875,
+    "y": 99.29296875
+   },
+   "texts_before": [
+    "xin计划（1.0.8.9）",
+    "公屏聊天 • 在线",
+    "系统：尊享入场| hello 登录了",
+    "BET",
+    "卫兵",
+    "00",
+    "hello",
+    "主播纽斯",
+    "09:53"
+   ],
+   "frame_before": "/Users/ceontou/Documents/code/seer-automation-night/data/overnight/frames/bgprobe_background_01_before.png",
+   "world_before": true,
+   "spt_absent_before": true
+  },
+  "foreground": {
+   "lane": "foreground",
+   "front_before": {
+    "asn": "ASN:0x0-0x68ad8a7:",
+    "name": "Safari浏览器"
+   },
+   "cursor_before": {
+    "x": 895.609375,
+    "y": 125.73828125
+   },
+   "texts_before": [
+    "xin计划（1.0.8.9）",
+    "公屏聊天 • 在线",
+    "系统：尊享入场| hello 登录了",
+    "BET",
+    "卫兵",
+    "00",
+    "hello",
+    "主播纽斯",
+    "09:53"
+   ],
+   "frame_before": "/Users/ceontou/Documents/code/seer-automation-night/data/overnight/frames/bgprobe_foreground_01_before.png",
+   "world_before": true,
+   "spt_absent_before": true
+  }
+ },
+ "verdict": "PROBE_INCONCLUSIVE",
+ "verdict_basis": "observation only; nothing was tested",
+ "failed_checks": [
+  "no click was performed (--check)"
+ ],
+ "coordinates": {
+  "spt_badge": [
+   2151.0,
+   347.0
+  ],
+  "spt_close": [
+   2095.0,
+   346.0
+  ]
+ },
+ "note": "frames live in data/overnight/frames/ (gitignored); the OCR text that matters is embedded here so the verdict survives a clone.",
+ "finished_at": "2026-11-05T21:57:54+08:00"
+}
