@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import time
 from typing import Any, Mapping
 
 import pytest
@@ -350,6 +352,37 @@ def test_pause_file_blocks_until_removed(tmp_path):
     assert ctl.paused()
     ctl.clear()
     assert not ctl.paused()
+
+
+def test_pause_callbacks_checkpoint_once_and_resume(tmp_path):
+    pause_seen = threading.Event()
+    resume_seen = threading.Event()
+    ctl = RunControl(str(tmp_path / "p.pause"), str(tmp_path / "p.stop"))
+    ctl.on_pause = pause_seen.set
+    ctl.on_resume = lambda elapsed: resume_seen.set()
+    ctl.request_pause()
+    worker = threading.Thread(target=lambda: ctl.wait_while_paused(poll_s=0.01))
+    worker.start()
+    assert pause_seen.wait(1.0), "pause callback should run before waiting"
+    assert worker.is_alive(), "runner must remain frozen while pause file exists"
+    ctl.pause_file.unlink()
+    worker.join(timeout=1.0)
+    assert not worker.is_alive()
+    assert resume_seen.is_set()
+
+
+def test_clear_stop_does_not_clear_user_pause(tmp_path):
+    ctl = RunControl(str(tmp_path / "p.pause"), str(tmp_path / "p.stop"))
+    ctl.request_pause()
+    ctl.request_stop()
+    ctl.clear_stop()
+    assert ctl.paused()
+    assert not ctl.stop_requested()
+
+
+def test_run_config_persists_background_mode():
+    cfg = RunConfig(allow_input=True, dry_run=False, background=True)
+    assert cfg.to_dict()["background"] is True
 
 
 def test_instance_lock_is_exclusive(tmp_path):
