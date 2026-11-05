@@ -90,7 +90,7 @@ PYTHONPATH=.pydeps python3 tools/supervise.py \
   --max-spend 10000 --background
 ```
 
-`--background` 是明确 opt-in，默认关闭。后台模式遇到登录/验证码时不会调用会抢焦点的 `tools/login.py`，而是报告阻塞；不会暗中切换前台。注意 `tools/login.py` 与 `tools/battle_run.py` 仍含前台激活路径，不能在“绝不抢焦点”模式下直接调用。
+`--background` 是明确 opt-in，默认关闭。后台模式遇到登录/验证码时不会调用会抢焦点的 `tools/login.py`，而是报告阻塞；不会暗中切换前台。注意 `tools/login.py`、`tools/battle_run.py` 与 `tools/ctl.py` 的传统 click/type/key 路径仍含前台激活/前台输入路径，不能在“绝不抢焦点”模式下直接调用。
 
 ## 3.6 用户口令： “暂停，保存” / “开始”
 
