@@ -63,3 +63,26 @@ def test_a_dropped_number_is_none_and_never_zero(panel_items):
 
 def test_empty_input_is_none_not_an_error():
     assert parse_exp_allocator([]) is None
+
+
+def test_a_merged_ocr_row_cannot_fabricate_a_level():
+    """OCR sometimes merges two rows; the body parser must not read the wrong number.
+
+    `parse_exp_allocator` needs the title, so a merged row usually arrives through the
+    title-independent body reader the skill falls back to.
+    """
+
+    from seerauto.skills.act import _allocator_body_still_there, _parse_allocator_body
+
+    merged = [{"text": "等级：18 积累经验：18744927", "conf": 0.9, "px": (100, 100)}]
+    assert _allocator_body_still_there(merged) is True
+    got = _parse_allocator_body(merged)
+    assert got is not None
+    assert got["level"] == 18.0, got
+    assert got["pool"] == 18744927.0, got
+
+
+def test_the_body_parser_returns_none_without_any_numbers():
+    from seerauto.skills.act import _parse_allocator_body
+
+    assert _parse_allocator_body([{"text": "公屏聊天", "conf": 0.9}]) is None
