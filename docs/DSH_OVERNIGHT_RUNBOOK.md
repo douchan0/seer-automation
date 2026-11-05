@@ -84,9 +84,9 @@
 后台运行命令（只有上述探针 LIVE_PASS 后才用）：
 
 ```bash
-PYTHONPATH=.pydeps python3 tools/supervise.py \\
-  --deadline-at '2026-11-06T06:30:00+08:00' \\
-  --batch-minutes 8 --batch-battles 8 --max-no-progress 2 \\
+PYTHONPATH=.pydeps python3 tools/supervise.py \
+  --deadline-at '2026-11-06T06:30:00+08:00' \
+  --batch-minutes 8 --batch-battles 8 --max-no-progress 2 \
   --max-spend 10000 --background
 ```
 
