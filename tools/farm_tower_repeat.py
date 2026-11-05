@@ -207,10 +207,15 @@ def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
             rec.notes.append(res.reason[:200])
         if res.status.value not in ("PASS", "SKIPPED"):
             rec.error = f"farm_tower {res.status.value}: {res.reason[:160]}"
-        rewards = read_rewards(ctx.session)
+        # Prefer what the battle itself measured; only fall back to the screen.
+        rewards = list((res.after or {}).get("rewards") or [])
+        if not rewards:
+            rewards = read_rewards(ctx.session)
         rec.xp_events = rewards
-        rec.xp_income = sum(float(r.get("amount") or 0) for r in rewards
-                            if "经验" in str(r.get("kind") or ""))
+        measured = float((res.after or {}).get("xp") or 0.0)
+        from_dialogs = sum(float(r.get("amount") or 0) for r in rewards
+                           if "经验" in str(r.get("kind") or ""))
+        rec.xp_income = measured or from_dialogs
         if read_floor_wanted and not dry_run:
             rec.tower_floor_after = read_floor(skills, ctx)
         # Keep the frame every round: a ledger number nobody can look at is a claim,

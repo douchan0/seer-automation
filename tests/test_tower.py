@@ -204,3 +204,27 @@ def test_every_playbook_step_names_a_registered_skill():
                for node, steps in playbooks.PLAYBOOKS.items()
                for step in steps if step.skill not in registered]
     assert missing == []
+
+
+def test_farm_tower_returns_measured_payout_not_a_guess(monkeypatch):
+    """The reward dialog is dismissed inside the loop, so the payout must be kept.
+
+    If FarmTower dropped what its own RunBattle parsed, a caller could only *estimate*
+    experience from a floor count — and an estimate must never reach a ledger as if it
+    were measured.
+    """
+
+    class _PayingBattle:
+        ok = True
+        reason = ""
+        after = {"rewards": [{"kind": "经验", "amount": 1300.0, "raw": "恭喜你得到了 1300 个积累经验"}],
+                 "xp": 1300.0}
+
+        def __call__(self, ctx, battles=1, max_seconds=240.0):
+            return self
+
+    monkeypatch.setattr(act, "RunBattle", lambda: _PayingBattle())
+    result = FarmTower().run(_ctx(_BattleSession(), GameWorldState()), floors=1,
+                             max_seconds=30)
+    assert result.after["xp"] == 1300.0
+    assert result.after["rewards"][0]["kind"] == "经验"

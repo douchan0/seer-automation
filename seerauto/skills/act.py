@@ -1900,6 +1900,8 @@ class FarmTower(_Base):
         won = 0
         started = time.perf_counter()
         notes: list[str] = []
+        rewards_seen: list[dict[str, Any]] = []
+        xp_seen = 0.0
         while won < floors and time.perf_counter() - started < max_seconds:
             if ctx.options.get("control") and ctx.options["control"].stop_requested():
                 notes.append("stop requested")
@@ -1916,6 +1918,15 @@ class FarmTower(_Base):
             if battle.ok:
                 won += 1
                 notes.append(f"floor win #{won}")
+                # Keep the payout the battle already parsed.  The reward dialog is
+                # dismissed a few lines below, so an outside caller that OCRs the
+                # screen afterwards sees nothing and would have to *estimate* the
+                # experience — which is exactly the kind of number this project does
+                # not allow into a ledger.
+                payout = getattr(battle, "after", None) or {}
+                for reward in payout.get("rewards") or ():
+                    rewards_seen.append(reward)
+                xp_seen += float(payout.get("xp") or 0.0)
             else:
                 notes.append(f"fight failed: {battle.reason[:60]}")
                 break
@@ -1946,7 +1957,10 @@ class FarmTower(_Base):
             status=Status.PASS if won else Status.FAIL,
             reason="" if won else "; ".join(notes) or "no floor won",
             after={"floors_won": won, "wins": won, "tower_floor": floor,
-                   "floors_cleared": prior_value + won},
+                   "floors_cleared": prior_value + won,
+                   # measured, not estimated: whatever the battle's own reward
+                   # parser read out of the payout dialogs
+                   "rewards": rewards_seen, "xp": xp_seen},
             changed=bool(won),
             proof=(f"{won} 层通关 ({cleared_txt}); 当前第 {floor} 层; "
                    + "; ".join(notes[-4:])),
