@@ -157,3 +157,38 @@ def test_the_amount_is_capped_by_the_pool():
     typed = [kw for op, kw in session.sent if op == "type"]
     assert typed and typed[0]["text"] == "120"
     assert res.status is Status.PASS
+
+
+# -- the double-pour path the review found ---------------------------------- #
+def test_a_lost_title_is_not_treated_as_a_closed_panel():
+    """If the title OCR fails but the body is still there, never click 确认 again.
+
+    The recovery path (`_dismiss_dialogs`) clicks the first 确认 on the whole screen,
+    which can be this panel's own button.  So "title missing" must not read as "panel
+    closed" while 「该精灵增加」/「积累经验」 are still visible.
+    """
+
+    from seerauto.skills.act import _allocator_body_still_there
+
+    body_only = [{"text": "该精灵增加", "conf": 0.9, "px": (100, 100)},
+                 {"text": "积累经验：1000", "conf": 0.9, "px": (200, 120)}]
+    assert _allocator_body_still_there(body_only) is True
+    assert _allocator_body_still_there([{"text": "公屏聊天", "conf": 0.9}]) is False
+
+
+def test_a_verified_pour_writes_the_flag_the_goal_predicate_reads():
+    """`feature_unlocked: exp_giver.poured` reads world.unlocked, nothing else."""
+
+    from seerauto.world.model import GameWorldState
+
+    frames = [_items({}), _items({"pending": 500}), _items({"pending": 500}),
+              _items({"level": 18, "pool": 18699927})]
+    world = GameWorldState()
+    ctx = SkillContext(session=PanelSession(frames), world=world,
+                       budget=Budget(max_duration_s=30.0, max_actions=8),
+                       dry_run=False, allow_input=True)
+    res = GiveExp()(ctx, amount=500)
+    assert res.status is Status.PASS
+    assert "exp_giver.poured" in world.unlocked, (
+        "a real pour must satisfy the node's completion predicate")
+    assert world.unlocked["exp_giver.poured"].value is True

@@ -1969,6 +1969,39 @@ class FarmTower(_Base):
 
 
 
+
+def _allocator_body_still_there(items) -> bool:
+    """Is the allocator panel on screen even if its title was not OCR'd?
+
+    「该精灵增加」 / 「积累经验」 / 「升级所需经验值」 are large strings that survive the
+    same OCR pass that loses the small title, so they are the reliable "still open"
+    signal.  Treating a lost title as "closed" is what could double-pour.
+    """
+
+    joined = " ".join(str(i.get("text") or "") for i in items or ())
+    return any(m in joined for m in ("该精灵增加", "积累经验", "升级所需经验值"))
+
+
+def _parse_allocator_body(items):
+    """Numbers-only read of the allocator body (title-independent)."""
+
+    import re
+
+    from .parsers import box_of
+
+    out: dict[str, Any] = {"level": None, "pool": None, "pending_amount": None}
+    for item in items or ():
+        text = str(item.get("text") or "")
+        match = re.search(r"(\d[\d,]*)", text.split("：")[-1] if "：" in text else text)
+        if "等级" in text and match:
+            out["level"] = float(match.group(1).replace(",", ""))
+        elif "积累经验" in text and match:
+            out["pool"] = float(match.group(1).replace(",", ""))
+        elif text.strip().endswith("g") and text.strip()[:-1].isdigit():
+            out["pending_amount"] = float(text.strip()[:-1])
+    return out if (out["level"] is not None or out["pool"] is not None) else None
+
+
 class GiveExp(_Base):
     """Pour 积累经验 into the selected pet through the 经验分配器 panel.
 
@@ -2062,23 +2095,38 @@ class GiveExp(_Base):
         if not ok:
             return SkillResult.fail(self.id, f"cannot press 确认: {why}")
         time.sleep(1.2)
-        after_panel, _ = self._panel(ctx)
-        if after_panel is None:
-            # Only clear a dialog when the panel actually disappeared.  Dismissing
-            # unconditionally would find the panel's own 确认 button and pour twice.
+        after_panel, after_items = self._panel(ctx)
+        if after_panel is None and not _allocator_body_still_there(after_items):
+            # Only clear a dialog when the panel is genuinely gone.  A missing *title*
+            # is not a missing panel: the title is small text and the OCR drops it,
+            # and the old recovery would then click the first 确认 on screen — which
+            # can be this panel's own button, pouring a second time.
             _dismiss_dialogs(ctx, limit=1)
             time.sleep(0.8)
-            after_panel, _ = self._panel(ctx)
+            after_panel, after_items = self._panel(ctx)
+        if after_panel is None and _allocator_body_still_there(after_items):
+            # The panel is still up but its title was unreadable: re-read the numbers
+            # off the body so the result is still honest.
+            from .parsers import parse_exp_allocator  # noqa: F401
+            after_panel = _parse_allocator_body(after_items)
         level_after = None if after_panel is None else after_panel.get("level")
         pool_after = None if after_panel is None else after_panel.get("pool")
         rose = (level_before is not None and level_after is not None
                 and level_after > level_before)
         spent = (pool - pool_after) if (pool_after is not None) else None
         if rose or (spent is not None and spent > 0):
-            if level_after is not None:
-                ctx.world.facts["pets.active.level"] = Fact(
-                    level_after, Evidence.live(
-                        f"经验分配器 panel re-read after pouring {want}"))
+            # The goal node's predicate is `feature_unlocked: exp_giver.poured`, and
+            # only `world.unlocked[...]` is read by that predicate.  Writing the level
+            # alone meant a real, verified pour could never complete the node.
+            try:
+                ctx.world.unlocked["exp_giver.poured"] = Fact(
+                    True, Evidence.live(
+                        f"经验分配器: 等级 {level_before}->{level_after}, "
+                        f"积累经验 {pool:.0f}->{pool_after}"))
+            except Exception:  # noqa: BLE001 - world shapes differ between callers
+                ctx.world.facts["unlocked.exp_giver.poured"] = Fact(
+                    True, Evidence.live(
+                        f"经验分配器: 等级 {level_before}->{level_after}"))
             return SkillResult(
                 skill=self.id, status=Status.PASS,
                 reason="level rose" if rose else "pool fell (level read missing)",

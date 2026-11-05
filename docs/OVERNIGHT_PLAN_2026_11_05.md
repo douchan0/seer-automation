@@ -36,29 +36,24 @@
 
 ---
 
-## 2. 当前目标图的真实状态（`tools/explain_goal.py` 输出）
+## 2. 当前目标图的真实状态（`tools/explain_goal.py`，22:00 复算）
 
 ```
-43 节点：completed=4  not_executable=29  unknown=8  blocked=4  missing_capability=1
+46 节点：executable=5  completed=4  not_executable=29  unknown=8  blocked=4  missing_capability=1
 ready now: NONE
 已注册能力只有 11 个：battle.repeat / input.click / map.open / observe.* / puni.entrance / spt.navigate / spt.panel
 ```
 
-**这是今晚最重要的诊断**：Goal Runner 不是"坏了"，是**目标图里没有一个节点可执行**。
-矩阵按"卡住节点数"排序：
+**注意：这里的第一版数字是错的，已由独立审查抓出并修正。**
+第一版把"每个节点 unmet 里出现过的缺失能力"全部相加，得出「`battle.skill_select` 卡住 13 个节点」，
+据此把今晚主线定为"能力验证阶梯"。复算后：**补上 `battle.skill_select` 只会立刻解开 1 个节点**
+（`puni.roster.kelida_awaken`），其余节点同时缺**前置节点**，补能力也不会跑。
+全图"仅缺能力即可开跑"的节点总共只有 6 个，且每个都只差一个能力。
 
-| 缺口能力 | 卡住节点 | 说明 |
-|---|---|---|
-| `battle.skill_select` | 13 | 技能格 2×2 坐标已标定，**从未真机点过一次** |
-| `battle.switch_pet` / `battle.log_read` | 9 / 9 | log 解析已有代码+104 帧 fixture，但只到 replay 级 |
-| `battle.pp_read` | 6 | 面板「使用次数：11/35」可读 |
-| `market.buy` | 4 | 依赖交易行解锁 |
-| `battle.stage_read` / `battle.item_use` / `battle.hp_read` | 4/4/3 | |
-
-→ 所以今晚主线不是"跑 goal start"，而是**能力真机验证阶梯**：每升一级能力，解锁一批节点。
-Goal Runner 在这些能力登记为 `real` 之前会（正确地）一直拒绝。
-
----
+真正的结论因此改了：**目标图现在无法靠"补一个能力"打开局面**，因为 46 个节点里
+只有 5 个是 `executable: true`，其余按设计禁用（缺前置节点/未知机制）。
+今晚的正确路线是：**先用已真机验证的技能把资源与阵容推上去**（刷塔产经验、找经验分配器灌等级、
+读交易行前置），每拿到一个真机结论，再回头把对应节点/能力如实登记。
 
 ## 3. 夜间执行阶梯（每级都以真机证据结账）
 

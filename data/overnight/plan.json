@@ -3,8 +3,7 @@
   "goal": "puni",
   "world": {
    "scene": "WORLD",
-   "run_id": "848ed476d307",
-   "observed_at": ""
+   "run_id": "d74ced5da0c9"
   },
   "nodes": [
    {
@@ -639,6 +638,12 @@
    }
   ],
   "ready": [],
+  "completed_nodes": [
+   "puni.prepare.level_up",
+   "puni.prepare.tower_farm",
+   "puni.prepare.tutor_room",
+   "puni.seal.entry_nav"
+  ],
   "capabilities_registered": [
    "battle.repeat",
    "budget.stop",
@@ -662,412 +667,145 @@
    "blocked": 4,
    "missing_capability": 1
   },
-  "capability_gaps": [
+  "schedulable_but_missing_capability": 1,
+  "capability_unblocks": [
    {
-    "capability": "battle.skill_select",
-    "blocks": 15,
-    "nodes": [
-     "puni.roster.catch_pipi",
-     "puni.roster.kelida_awaken",
-     "puni.seal.vacuum_1",
-     "puni.seal.element_2",
-     "puni.seal.energy_3",
-     "puni.seal.life_4",
-     "puni.seal.eternity_6",
-     "puni.seal.holy_7"
-    ]
-   },
-   {
-    "capability": "battle.log_read",
-    "blocks": 11,
-    "nodes": [
-     "puni.seal.element_2",
-     "puni.seal.energy_3",
-     "puni.seal.samsara_5",
-     "puni.seal.eternity_6",
-     "puni.seal.boss_pp_empty",
-     "puni.truebody.life_2_element",
-     "puni.truebody.life_3_energy",
-     "puni.truebody.life_5_samsara"
-    ]
-   },
-   {
-    "capability": "battle.switch_pet",
-    "blocks": 10,
-    "nodes": [
-     "puni.seal.element_2",
-     "puni.seal.energy_3",
-     "puni.seal.life_4",
-     "puni.seal.samsara_5",
-     "puni.seal.holy_7",
-     "puni.truebody.life_2_element",
-     "puni.truebody.life_3_energy",
-     "puni.truebody.life_5_samsara"
-    ]
-   },
-   {
-    "capability": "battle.pp_read",
-    "blocks": 7,
-    "nodes": [
-     "puni.seal.vacuum_1",
-     "puni.seal.element_2",
-     "puni.seal.life_4",
-     "puni.truebody.life_3_energy",
-     "puni.truebody.life_6_final",
-     "puni.crosscut.item_use",
-     "puni.crosscut.pp_drain"
-    ]
-   },
-   {
-    "capability": "market.buy",
-    "blocks": 4,
-    "nodes": [
-     "puni.roster.buy_salake",
-     "puni.roster.buy_flash_pipi",
-     "puni.roster.buy_kaolu",
-     "puni.roster.buy_nier"
-    ]
-   },
-   {
-    "capability": "battle.stage_read",
-    "blocks": 4,
-    "nodes": [
-     "puni.seal.vacuum_1",
-     "puni.seal.eternity_6",
-     "puni.truebody.enter",
-     "puni.truebody.life_1_vacuum"
-    ]
-   },
-   {
-    "capability": "battle.item_use",
-    "blocks": 4,
-    "nodes": [
-     "puni.seal.vacuum_1",
-     "puni.truebody.life_1_vacuum",
-     "puni.truebody.life_6_final",
-     "puni.crosscut.item_use"
-    ]
-   },
-   {
-    "capability": "catch.pet",
-    "blocks": 3,
-    "nodes": [
-     "puni.roster.catch_pipi",
-     "puni.roster.catch_jier",
-     "puni.roster.kelida_awaken"
-    ]
-   },
-   {
-    "capability": "battle.hp_read",
-    "blocks": 3,
-    "nodes": [
-     "puni.seal.vacuum_1",
-     "puni.truebody.life_1_vacuum",
-     "puni.crosscut.item_use"
-    ]
-   },
-   {
-    "capability": "exp.give",
-    "blocks": 2,
-    "nodes": [
-     "puni.roster.fuse_flame",
-     "puni.roster.exp_pour"
-    ]
-   },
-   {
-    "capability": "train.effort",
-    "blocks": 2,
-    "nodes": [
-     "puni.roster.buy_flash_pipi",
-     "puni.roster.train_effort"
-    ]
-   },
-   {
-    "capability": "team.compose",
-    "blocks": 2,
-    "nodes": [
-     "puni.roster.team_compose",
-     "puni.truebody.enter"
-    ]
-   },
-   {
-    "capability": "battle.buff_count",
-    "blocks": 2,
-    "nodes": [
-     "puni.seal.samsara_5",
-     "puni.truebody.life_5_samsara"
-    ]
-   },
-   {
-    "capability": "battle.escape",
-    "blocks": 1,
-    "nodes": [
-     "puni.prepare.daily_exp_pool"
-    ]
-   },
-   {
-    "capability": "settings.animation",
-    "blocks": 1,
-    "nodes": [
-     "puni.prepare.animation_off"
-    ]
-   },
-   {
-    "capability": "shop.buy",
-    "blocks": 1,
+    "name": "shop.buy",
+    "count": 1,
     "nodes": [
      "puni.prepare.buy_potions"
     ]
    },
    {
-    "capability": "fuse.pet",
-    "blocks": 1,
-    "nodes": [
-     "puni.roster.fuse_flame"
-    ]
-   },
-   {
-    "capability": "puni.panel",
-    "blocks": 1,
+    "name": "puni.panel",
+    "count": 1,
     "nodes": [
      "puni.roster.spt_saiweier"
     ]
    },
    {
-    "capability": "battle.defeat_branch",
-    "blocks": 1,
+    "name": "catch.pet",
+    "count": 1,
+    "nodes": [
+     "puni.roster.kelida_awaken"
+    ]
+   },
+   {
+    "name": "battle.skill_select",
+    "count": 1,
+    "nodes": [
+     "puni.roster.kelida_awaken"
+    ]
+   },
+   {
+    "name": "battle.defeat_branch",
+    "count": 1,
     "nodes": [
      "puni.crosscut.defeat_retry"
     ]
    },
    {
-    "capability": "daily.quota",
-    "blocks": 1,
+    "name": "daily.quota",
+    "count": 1,
     "nodes": [
      "puni.crosscut.defeat_retry"
     ]
-   },
-   {
-    "capability": "battle.long_watch",
-    "blocks": 1,
-    "nodes": [
-     "puni.crosscut.long_battle_watch"
-    ]
-   },
-   {
-    "capability": "observe.truebody_life",
-    "blocks": 1,
-    "nodes": [
-     "puni.truebody.detect_life"
-    ]
    }
   ],
-  "state_gaps": [
+  "capability_blocks": [
    {
-    "state": "state.scene_is:BATTLE",
-    "blocks": 2,
+    "name": "battle.skill_select",
+    "count": 2,
     "nodes": [
-     "puni.crosscut.item_use",
-     "puni.crosscut.switch_pet"
-    ]
-   }
-  ],
-  "node_gaps": [
-   {
-    "node": "puni.roster.spt_hamoleite",
-    "blocks": 7,
-    "nodes": [
-     "puni.seal.element_2",
-     "puni.seal.energy_3",
-     "puni.seal.life_4",
-     "puni.seal.samsara_5",
      "puni.seal.eternity_6",
-     "puni.seal.holy_7",
-     "puni.crosscut.pp_drain"
-    ]
-   },
-   {
-    "node": "puni.roster.fuse_flame",
-    "blocks": 6,
-    "nodes": [
-     "puni.seal.element_2",
-     "puni.seal.energy_3",
-     "puni.seal.life_4",
-     "puni.seal.samsara_5",
-     "puni.seal.eternity_6",
-     "puni.seal.holy_7"
-    ]
-   },
-   {
-    "node": "puni.roster.spt_naduolei",
-    "blocks": 5,
-    "nodes": [
-     "puni.seal.samsara_5",
-     "puni.seal.eternity_6",
-     "puni.seal.holy_7",
-     "puni.truebody.life_5_samsara",
-     "puni.crosscut.attribute_reverse"
-    ]
-   },
-   {
-    "node": "puni.roster.spt_saiweier",
-    "blocks": 5,
-    "nodes": [
-     "puni.seal.samsara_5",
-     "puni.truebody.life_2_element",
-     "puni.truebody.life_3_energy",
-     "puni.truebody.life_5_samsara",
-     "puni.truebody.life_6_final"
-    ]
-   },
-   {
-    "node": "puni.prepare.market_unlock",
-    "blocks": 4,
-    "nodes": [
-     "puni.roster.buy_salake",
-     "puni.roster.buy_flash_pipi",
-     "puni.roster.buy_kaolu",
-     "puni.roster.buy_nier"
-    ]
-   },
-   {
-    "node": "puni.roster.buy_salake",
-    "blocks": 4,
-    "nodes": [
-     "puni.seal.vacuum_1",
-     "puni.seal.samsara_5",
-     "puni.truebody.life_1_vacuum",
-     "puni.truebody.life_5_samsara"
-    ]
-   },
-   {
-    "node": "puni.roster.buy_flash_pipi",
-    "blocks": 2,
-    "nodes": [
-     "puni.seal.samsara_5",
-     "puni.truebody.life_5_samsara"
-    ]
-   },
-   {
-    "node": "puni.roster.buy_kaolu",
-    "blocks": 2,
-    "nodes": [
-     "puni.seal.samsara_5",
-     "puni.truebody.life_5_samsara"
-    ]
-   },
-   {
-    "node": "puni.truebody.enter",
-    "blocks": 2,
-    "nodes": [
-     "puni.truebody.life_1_vacuum",
-     "puni.truebody.detect_life"
-    ]
-   },
-   {
-    "node": "puni.roster.kelida_awaken",
-    "blocks": 2,
-    "nodes": [
-     "puni.truebody.life_3_energy",
      "puni.truebody.life_4_life"
     ]
    },
    {
-    "node": "puni.roster.catch_jier",
-    "blocks": 1,
+    "name": "fuse.pet",
+    "count": 1,
     "nodes": [
      "puni.roster.fuse_flame"
     ]
    },
    {
-    "node": "puni.seal.vacuum_1",
-    "blocks": 1,
+    "name": "exp.give",
+    "count": 1,
     "nodes": [
-     "puni.truebody.enter"
+     "puni.roster.fuse_flame"
     ]
    },
    {
-    "node": "puni.seal.element_2",
-    "blocks": 1,
+    "name": "battle.log_read",
+    "count": 1,
     "nodes": [
-     "puni.truebody.enter"
+     "puni.seal.eternity_6"
     ]
    },
    {
-    "node": "puni.seal.energy_3",
-    "blocks": 1,
+    "name": "battle.stage_read",
+    "count": 1,
     "nodes": [
-     "puni.truebody.enter"
+     "puni.seal.eternity_6"
     ]
    },
    {
-    "node": "puni.seal.life_4",
-    "blocks": 1,
+    "name": "observe.truebody_life",
+    "count": 1,
     "nodes": [
-     "puni.truebody.enter"
+     "puni.truebody.detect_life"
+    ]
+   }
+  ],
+  "state_gaps": [],
+  "node_gaps": [
+   {
+    "name": "puni.roster.catch_jier",
+    "count": 1,
+    "nodes": [
+     "puni.roster.fuse_flame"
     ]
    },
    {
-    "node": "puni.seal.samsara_5",
-    "blocks": 1,
+    "name": "puni.roster.spt_hamoleite",
+    "count": 1,
     "nodes": [
-     "puni.truebody.enter"
+     "puni.seal.eternity_6"
     ]
    },
    {
-    "node": "puni.seal.eternity_6",
-    "blocks": 1,
+    "name": "puni.roster.spt_naduolei",
+    "count": 1,
     "nodes": [
-     "puni.truebody.enter"
+     "puni.seal.eternity_6"
     ]
    },
    {
-    "node": "puni.seal.holy_7",
-    "blocks": 1,
+    "name": "puni.roster.fuse_flame",
+    "count": 1,
     "nodes": [
-     "puni.truebody.enter"
+     "puni.seal.eternity_6"
     ]
    },
    {
-    "node": "puni.roster.team_compose",
-    "blocks": 1,
-    "nodes": [
-     "puni.truebody.enter"
-    ]
-   },
-   {
-    "node": "puni.truebody.life_1_vacuum",
-    "blocks": 1,
-    "nodes": [
-     "puni.truebody.life_2_element"
-    ]
-   },
-   {
-    "node": "puni.truebody.life_2_element",
-    "blocks": 1,
-    "nodes": [
-     "puni.truebody.life_3_energy"
-    ]
-   },
-   {
-    "node": "puni.truebody.life_3_energy",
-    "blocks": 1,
+    "name": "puni.truebody.life_3_energy",
+    "count": 1,
     "nodes": [
      "puni.truebody.life_4_life"
     ]
    },
    {
-    "node": "puni.truebody.life_4_life",
-    "blocks": 1,
+    "name": "puni.roster.kelida_awaken",
+    "count": 1,
     "nodes": [
-     "puni.truebody.life_5_samsara"
+     "puni.truebody.life_4_life"
     ]
    },
    {
-    "node": "puni.truebody.life_5_samsara",
-    "blocks": 1,
+    "name": "puni.truebody.enter",
+    "count": 1,
     "nodes": [
-     "puni.truebody.life_6_final"
+     "puni.truebody.detect_life"
     ]
    }
   ],

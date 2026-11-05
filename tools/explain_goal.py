@@ -3,18 +3,24 @@
 
 `goal start` clips the refusal to a few blockers, which is enough for a log and useless
 for deciding what to build next: the overnight run kept stopping with
-`nothing schedulable` while 40 of 45 nodes were blocked for reasons nobody could see.
+`nothing schedulable` while most of the graph was blocked for reasons nobody could see.
 
-This tool never touches the game.  It reads the last verified world snapshot out of the
-SQLite store and evaluates every node exactly the way the scheduler does, then groups
-the blockers by *cause* so the next move is obvious:
+This tool **never touches the game**.  It does not open a `LiveSession` and therefore
+never starts a second `seerdx` capture stream — an independent review caught the first
+version doing exactly that through `open_runner`, which would have broken the stream of
+a live run *at the moment the run needed diagnosing* (AGENTS.md 5.5.4).
 
-    node status      completed / ready / missing_prereq / missing_capability / ...
-    capability gaps  which unregistered capabilities block the most nodes
-    ready list       what the runner would do right now, in priority order
+Blockers are reported in two separate columns, because they mean very different work:
+
+    unblocks   this capability is the ONLY thing standing between the node and a run
+    blocks     the node also waits on prerequisite nodes, so adding the capability
+               alone will not start it
+
+Only `unblocks` is a sensible "build this next" ranking; summing both overstated the
+leverage of the top gap by roughly 7x in the first version.
 
     PYTHONPATH=.pydeps python3 tools/explain_goal.py
-    PYTHONPATH=.pydeps python3 tools/explain_goal.py --goal puni --json data/overnight/plan.json
+    PYTHONPATH=.pydeps python3 tools/explain_goal.py --all --json data/overnight/plan.json
 """
 from __future__ import annotations
 
@@ -27,82 +33,100 @@ from collections import Counter, defaultdict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from seerauto.goals.graph import GoalGraph  # noqa: E402
-from seerauto.runner.runner import RunConfig, open_runner  # noqa: E402
+from seerauto.world.store import WorldStore  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DB = os.path.join(ROOT, "data", "goalrunner.sqlite3")
 
+#: Statuses that cannot be scheduled this run by definition.  Counting their missing
+#: capabilities as "work to do" is what inflated the first version's numbers.
+NOT_SCHEDULABLE = frozenset({"completed", "not_executable", "blocked"})
+
 
 def collect(goal: str, db: str) -> dict:
-    """Evaluate the graph against the newest stored world snapshot."""
+    """Evaluate the graph against the newest stored world snapshot.  No game access."""
 
     graph = GoalGraph.load()
-    cfg = RunConfig(goal=goal, db_path=db, dry_run=True, allow_input=False)
-    runner = open_runner(cfg, log=lambda *_: None)
+    store = WorldStore(db)
     try:
-        world = runner.store.latest_world() if runner.store else None
-        completed = runner.completed_nodes(world)
-        rows = []
-        for node in graph:
-            status = graph.status_of(node.id, world=world, completed=completed)
-            unmet = graph.unmet(node.id, world=world, completed=completed)
-            rows.append({
-                "id": node.id,
-                "legacy_id": node.legacy_id,
-                "title": node.title,
-                "phase": node.phase,
-                "priority": node.priority,
-                "executable": node.executable,
-                "status": status,
-                "unmet": unmet,
-            })
-        ready = [n.id for n in graph.ready(world=world, completed=completed)]
-        caps_available = sorted(graph.available_capabilities())
-        return {
-            "goal": goal,
-            "world": {
-                "scene": getattr(getattr(world, "scene", None), "value", None),
-                "run_id": getattr(world, "run_id", None),
-                "observed_at": str(getattr(world, "observed_at", "") or ""),
-            } if world is not None else None,
-            "nodes": rows,
-            "ready": ready,
-            "capabilities_registered": caps_available,
-        }
+        world = store.latest_world()
+        latest = store.latest_run()
+        completed: set[str] = set()
+        if latest and latest.get("run_id"):
+            for node_id, row in store.node_states(latest["run_id"]).items():
+                if str(row.get("status")) == "completed":
+                    completed.add(node_id)
+        if world is not None:
+            for node in graph:
+                if graph.status_of(node.id, world=world, completed=completed) == "completed":
+                    completed.add(node.id)
     finally:
-        runner.close()
+        store.close()
+
+    rows = []
+    for node in graph:
+        status = graph.status_of(node.id, world=world, completed=completed)
+        unmet = graph.unmet(node.id, world=world, completed=completed)
+        rows.append({
+            "id": node.id,
+            "legacy_id": node.legacy_id,
+            "title": node.title,
+            "phase": node.phase,
+            "priority": node.priority,
+            "executable": node.executable,
+            "status": status,
+            "unmet": unmet,
+        })
+    ready = [n.id for n in graph.ready(world=world, completed=completed)]
+    return {
+        "goal": goal,
+        "world": {
+            "scene": getattr(getattr(world, "scene", None), "value", None),
+            "run_id": getattr(world, "run_id", None),
+        } if world is not None else None,
+        "nodes": rows,
+        "ready": ready,
+        "completed_nodes": sorted(completed),
+        "capabilities_registered": sorted(graph.available_capabilities()),
+    }
 
 
 def summarise(report: dict) -> dict:
     rows = report["nodes"]
     by_status = Counter(r["status"] for r in rows)
-    # Which missing capability, if registered, would unblock the most nodes?
-    cap_blockers: dict[str, list[str]] = defaultdict(list)
-    state_blockers: dict[str, list[str]] = defaultdict(list)
-    node_blockers: dict[str, list[str]] = defaultdict(list)
+    unblocks: dict[str, list[str]] = defaultdict(list)
+    blocks: dict[str, list[str]] = defaultdict(list)
+    state_gaps: dict[str, list[str]] = defaultdict(list)
+    node_gaps: dict[str, list[str]] = defaultdict(list)
     for r in rows:
-        for reason in r["unmet"]:
-            if reason.startswith("missing capability "):
+        if r["status"] in NOT_SCHEDULABLE:
+            continue
+        caps = [x for x in r["unmet"] if x.startswith("missing capability ")]
+        other = [x for x in r["unmet"] if not x.startswith("missing capability ")]
+        for reason in caps:
+            name = reason.split("'")[1] if "'" in reason else reason
+            (blocks if other else unblocks)[name].append(r["id"])
+        for reason in other:
+            if reason.startswith("state prerequisite "):
                 name = reason.split("'")[1] if "'" in reason else reason
-                cap_blockers[name].append(r["id"])
-            elif reason.startswith("state prerequisite "):
-                name = reason.split("'")[1] if "'" in reason else reason
-                state_blockers[name].append(r["id"])
+                state_gaps[name].append(r["id"])
             elif reason.startswith("prerequisite node "):
                 name = reason.split("'")[1] if "'" in reason else reason
-                node_blockers[name].append(r["id"])
+                node_gaps[name].append(r["id"])
+
+    def ranked(d):
+        return sorted(({"name": k, "count": len(v), "nodes": v[:8]}
+                       for k, v in d.items()), key=lambda x: -x["count"])
+
+    schedulable_missing = sum(1 for r in rows if r["status"] == "missing_capability")
     return {
         "count": len(rows),
         "by_status": dict(by_status.most_common()),
-        "capability_gaps": sorted(
-            ({"capability": k, "blocks": len(v), "nodes": v[:8]}
-             for k, v in cap_blockers.items()), key=lambda x: -x["blocks"]),
-        "state_gaps": sorted(
-            ({"state": k, "blocks": len(v), "nodes": v[:8]}
-             for k, v in state_blockers.items()), key=lambda x: -x["blocks"]),
-        "node_gaps": sorted(
-            ({"node": k, "blocks": len(v), "nodes": v[:8]}
-             for k, v in node_blockers.items()), key=lambda x: -x["blocks"]),
+        "schedulable_but_missing_capability": schedulable_missing,
+        "capability_unblocks": ranked(unblocks),
+        "capability_blocks": ranked(blocks),
+        "state_gaps": ranked(state_gaps),
+        "node_gaps": ranked(node_gaps),
         "ready": report["ready"],
     }
 
@@ -119,27 +143,33 @@ def main() -> int:
     summary = summarise(report)
     world = report["world"] or {}
     print(f"goal {report['goal']}  nodes={summary['count']}  "
-          f"world_scene={world.get('scene')}  observed={world.get('observed_at')}")
+          f"world_scene={world.get('scene')}  run={world.get('run_id')}")
     print("status: " + " ".join(f"{k}={v}" for k, v in summary["by_status"].items()))
+    print(f"completed: {report.get('completed_nodes') or 'none'}")
     print(f"ready now: {summary['ready'] or 'NONE'}")
     print()
 
-    if summary["capability_gaps"]:
-        print("CAPABILITY GAPS (build these to unblock the most nodes):")
-        for gap in summary["capability_gaps"][:12]:
-            print(f"  {gap['capability']:<28} blocks {gap['blocks']:>2}  "
+    if summary["capability_unblocks"]:
+        print("CAPABILITY GAPS — adding one of these would let a node run immediately:")
+        for gap in summary["capability_unblocks"][:12]:
+            print(f"  {gap['name']:<28} unblocks {gap['count']:>2}  "
                   f"e.g. {', '.join(gap['nodes'][:3])}")
+        print()
+    if summary["capability_blocks"]:
+        print("also missing a capability, but they wait on prerequisites too (lower priority):")
+        for gap in summary["capability_blocks"][:8]:
+            print(f"  {gap['name']:<28} on {gap['count']:>2} further node(s)")
         print()
     if summary["state_gaps"]:
         print("STATE PREREQUISITES never yet observed:")
         for gap in summary["state_gaps"][:12]:
-            print(f"  {gap['state']:<28} blocks {gap['blocks']:>2}  "
+            print(f"  {gap['name']:<28} blocks {gap['count']:>2}  "
                   f"e.g. {', '.join(gap['nodes'][:3])}")
         print()
     if summary["node_gaps"]:
         print("NODE PREREQUISITES still open (top 10):")
         for gap in summary["node_gaps"][:10]:
-            print(f"  {gap['node']:<34} blocks {gap['blocks']:>2}")
+            print(f"  {gap['name']:<34} blocks {gap['count']:>2}")
         print()
 
     if args.all:
