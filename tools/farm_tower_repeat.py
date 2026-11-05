@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -202,6 +203,46 @@ def enter_tower_and_read_floor(skills, ctx) -> int | None:
         return None
 
 
+def restart_client() -> bool:
+    """Quit and relaunch the client, which is the only verified way out of the tower.
+
+    The tower interior has no bottom bar, so the map icon that every navigation skill
+    relies on is simply absent there.  A restart lands the character back in town with
+    a healthy pet, and `tools/login.py` (which the supervisor already uses) can walk it
+    back in.  Bounded by the caller: `--max-restarts`.
+    """
+
+    log("restart: the client is inside a scene we cannot navigate out of; relaunching")
+    try:
+        subprocess.run(["pkill", "-f", "/Applications/SeerGame.app/Contents/MacOS/SeerGame"],
+                       check=False, capture_output=True, timeout=15)
+    except Exception as exc:  # noqa: BLE001
+        log(f"restart: pkill failed ({exc})")
+        return False
+    time.sleep(6)
+    try:
+        subprocess.run(["open", "-a", "/Applications/SeerGame.app"], check=False, timeout=20)
+    except Exception as exc:  # noqa: BLE001
+        log(f"restart: open failed ({exc})")
+        return False
+    time.sleep(18)
+    code, out = run_login()
+    log(f"restart: login.py exited {code} "
+        f"({' | '.join(out.strip().splitlines()[-2:])})")
+    return code == 0
+
+
+def run_login() -> tuple[int, str]:
+    env = dict(os.environ, PYTHONPATH=".pydeps")
+    try:
+        proc = subprocess.run([sys.executable, "tools/login.py", "--timeout", "240"],
+                              cwd=ROOT, env=env, capture_output=True, text=True,
+                              timeout=460)
+        return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+    except subprocess.TimeoutExpired:
+        return 124, "timeout"
+
+
 def reset_between_rounds(skills, ctx, destination: str) -> None:
     """Leave the tower, heal, come back.
 
@@ -213,12 +254,15 @@ def reset_between_rounds(skills, ctx, destination: str) -> None:
 
     log("reset: trying to leave the tower to heal, then re-enter")
     if not travel_to_tower(skills, ctx, destination):
-        # Honest limitation: the tower interior has no bottom bar, so the map icon the
-        # Travel skill clicks may not exist there.  There is no verified "exit the
-        # tower" action, so do not pretend a heal happened.
-        log("reset: cannot leave the tower (no map icon inside); healing deferred — "
-            "the run will stop on its guards rather than fight at 0 HP")
-        return
+        # The tower interior has no bottom bar, so the map icon Travel clicks may not
+        # exist there.  There is no verified in-game "exit", so fall back to the one
+        # thing that is verified: a client restart lands the character in town.
+        log("reset: no map icon inside the tower; falling back to a client restart")
+        if not restart_client():
+            log("reset: restart failed; healing deferred — the run stops on its guards "
+                "rather than fight at 0 HP")
+            return
+        travel_to_tower(skills, ctx, destination)
     heal = skills.get("game.heal_pet")
     if heal is not None:
         try:
@@ -316,6 +360,8 @@ def main() -> int:
     ap.add_argument("--max-failures", type=int, default=3)
     ap.add_argument("--destination", default="tutor_room",
                     help="map destination that holds the tower (default tutor_room)")
+    ap.add_argument("--max-restarts", type=int, default=2,
+                    help="how many client relaunches are allowed to escape the tower")
     ap.add_argument("--no-travel", action="store_true",
                     help="assume the client is already inside the tower")
     ap.add_argument("--floor-read-every", type=int, default=0,
@@ -367,6 +413,7 @@ def main() -> int:
                                                                    max_actions=120),
                        options={"control": control})
     index = len(previous)
+    restarts = 0
     if not args.no_travel and not args.dry_run:
         if not travel_to_tower(skills, ctx, args.destination):
             log("cannot reach the tower; refusing to burn the night clicking scenery")
@@ -428,8 +475,9 @@ def main() -> int:
                 write_state(ledger, {"dry_run": False})
             # Reset every second consecutive failure, not only on exactly the second:
             # a `== 2` test never fires again once the streak reaches 3.
-            if (not args.no_travel and not args.dry_run
+            if (not args.no_travel and not args.dry_run and restarts < args.max_restarts
                     and ledger.failure_streak >= 2 and ledger.failure_streak % 2 == 0):
+                restarts += 1
                 log("two rounds failed in a row; resetting (heal + re-enter)")
                 reset_between_rounds(skills, ctx, args.destination)
             log(f"round {index}: {rec.outcome} won={rec.floors_won} "
