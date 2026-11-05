@@ -53,6 +53,10 @@ PRIMARY_WORLD_MARKERS = ("卫兵", "已连接公屏聊天", "公屏聊天 • �
 #: unreachable (the module would burn its whole timeout).  The popup is handled up front
 #: by clear_popup(); here only real page loads count.
 LOADING_MARKERS = ("正在加载", "加载中")
+#: The client's own failure dialogs.  Seen live 2026-11-05: 「此次连接已经断开，请重新
+#: 登陆」 and a bare error code box 「500033」, both with a single 确认 button.  They are
+#: not a login screen and not a world screen; retrying blind keeps hammering the server.
+ERROR_MARKERS = ("此次连接已经断开", "重新登陆", "500033")
 LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险", "忘记密码")
 SERVER_MARKERS = ("选择服务器", "快速进入", "查看全部服务器", "请输入服务器编号")
 ANNOUNCE_MARKERS = ("我已知晓", "我知道了")
@@ -66,6 +70,8 @@ def screen_kind(texts) -> str:
     """Classify one observation.  Order matters: the modal wins over the HUD."""
 
     joined = " ".join(str(t) for t in texts)
+    if any(m in joined for m in ERROR_MARKERS):
+        return "error"
     if any(m in joined for m in LOADING_MARKERS):
         return "loading"
     if any(m in joined for m in SERVER_MARKERS):
@@ -311,6 +317,8 @@ def main() -> int:
                     help="server id for the 请输入服务器编号 quick-enter path")
     ap.add_argument("--server-tries", type=int, default=6,
                     help="how many scroll attempts before falling back to the number field")
+    ap.add_argument("--cooldown", type=float, default=0.0,
+                    help="seconds to wait before the first attempt (server kick cooldown)")
     ap.add_argument("--timeout", type=float, default=180.0)
     args = ap.parse_args()
 
@@ -328,6 +336,10 @@ def main() -> int:
     session.client.send("activate")
     time.sleep(0.8)
     deadline = time.time() + args.timeout
+    errors_seen = 0
+    if args.cooldown:
+        log(f"cooldown {args.cooldown:.0f}s before touching the login screen")
+        time.sleep(args.cooldown)
     try:
         while time.time() < deadline:
             texts = screen_text(session)
@@ -360,6 +372,16 @@ def main() -> int:
                 click_text_or(session, ("登录，开启", "登录", "账密登录"), LOGIN_BTN, "log in",
                               region=LOGIN_REGION)
                 time.sleep(14)
+            elif kind == "error":
+                # Acknowledge, then back off: repeating the login immediately is what
+                # produced 500033 in the first place.
+                log(f"client reported a connection error: {screen_text(session)[:4]}")
+                click_text_or(session, ("确认", "确定"), None, "确认错误提示")
+                errors_seen += 1
+                backoff = min(60.0, 10.0 * errors_seen)
+                log(f"backing off {backoff:.0f}s before the next attempt "
+                    f"({errors_seen} error dialog(s) so far)")
+                time.sleep(backoff)
             elif kind == "loading":
                 _log_kind(kind)
                 time.sleep(3.0)

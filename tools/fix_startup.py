@@ -62,6 +62,10 @@ def main() -> int:
 
     session = LiveSession(dry_run=False, enable_input=True).open()
     try:
+        # The dialog is a separate native window: without the app raised, the click is
+        # delivered but the dialog does not act on it (seen live 2026-11-05 23:21).
+        session.client.send("activate")
+        time.sleep(0.8)
         result = DismissStartupPopup()(SkillContext(
             session=session, world=GameWorldState(), dry_run=False, allow_input=True,
             budget=Budget(max_duration_s=45.0, max_actions=3)))

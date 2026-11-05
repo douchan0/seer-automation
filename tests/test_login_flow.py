@@ -158,3 +158,21 @@ def test_a_stuck_version_check_must_not_block_the_login_branch():
 def test_the_dead_marker_set_is_gone():
     # A second, unused world-marker tuple is how the comment and the code drifted apart.
     assert not hasattr(login, "WORLD_MARKERS")
+
+
+#: Verbatim OCR of the client's own failure dialogs (2026-11-05 23:5x and 00:05).
+DISCONNECT_FRAME = ["公屏聊天 •离线", "综合待命中", "seer.61.com", "xin计划（1.0.8.9）",
+                    "此次连接已经断开，请重新登陆", "确认"]
+ERROR_CODE_FRAME = ["公屏聊天 • 离线", "综合待命中", "xin计划（1.0.8.9）", "500033", "确认"]
+
+
+@pytest.mark.parametrize("texts", [DISCONNECT_FRAME, ERROR_CODE_FRAME])
+def test_client_failure_dialogs_are_their_own_class(texts):
+    """Neither the login page nor the world — retrying blind is what caused 500033."""
+
+    assert login.screen_kind(texts) == "error"
+
+
+def test_the_error_class_outranks_loading_and_login():
+    assert login.screen_kind(DISCONNECT_FRAME + LOGIN_FRAME) == "error"
+    assert login.screen_kind(ERROR_CODE_FRAME + ["正在加载星球资源"]) == "error"
