@@ -50,18 +50,27 @@ class RoundRecord:
     spend: dict[str, float] = field(default_factory=dict)
     currencies_after: dict[str, float] = field(default_factory=dict)
     interrupted: bool = False
+    #: The skill refused or was blocked (no input, wrong scene).  Distinct from
+    #: "it ran and produced nothing", which is NO_WORK.
+    blocked: bool = False
     notes: list[str] = field(default_factory=list)
     error: str = ""
 
     @property
     def outcome(self) -> str:
+        # The classification must never be derived from ``notes``: this tool appends a
+        # diagnostic note to every round (the evidence frame path), so "has a note"
+        # made every no-win round look like a hard failure and erased the NO_WORK
+        # signal that is the whole reason this module exists.
         if self.interrupted:
             return ROUND_PAUSED
         if self.error:
             return ROUND_BLOCKED
+        if self.blocked:
+            return ROUND_BLOCKED
         if self.floors_won > 0:
             return ROUND_OK
-        return ROUND_IDLE if not self.notes else ROUND_FAILED
+        return ROUND_IDLE
 
     @property
     def floors_gained(self) -> int | None:
@@ -86,6 +95,7 @@ class RoundRecord:
             "currencies_after": self.currencies_after,
             "outcome": self.outcome,
             "interrupted": self.interrupted,
+            "blocked": self.blocked,
             "notes": self.notes,
             "error": self.error,
         }

@@ -38,7 +38,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: "already in the world" while the client sat on 选择服务器 — a false success that
 #: cost a whole session (2026-11-05, 19:47).
 WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "XIN计划，启动")
-PRIMARY_WORLD_MARKERS = ("卫兵", "当前回合", "XIN计划，启动", "已连接公屏聊天")
+#: Only strings that cannot appear before the character is in the world.
+#: 「XIN计划，启动！」 is the splash/loading caption and 「当前回合」 is battle HUD — both
+#: appear *before* arrival, and trusting them made this tool report "confirmed in the
+#: world" on a 76% 「正在加载星球资源」 screen (2026-11-05, repro: server_entered.png).
+PRIMARY_WORLD_MARKERS = ("卫兵", "已连接公屏聊天")
+#: Loading must be checked before anything else: it is the state that most looks like
+#: success and most certainly is not arrival.
+LOADING_MARKERS = ("正在加载", "版本检测中", "加载中")
 LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险", "忘记密码")
 SERVER_MARKERS = ("选择服务器", "快速进入", "查看全部服务器", "请输入服务器编号")
 ANNOUNCE_MARKERS = ("我已知晓", "我知道了")
@@ -52,6 +59,8 @@ def screen_kind(texts) -> str:
     """Classify one observation.  Order matters: the modal wins over the HUD."""
 
     joined = " ".join(str(t) for t in texts)
+    if any(m in joined for m in LOADING_MARKERS):
+        return "loading"
     if any(m in joined for m in SERVER_MARKERS):
         return "server"
     if any(m in joined for m in ANNOUNCE_MARKERS):
@@ -162,6 +171,26 @@ def click_text_or(session: LiveSession, words, fallback_px, why: str,
     return False
 
 
+def drag_server_list(session: LiveSession, *, down: bool = True) -> None:
+    """Drag the server list's scrollbar, converting game_px -> global points.
+
+    ``seerdx``'s ``drag`` op posts a CGEvent, so it wants **global** screen points.
+    The old code passed ``SCROLLBAR_X=2023`` (window-local game_px) straight in, which
+    is ~740 pt to the right of the window: the drag landed on the desktop and moved the
+    user's real mouse around another app.  ``LiveSession`` owns the conversion.
+    """
+
+    top = SCROLL_TOP if down else SCROLL_BOTTOM
+    bottom = SCROLL_BOTTOM if down else SCROLL_TOP
+    geo = getattr(session, "geo", None)
+    if geo is None:
+        log("no geometry; refusing to drag the server list")
+        return
+    p1 = geo.global_pt_from_game_px(SCROLLBAR_X, top)
+    p2 = geo.global_pt_from_game_px(SCROLLBAR_X, bottom)
+    session.client.send("drag", x1=p1.x, y1=p1.y, x2=p2.x, y2=p2.y, steps=18)
+
+
 def find_server(session: LiveSession, name: str, tries: int = 6) -> tuple[float, float] | None:
     """Find the server row, dragging the list when it is sorted by population."""
 
@@ -172,12 +201,7 @@ def find_server(session: LiveSession, name: str, tries: int = 6) -> tuple[float,
         if hit:
             log(f"server {name!r} found at attempt {attempt}: {hit['px']}")
             return tuple(hit["px"])
-        if attempt % 2 == 0:
-            session.client.send("drag", x1=SCROLLBAR_X, y1=SCROLL_TOP,
-                                x2=SCROLLBAR_X, y2=SCROLL_BOTTOM, steps=18)
-        else:
-            session.client.send("drag", x1=SCROLLBAR_X, y1=SCROLL_BOTTOM,
-                                x2=SCROLLBAR_X, y2=SCROLL_TOP, steps=18)
+        drag_server_list(session, down=(attempt % 2 == 0))
         time.sleep(1.4)
     return None
 
@@ -199,8 +223,15 @@ def enter_server_by_number(session: LiveSession, number: int) -> bool:
         return False
     session.click_px(box["px"][0] + 120, box["px"][1], "focus server number field")
     time.sleep(0.7)
+    # Clear first: this runs on every pass through the server screen, and without a
+    # clear the field accumulates ("1" -> "11" -> "111") and 快速进入 goes elsewhere.
+    session.client.send("key", code=0)          # cmd+A
+    time.sleep(0.25)
     session.client.send("type", text=str(number))
     time.sleep(0.9)
+    if not _field_shows(session, box, str(number)):
+        log(f"server number field does not read {number!r}; refusing to enter")
+        return False
     if go is None:
         items = session.ocr(min_conf=0.2)
         go = session.find_text(items, ("快速", "进入"))
@@ -212,6 +243,24 @@ def enter_server_by_number(session: LiveSession, number: int) -> bool:
     return True
 
 
+def _field_shows(session: LiveSession, box: dict, want: str) -> bool:
+    """Did the number actually land in the field?  Cheap, and it prevents a wrong server."""
+
+    try:
+        items = session.ocr(min_conf=0.2)
+    except Exception:  # noqa: BLE001
+        return False
+    want_digits = "".join(ch for ch in want if ch.isdigit())
+    for item in items:
+        px = item.get("px") or (0, 0)
+        if abs(px[0] - (box["px"][0] + 120)) > 220 or abs(px[1] - box["px"][1]) > 40:
+            continue
+        got = "".join(ch for ch in str(item.get("text") or "") if ch.isdigit())
+        if got == want_digits:
+            return True
+    return False
+
+
 def confirmed_world(session: LiveSession) -> bool:
     """Claim the world only after PRIMARY_WORLD_MARKERS on two spaced observations."""
 
@@ -221,6 +270,11 @@ def confirmed_world(session: LiveSession) -> bool:
         if i + 1 < WORLD_CONFIRM_FRAMES:
             time.sleep(WORLD_CONFIRM_GAP_S)
     return True
+
+
+def _log_kind(kind: str) -> None:
+    if kind == "loading":
+        log("client is still loading (版本检测/加载星球资源) — not the world yet")
 
 
 def main() -> int:
@@ -277,6 +331,9 @@ def main() -> int:
                 click_text_or(session, ("登录，开启", "登录", "账密登录"), LOGIN_BTN, "log in",
                               region=LOGIN_REGION)
                 time.sleep(14)
+            elif kind == "loading":
+                _log_kind(kind)
+                time.sleep(3.0)
             else:
                 time.sleep(3)
         log("timed out before reaching the world")

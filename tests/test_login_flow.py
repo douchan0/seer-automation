@@ -54,6 +54,15 @@ LOGIN_FRAME = [
 
 ANNOUNCEMENT_FRAME = ["游戏公告", "亲爱的", "我已知晓"]
 
+#: Verbatim OCR of data/overnight/frames/server_entered.png (2026-11-05 19:50).
+#: This frame is the regression the review caught: it contains 「XIN计划，启动！」
+#: and 「加载」, and the old marker set called it the world — reporting success
+#: while the client was still at 76% of 正在加载星球资源.
+LOADING_FRAME = [
+    "公屏聊天 •离线", "综合待命中", "seer.61.com", "xin计划（1.0.8.9）",
+    "XIN计划，启动！", "76%", "PROJECT", "正在加载星球资源",
+]
+
 
 @pytest.mark.parametrize("texts,expected", [
     (SERVER_LIST_FRAME, "server"),
@@ -61,7 +70,8 @@ ANNOUNCEMENT_FRAME = ["游戏公告", "亲爱的", "我已知晓"]
     (LOGIN_FRAME, "login"),
     (ANNOUNCEMENT_FRAME, "announcement"),
     ([], "unknown"),
-    (["正在加载星球资源", "76%"], "unknown"),
+    (["正在加载星球资源", "76%"], "loading"),
+    (LOADING_FRAME, "loading"),
 ])
 def test_screen_kind(texts, expected):
     assert login.screen_kind(texts) == expected
@@ -94,3 +104,18 @@ def test_confirm_frames_is_at_least_two():
     # One frame is not evidence: the login -> server transition looks world-ish once.
     assert login.WORLD_CONFIRM_FRAMES >= 2
     assert login.WORLD_CONFIRM_GAP_S > 0
+
+
+def test_a_loading_screen_is_never_the_world():
+    """The splash caption 「XIN计划，启动！」 is not evidence of arrival."""
+
+    assert login.screen_kind(LOADING_FRAME) == "loading"
+    assert "XIN计划，启动" not in login.PRIMARY_WORLD_MARKERS
+    assert "当前回合" not in login.PRIMARY_WORLD_MARKERS
+    # ... and the world frame still is.
+    assert login.screen_kind(WORLD_FRAME) == "world"
+
+
+def test_loading_outranks_every_other_class():
+    # A loading screen can carry leftover login/announcement text; loading wins.
+    assert login.screen_kind(LOADING_FRAME + LOGIN_FRAME) == "loading"

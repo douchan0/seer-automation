@@ -26,10 +26,11 @@ T0 = datetime(2026, 11, 5, 23, 0, 0)
 
 
 def _round(i=1, *, won=1, xp=1300.0, before=None, after=None, error="", notes=(),
-           interrupted=False):
+           interrupted=False, blocked=False):
     r = RoundRecord(index=i, started_at=T0.isoformat(), floors_won=won,
                     xp_income=xp, tower_floor_before=before, tower_floor_after=after,
-                    error=error, notes=list(notes), interrupted=interrupted)
+                    error=error, notes=list(notes), interrupted=interrupted,
+                    blocked=blocked)
     return r
 
 
@@ -64,8 +65,10 @@ def test_two_empty_rounds_stop_the_loop():
 
 def test_a_failure_streak_stops_the_loop():
     led = TowerLedger(guards=Guards(max_failures=2, max_no_work=99))
-    led.add(_round(won=0, xp=0, notes=["guardian click did not start a battle"]))
-    led.add(_round(won=0, xp=0, notes=["guardian click did not start a battle"]))
+    led.add(_round(won=0, xp=0, blocked=True,
+                   notes=["guardian click did not start a battle"]))
+    led.add(_round(won=0, xp=0, blocked=True,
+                   notes=["guardian click did not start a battle"]))
     keep, why = led.should_continue(now=T0, deadline=None)
     assert not keep
     assert "failed" in why
@@ -144,4 +147,23 @@ def test_a_paid_win_still_resets_the_idle_streak():
     led.add(_round(won=0, xp=0))
     assert led.no_work_streak == 1
     led.add(_round(won=1, xp=0))
+    assert led.no_work_streak == 0
+
+
+def test_a_diagnostic_note_does_not_turn_no_work_into_a_failure():
+    """The tool appends a frame path to every round; that must not be a classification."""
+
+    r = _round(won=0, xp=0, notes=["frame data/overnight/frames/round_001.png"])
+    assert r.outcome == ROUND_IDLE
+    assert r.outcome != ROUND_FAILED
+
+
+def test_a_refusal_is_blocked_not_idle():
+    r = _round(won=0, xp=0, blocked=True, error="farm_tower BLOCKED: input disabled")
+    assert r.outcome == ROUND_BLOCKED
+
+
+def test_a_paused_round_is_never_counted_as_no_work():
+    led = TowerLedger(guards=Guards(max_no_work=1))
+    led.add(_round(won=0, xp=0, interrupted=True))
     assert led.no_work_streak == 0

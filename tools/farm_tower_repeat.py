@@ -166,18 +166,32 @@ def travel_to_tower(skills, ctx, destination: str = "tutor_room") -> bool:
     return False
 
 
-def read_floor(skills, ctx) -> int | None:
-    """The painted floor number, via the already-verified observe skill."""
+def enter_tower_and_read_floor(skills, ctx) -> int | None:
+    """Enter the tower interior and read the painted floor number.
+
+    This is not optional bookkeeping: ``game.tower_status`` is the only skill that
+    clicks the tower entrance (``ReadTowerFloor.TOWER_ENTRY``).  ``game.travel``
+    stops at the training *room*; clicking the guardian's fixed pixel from there hits
+    scenery, which is exactly how four ledger rounds were lost on 2026-11-05 with
+    "guardian click did not start a battle" while the client sat in the lobby.
+    """
 
     skill = skills.get("game.tower_status")
+    if skill is None:
+        log("game.tower_status is not registered; cannot enter the tower")
+        return None
     try:
         res = skill(ctx)
     except Exception as exc:  # noqa: BLE001
         log(f"tower_status raised: {exc}")
         return None
-    value = (res.after or {}).get("floors")
+    changed = bool(getattr(res, "changed", False))
+    log(f"enter tower: {res.status.value} {(res.proof or res.reason or '')[:100]}")
+    if res.status.value not in ("PASS", "SKIPPED") and not changed:
+        return None
+    value = (getattr(res, "after", None) or {}).get("floors")
     if value is None:
-        value = (res.after or {}).get("tower_floor")
+        value = (getattr(res, "after", None) or {}).get("tower_floor")
     try:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
@@ -185,7 +199,7 @@ def read_floor(skills, ctx) -> int | None:
 
 
 def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
-              dry_run: bool) -> RoundRecord:
+              dry_run: bool, control=None) -> RoundRecord:
     """One floor-farming pass.  The floor read is opt-in because it is expensive.
 
     Reading the painted floor number costs a VLM round-trip (~40 s measured) and it
@@ -198,7 +212,7 @@ def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
         timespec="seconds"))
     try:
         if read_floor_wanted and not dry_run:
-            rec.tower_floor_before = read_floor(skills, ctx)
+            rec.tower_floor_before = enter_tower_and_read_floor(skills, ctx)
         farm = skills.get("game.farm_tower")
         res = farm(ctx, floors=floors, max_seconds=240.0)
         rec.floors_won = int((res.after or {}).get("wins")
@@ -206,6 +220,12 @@ def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
         if res.reason:
             rec.notes.append(res.reason[:200])
         if res.status.value not in ("PASS", "SKIPPED"):
+            # A refusal (no input / dry run / wrong scene) is BLOCKED, not "it ran and
+            # found nothing".  Keeping them apart is what stops a NO_WORK guard from
+            # firing on a configuration problem.
+            if res.status.value in ("BLOCKED", "SKIPPED") or "refused" in (
+                    res.reason or "").lower():
+                rec.blocked = True
             rec.error = f"farm_tower {res.status.value}: {res.reason[:160]}"
         # Prefer what the battle itself measured; only fall back to the screen.
         rewards = list((res.after or {}).get("rewards") or [])
@@ -217,7 +237,10 @@ def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
                            if "经验" in str(r.get("kind") or ""))
         rec.xp_income = measured or from_dialogs
         if read_floor_wanted and not dry_run:
-            rec.tower_floor_after = read_floor(skills, ctx)
+            rec.tower_floor_after = enter_tower_and_read_floor(skills, ctx)
+        if control is not None and control.paused():
+            # The round was cut short by the user, which is not a failure.
+            rec.interrupted = True
         # Keep the frame every round: a ledger number nobody can look at is a claim,
         # not evidence.  One shot per round is ~0.5 s against a ~30 s round.
         try:
@@ -308,6 +331,9 @@ def main() -> int:
             write_state(ledger, {"dry_run": args.dry_run})
             session.close()
             return 11
+    if not args.no_travel and not args.dry_run:
+        floor_now = enter_tower_and_read_floor(skills, ctx)
+        log(f"tower entry probe: floor={floor_now}")
     try:
         while True:
             if control.stop_requested():
@@ -315,9 +341,21 @@ def main() -> int:
                 log("stop requested -> finishing without a new round")
                 break
             if pause_requested(control):
+                # 「暂停，保存」 is a contract: freeze inputs, save, and *wait*.
+                # Exiting here (the first version did) turned a pause into a failure
+                # with no checkpoint, and the caller could not tell the two apart.
                 log("PAUSED: no new round starts while the pause file exists")
                 ledger.stopped_because = "paused by user"
-                break
+                write_state(ledger, {"dry_run": args.dry_run, "status": "paused"})
+                waited = control.wait_while_paused()
+                if waited <= 0:
+                    log("pause released immediately; continuing")
+                else:
+                    log(f"RESUMED after {waited:.1f}s; re-observing before the next round")
+                ledger.stopped_because = ""
+                if not args.no_travel:
+                    travel_to_tower(skills, ctx, args.destination)
+                continue
             keep, why = ledger.should_continue(now=datetime.now(), deadline=deadline)
             if not keep:
                 ledger.stopped_because = why
@@ -332,7 +370,8 @@ def main() -> int:
                              or (args.floor_read_every
                                  and index % args.floor_read_every == 0))
             rec = one_round(index=index, skills=skills, ctx=ctx, floors=args.rounds,
-                            read_floor_wanted=first_or_last, dry_run=args.dry_run)
+                            read_floor_wanted=first_or_last, dry_run=args.dry_run,
+                            control=control)
             ledger.add(rec)
             append_round(rec)
             write_state(ledger, {"dry_run": args.dry_run})
@@ -354,6 +393,10 @@ def main() -> int:
     log(f"done: rounds={s['rounds']} productive={s['productive_rounds']} "
         f"floors={s['floors_won']} xp_measured={s['xp_income']:.0f} "
         f"stopped={s['stopped_because'] or 'none'}")
+    if (s["stopped_because"] or "").startswith("paused"):
+        return 20          # paused != failed; a caller must be able to tell them apart
+    if s["stopped_because"] == "stop requested":
+        return 20
     return 0 if s["floors_won"] or s["rounds"] == 0 else 10
 
 
