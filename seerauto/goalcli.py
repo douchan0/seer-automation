@@ -204,7 +204,8 @@ def cmd_goal_pause(args: Any) -> int:
             store.update_run(run["run_id"], status="pause-requested")
     finally:
         store.close()
-    print(f"pause requested ({control.pause_file}); the run stops acting within one tick")
+    print(f"pause requested ({control.pause_file}); the runner will save a fresh read-only "
+          "observation checkpoint at the next cooperative safe point and then wait")
     return 0
 
 
@@ -236,10 +237,16 @@ def cmd_goal_resume(args: Any) -> int:
               f"{run.get('stop_reason')})")
         print(f"completed nodes: {[k for k, v in nodes.items() if v == 'completed']}")
         budgets = run.get("budgets") or {}
+        saved_options = run.get("options") or {}
+        saved_background = bool(saved_options.get("background", False))
     finally:
         store.close()
 
     cfg = _config_from_args(args, run_id=run_id)
+    # Preserve the original input lane across a process restart unless the user
+    # explicitly asks to override it on the resume command.
+    if getattr(args, "background", None) is None:
+        cfg.background = saved_background
     if "max_minutes" in budgets and not getattr(args, "max_minutes", None):
         cfg.max_minutes = float(budgets["max_minutes"])
     if "max_battles" in budgets and not getattr(args, "max_battles", None):
@@ -452,6 +459,8 @@ def add_goal_subcommand(sub: Any) -> None:
     resume.add_argument("--max-battles", type=int, default=None)
     resume.add_argument("--db", **common_db)
     resume.add_argument("--ai-dir", default=None)
+    resume.add_argument("--background", action="store_true", default=None,
+                        help="override the saved run's background-input mode")
     resume.add_argument("--pause-file", default=None)
     resume.add_argument("--stop-file", default=None)
     resume.add_argument("--run-id", default=None)
