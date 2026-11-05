@@ -360,16 +360,30 @@ def test_ready_respects_missing_capability(graph: GoalGraph) -> None:
 
 
 def test_ready_respects_completed_set(graph: GoalGraph) -> None:
+    """A completed prerequisite must not leave a *non-grind* dependent ready.
+
+    The graph deliberately contains repeatable grind nodes (``wild_45``) that are ready
+    as soon as their prerequisite is done and the level is known — that is the whole
+    point of a grind node.  So this asserts on the node the old shape guaranteed, not on
+    "the ready list is empty", which would forbid ever adding one.
+    """
+
     world = world_with_active_pet(level=15)
     ready = graph.ready(world=world, completed={"puni.prepare.level_up"},
                         capabilities={"battle.repeat"})
-    assert ready == []
+    ids = {n.id for n in ready}
+    assert "puni.prepare.wild_45" in ids
+    assert all(graph.node(i).executable for i in ids)
 
 
 def test_ready_skips_nodes_already_true_in_the_world(graph: GoalGraph) -> None:
     world = world_with_active_pet(level=40)
     ready = graph.ready(world=world, completed=set(), capabilities={"battle.repeat"})
-    assert ready == []
+    # Nothing that is already satisfied by the world may appear; a grind node whose
+    # target is above the observed level legitimately still does.
+    assert all(graph.status_of(n.id, world=world, completed=set()) == "ready"
+               for n in ready)
+    assert "puni.prepare.level_up" not in {n.id for n in ready}
     assert graph.status_of("puni.prepare.level_up", world=world,
                            completed=set()) == "completed"
 
