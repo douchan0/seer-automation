@@ -127,6 +127,7 @@ class GoalRunner:
         self._battles = 0
         self._actions = 0
         self._errors = 0
+        self._verified_nodes_this_run = 0
         self._loops = 0
         self._last_world: GameWorldState | None = None
         self._planner_degraded: str | None = None
@@ -917,6 +918,7 @@ class GoalRunner:
                 self.store.update_run(run_id, stats={
                     "battles": self._battles, "actions": self._actions,
                     "errors": self._errors, "loops": self._loops,
+                                         "verified_nodes": self._verified_nodes_this_run,
                     "elapsed_s": round(self.elapsed_s, 1)})
 
                 # A hard blocker (no usable pet) is not an error to retry: stop
@@ -955,6 +957,7 @@ class GoalRunner:
                     self.store.checkpoint(run_id, f"completed {node.id}", after,
                                           payload={"proof": proof}, verified=True)
                     self.store.append_event(run_id, "node.completed", f"{node.id}: {proof}")
+                    self._verified_nodes_this_run += 1
                     self.log(f"[runner] node COMPLETE {node.id}: {proof}")
                     end_reason = "goal progressed: node completed"
                     if self._all_executable_done():
@@ -1008,6 +1011,7 @@ class GoalRunner:
             self.store.update_run(run_id, status=final_status, stop_reason=end_reason,
                                   stats={"battles": self._battles, "actions": self._actions,
                                          "errors": self._errors, "loops": self._loops,
+                                         "verified_nodes": self._verified_nodes_this_run,
                                          "elapsed_s": round(self.elapsed_s, 1)})
             self.log(f"[runner] stopped: {end_reason} "
                      f"(battles={self._battles} actions={self._actions} "
