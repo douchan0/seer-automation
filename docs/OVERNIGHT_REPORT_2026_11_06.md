@@ -98,18 +98,27 @@ reason:   1 node(s) ready; picked puni.prepare.level_45 (priority 48) ... game.f
 
 ## C. 新功能真机验收
 
-分三级记录：**单测 / 回放 / 真机**。只有真机通过才写 `LIVE_PASS`。
+分级：NOT_IMPLEMENTED / IMPLEMENTED / UNIT_PASS / REPLAY_PASS / LIVE_ATTEMPTED / LIVE_PASS / LIVE_FAIL / BLOCKED。
+**只有 LIVE_PASS 才算"已在游戏中验证"。**
 
-| 功能 | 单测 | 回放 | 真机 | 结论 |
-|---|---|---|---|---|
-| `tools/bg_probe.py` 后台输入探针 | — | — | ✅ 跑过（含 A/B 对照） | **`BACKGROUND_INPUT_BLOCKED`** |
-| `tools/login.py` 世界判据 / 按编号进服 | ✅ 11 项 | — | ✅ 按编号进服实测成功 | `LIVE_PASS` |
-| 美术包弹窗关闭 | — | — | ✅ 手动关过一次（19:46） | 真机成功，但**尚无一键自动化**（`clickpid` 无效已改前台点击，待复验） |
-| Runner 暂停 checkpoint | ✅ 3 项 | — | 待真机 | — |
-| `--deadline-at` 绝对截止 | ✅ 4 项 | — | — | 单元级 |
-| `tools/farm_tower_repeat.py` | ✅ 16 项（账本） | — | ⚠️ 只有 dry-run（4/4 `BLOCKED`，符合预期） | **未跑通**：首版从未进塔（只到训练室），已改为 `game.tower_status` 先进塔 |
-| `parse_exp_allocator` 面板解析 | ✅ 5 项（真帧 fixture） | ✅ 用视频帧 | 待真机（面板未找到） | — |
-| `game.give_exp` 经验灌注 | ✅ 6 项 | — | 待真机（面板未找到） | — |
+| 功能 | 单测 | 回放 | 真机 | 结论 | 证据 |
+|---|---|---|---|---|---|
+| `game.travel` | ✅ | — | ✅ 多次到达训练室/挑战区 | **LIVE_PASS** | `travel: PASS` ×6 |
+| `game.tower_status` | ✅ 11 项 | — | ⚠️ 有假 PASS（读对话框/杂串），已加"必须伴随塔对话框"守卫 | **LIVE_FAIL → 已修，待复验** | 见 B.3 / `5c2e7db` |
+| **`game.enter_tower`（新增）** | — | — | ✅ 点「继续挑战」→ 对话框消失 → 塔内画面写着层数 | **LIVE_PASS** | `frames/after_enter_tower.png` |
+| `game.farm_tower` | ✅ | — | ✅ **连刷 8 层（15→23）**，每层都有 PASS + 帧 | **LIVE_PASS** | `frames/floor15_won.png`、`farm_more_end.png`、`heal_then_floor.png` |
+| `game.heal_pet` | ✅ | — | ✅ `精灵恢复` → 0/117 → 117/117 | **LIVE_PASS** | `frames/after_heal.png` |
+| `game.read_active_pet_level` | ✅ | — | ✅ 三次读数 Lv36→37→39 | **LIVE_PASS** | `wild_cycle.jsonl` 的 `level` 字段 |
+| `game.navigate_spt_boss` | ✅ | — | ✅ 蘑菇怪「前往」点击 | **LIVE_PASS** | `navigate: PASS (7s)` |
+| `game.run_battle` | ✅ | ✅ | ✅ 36 胜 0 负、+3286 经验 | **LIVE_PASS** | `data/overnight/wild_cycle.jsonl` |
+| `tools/login.py` 全流程 | ✅ 21 项 | — | ✅ 公告→登录→选服→确认进世界 | **LIVE_PASS** | `login_01.log`、多轮真机 |
+| `tools/fix_startup.py` | — | — | ✅ 关掉美术包弹窗（需先 activate） | **LIVE_PASS** | `24:xx` 四轮重启 |
+| `tools/bg_probe.py` | ✅ 8 项 | — | ✅ 同一次运行跑两条通道 | **`BACKGROUND_INPUT_BLOCKED`** | `data/overnight/bg_probe.json` |
+| **`game.give_exp`（新增）** | ✅ 8 项 | — | ❌ 面板没找到，从未执行 | **NOT_EXECUTED** | — |
+| **`parse_exp_allocator`（新增）** | ✅ 7 项 | ✅ 视频真帧 | ❌ 同上 | **REPLAY_PASS** | — |
+| `tools/wild_cycle.py`（新增） | — | — | ✅ 36 胜 / +3286 XP 且仍在跑 | **LIVE_PASS** | `data/overnight/wild_cycle.log` |
+| `tools/tower_cycle.py`（新增） | — | — | ⚠️ 入口判定不稳，已被 wild_cycle 取代 | **LIVE_FAIL** | `frames/cycle_006.png` |
+| `tools/explain_goal.py` | — | — | 不碰游戏（纯读 SQLite） | **N/A** | — |
 
 ### C.1 后台输入：为什么判 BLOCKED（这是今晚第一个硬证据）
 
