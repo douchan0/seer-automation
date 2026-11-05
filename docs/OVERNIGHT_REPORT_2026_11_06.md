@@ -282,3 +282,22 @@ PR #1 分支保留为 `night/20261105-puni`（含我修的两个 bug 和三个�
 `data/goalrunner.sqlite3`（账号状态）、`data/overnight/`（画面帧与账本）、`.ocxdg/`、`.pydeps`
 都在 `.gitignore` 内。**帧文件不入库**（每个 1–4 MB），但**判决所依据的 OCR 文本已内嵌进 JSON**，
 所以换一台机器克隆后，结论仍然可复核。
+
+---
+
+## G. 交班（06:13）
+
+- **客户端**：已重启并重新登录到世界，停在**精灵太空站大厅**，没有打开的弹窗、没有正在跑的战斗。
+- **执行器**：全部已停止（`wild_cycle` 按 06:08 的绝对截止自行收工；没有残留的 supervisor / goal 进程）。
+- **控制文件**：`/tmp/seerauto.stop`、`/tmp/seerauto.pause`、`/tmp/seerauto.master.pause` **都不存在**。
+- **工作树**：`/Users/ceontou/Documents/code/seer-automation-night`，分支 `night/20261105-puni-v2`，
+  57 个提交，`git status` 干净；`649 passed / 2 skipped`。
+- **账号**：烈焰猩猩 Lv41，塔第 23 层，野生连战 294 胜。谱尼 0/7、0/6。
+
+### 下一次开工的最短路径（按性价比）
+
+1. `PYTHONPATH=.pydeps python3 tools/login.py --timeout 240 --server-cooldown 20`（若已在线可跳过）
+2. 进谱尼入口，**只为拍一张封印面板**（`game.goto_puni_entrance` 已验证可用）→ 这一步能把
+   每日次数、七封印清单、真身阶段从 UNKNOWN 变成事实。
+3. 跑 `tools/wild_cycle.py --deadline-at <今晚>` 继续练级（294 胜的实测速率约 80~180 胜/小时）。
+4. 用 `tools/probe_panels.py` 扫背包顶部图标行找**经验分配器**（解析器和灌注技能都已就绪）。
