@@ -30,6 +30,7 @@ def classify_run(summary: Mapping[str, Any]) -> str:
         stats = {}
     actions = int(stats.get("actions") or 0)
     battles = int(stats.get("battles") or 0)
+    verified_nodes = int(stats.get("verified_nodes") or 0)
 
     if "crashed:" in reason or "error budget" in reason or status == "failed":
         return "FAILED"
@@ -43,7 +44,7 @@ def classify_run(summary: Mapping[str, Any]) -> str:
         return "BLOCKED"
     if "dry run complete" in reason:
         return "DRY_RUN"
-    if "goal progressed: node completed" in reason:
+    if verified_nodes > 0 or "goal progressed: node completed" in reason:
         return "PROGRESS"
     if "all executable nodes complete" in reason:
         # All currently executable nodes != entire Puni objective.
