@@ -51,6 +51,84 @@
 
 本分支的 Supervisor/CLI 修复 **尚未在 Mac 上真机跑过**，现在只能称工程候选改动。
 
+## 3.5 不抢焦点 / 不移动鼠标：真实能力边界
+
+仓库已经有一条实验性后台输入通道，不是从零开始：
+
+- `LiveSession(background=True)` 使用 `clickpid` / `movepid`，底层是 `CGEvent.postToPid`，不会走系统全局 HID 点击路径；目标应用不必主动置前，真实鼠标指针不应移动。
+- `seerauto goal start --background` 已有开关；本分支让 `tools/supervise.py --background` 也把该选项传递到每批 Goal Runner，并让回血检查使用同一后台通道。
+- 现在 RunConfig 会持久化后台模式；进程中断后 `goal resume` 默认恢复原来的输入模式。
+- ScreenCaptureKit 可以针对特定窗口建立内容过滤器，读取窗口帧与是否由用户把它置前是两件事。**能够后台截图不代表后台点击一定会被游戏画布接受。**
+
+**重要的真实机限制：** `docs/DELIVERY_2026_11_04.md` 已记录：`CGEvent.postToPid` 对原生窗口有效，但对 SeerGame 的 PepperFlash/Flash 游戏画布无效；客户端禁用了 CDP。Swift 守护进程里的 `clickpid` 注释也明确说 Flash 插件是否接受事件必须实测。因此，不能承诺当前游戏可以全程无焦点后台操作。
+
+### 后台模式启用门槛
+
+先做一次短小、可逆、无消耗的真机探针：
+
+1. 记录当前 frontmost App / bundle id 和真实鼠标坐标。
+2. 使用 `LiveSession(background=True)`，不要发送 `activate`。
+3. 只对已知、可逆的游戏面板执行一次打开/关闭操作。
+4. 重新读取游戏画面，证明该面板确实发生变化。
+5. 再读取 frontmost App 和真实鼠标坐标，证明二者没有变化。
+6. 只有“目标画布收到操作 + 游戏状态确实变化 + 前台 App 未变 + 鼠标未动”全部成立，才可将该客户端构建标记为 `BACKGROUND_INPUT_LIVE_PASS`。
+
+如果操作未生效、结果无法观察或鼠标/焦点发生变化：
+
+- 立即停止后台输入探针；
+- 不得自动回退到全局 HID 或前台点击；
+- 不得尝试私有 SkyLight API、内存注入、反作弊绕过或修改游戏客户端；
+- 将后台输入标记为 `BACKGROUND_INPUT_BLOCKED`；
+- 游戏需要交互时使用下方的暂停/恢复协议；DSH 仍可继续做网页/B站研究、代码开发、离线测试和 Goal Graph 规划。
+
+后台运行命令（只有上述探针 LIVE_PASS 后才用）：
+
+```bash
+PYTHONPATH=.pydeps python3 tools/supervise.py \\
+  --deadline-at '2026-11-06T06:30:00+08:00' \\
+  --batch-minutes 8 --batch-battles 8 --max-no-progress 2 \\
+  --max-spend 10000 --background
+```
+
+`--background` 是明确 opt-in，默认关闭。后台模式遇到登录/验证码时不会调用会抢焦点的 `tools/login.py`，而是报告阻塞；不会暗中切换前台。注意 `tools/login.py` 与 `tools/battle_run.py` 仍含前台激活路径，不能在“绝不抢焦点”模式下直接调用。
+
+## 3.6 用户口令： “暂停，保存” / “开始”
+
+仓库已有 `goal pause`、`goal resume` 和控制文件。本分支进一步让所有使用同一个 `RunControl` 的暂停入口（Runner、战斗 Skill 等）触发统一的暂停回调：在下一个合作式安全点进行一次只读新观察、保存世界快照和 SQLite checkpoint、记录事件，然后停止发送游戏输入并等待。
+
+### 用户说“暂停，保存”
+
+DSH 主协调器必须同时执行两层暂停：
+
+1. 创建顶层编排暂停标记 `/tmp/seerauto.master.pause`。停止派发新任务；要求 MiniMax / OpenCode 子任务在当前安全点停止写入并返回工作树状态。
+2. 执行：
+
+```bash
+PYTHONPATH=.pydeps python3 -m seerauto goal pause
+```
+
+这会写入 `/tmp/seerauto.pause`。当前 Runner 在下一个合作式暂停点保存只读观察和 checkpoint，然后等待。Supervisor 也会检查同一暂停文件，不会在暂停期间启动下一批。
+
+3. 等待 Runner 报告 `status=paused` 和最新 checkpoint；记录 Git status、当前分支、未提交文件和 MiniMax Worktree。
+4. 不要杀进程，不要清除暂停文件，不要启动第二个 GUI 执行器。维持锁和等待状态。
+
+### 用户说“开始”
+
+1. 清除顶层编排标记 `/tmp/seerauto.master.pause`。
+2. 执行 `PYTHONPATH=.pydeps python3 -m seerauto goal resume --allow-input --planner <原planner>`。
+3. 如果原运行仍存活，`goal resume` 只解除暂停，现有进程继续；如果进程已退出，它使用同一个 run_id 从最后 checkpoint 恢复。
+4. 如果该 run 原来采用后台输入，恢复时默认沿用保存的 `background` 配置；除非用户明确要求改变。
+5. 恢复后必须先重新观察游戏画面、场景、窗口几何、战斗状态和资源余额，再做任何输入。不能假设暂停前的战斗或弹窗仍处于同一状态。
+
+**语义边界：** 这里冻结的是 Agent 的输入与任务派发，不保证冻结游戏服务器、战斗计时、网络会话或游戏世界本身。暂停期间游戏可能继续推进；恢复时必须重新观测。不要通过暂停 GUI 自动化去声称游戏本身已暂停。
+
+### 停止与暂停不同
+
+- `goal pause`：保存后等待，可继续同一运行。
+- `goal resume`：解除暂停或从 checkpoint 重启。
+- `goal stop`：结束当前 Runner 批次并留下 checkpoint；之后需要显式 resume。
+- DSH 顶层暂停：除游戏外，还要停止研究任务派发与新的 MiniMax 委派。
+
 ## 4. 睡前授权与风险边界
 
 用户已明确同意，在自担账号风险的理解下，研究和运行游戏内自动化，并允许花费普通可再生游戏币。因此，不必为每次正常补给/刷资源而在午夜请求人工批准。由于项目 `max_spend` 默认 0，DSH 应明确评估是否使用带界限的游戏资源策略，不能通过随意删除引擎安全检查解决；优先区分普通游戏币、不可恢复资源、真实货币。
