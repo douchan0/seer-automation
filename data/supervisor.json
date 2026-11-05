@@ -1,80 +1,80 @@
 {
- "deadline": "2026-11-05T00:21:53",
- "stopped_at": "2026-11-05T00:16:54",
- "stop_reason": "2 consecutive batches had no schedulable work (last: planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more)",
+ "deadline": "2026-11-06T06:30:00",
+ "stopped_at": "2026-11-06T01:21:28",
+ "stop_reason": "3 consecutive failures (last: error budget 3 reached)",
  "guards": {
   "max_no_work_streak": 2,
-  "max_failures": 4,
-  "max_idle_minutes": 90.0,
+  "max_failures": 3,
+  "max_idle_minutes": 45.0,
   "max_batches": 0,
   "min_battles_for_work": 1
  },
  "ledger": {
-  "batches": 2,
+  "batches": 3,
   "effective_batches": 0,
-  "no_work_batches": 2,
-  "failed_batches": 0,
+  "no_work_batches": 0,
+  "failed_batches": 3,
   "timeout_batches": 0,
   "paused_batches": 0,
   "blocked_batches": 0,
   "verified_progress": 0,
   "total_battles": 0,
   "total_actions": 0,
-  "consecutive_no_work": 2,
-  "consecutive_failures": 0,
+  "consecutive_no_work": 0,
+  "consecutive_failures": 3,
   "last_progress_at": null,
   "last_verified_at": null,
-  "last_selected_node": null,
-  "last_stop_reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more",
-  "last_outcome": "NO_WORK",
+  "last_selected_node": "puni.prepare.wild_45",
+  "last_stop_reason": "error budget 3 reached",
+  "last_outcome": "FAILED",
   "completed_nodes": []
  },
- "batches": 2,
- "failures": 0,
+ "batches": 3,
+ "failures": 3,
  "history": [
   {
    "batch": 1,
-   "outcome": "NO_WORK",
-   "reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more",
-   "exit_code": 3,
-   "elapsed_s": 0.4,
+   "outcome": "FAILED",
+   "reason": "error budget 3 reached",
+   "exit_code": 1,
+   "elapsed_s": 34.2,
    "stats": {
     "actions": 0,
     "battles": 0,
-    "elapsed_s": 0.0,
-    "errors": 0,
-    "loops": 1
+    "elapsed_s": 33.5,
+    "errors": 3,
+    "loops": 3
    },
    "new_completed_nodes": [],
    "diff": {
     "new_completed_nodes": [],
     "dropped_completed_nodes": [],
     "battles_delta": 0,
-    "actions_delta": 0,
+    "actions_delta": -6,
     "errors_delta": 0,
     "run_changed": true,
     "before_status": "finished",
     "after_status": "finished",
-    "after_stop_reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more"
+    "after_stop_reason": "error budget 3 reached"
    },
    "tail": [
-    "  - puni.prepare.tutor_room: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
-    "  - puni.seal.entry_nav: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
-    "outcome NO_WORK (exit 3): planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more"
+    "nodes",
+    "  - puni.prepare.wild_45: attempted  [pet 烈火猴 level 36 < 45 (LIVE_VERIFIED); pet 烈焰猩猩 level UNKNOWN (LIVE_VERIFIED evidence); pet 小火猴 level UNKNOWN (not observed)]",
+    "outcome FAILED (exit 1): error budget 3 reached"
    ]
   },
   {
    "batch": 2,
-   "outcome": "NO_WORK",
-   "reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more",
-   "exit_code": 3,
-   "elapsed_s": 0.4,
+   "outcome": "FAILED",
+   "reason": "error budget 3 reached",
+   "exit_code": 1,
+   "elapsed_s": 34.1,
    "stats": {
     "actions": 0,
     "battles": 0,
-    "elapsed_s": 0.0,
-    "errors": 0,
-    "loops": 1
+    "elapsed_s": 33.5,
+    "errors": 3,
+    "loops": 3
    },
    "new_completed_nodes": [],
    "diff": {
@@ -86,12 +86,43 @@
     "run_changed": true,
     "before_status": "finished",
     "after_status": "finished",
-    "after_stop_reason": "planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more"
+    "after_stop_reason": "error budget 3 reached"
    },
    "tail": [
-    "  - puni.prepare.tutor_room: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
-    "  - puni.seal.entry_nav: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence)",
-    "outcome NO_WORK (exit 3): planner refused: nothing schedulable: puni.prepare.market_unlock: not ready - status=unknown: state prerequisite 'state.logged_in' not satisfied: logged_in UNKNOWN (UNKNOWN evidence); puni.prepare.tower_farm: input disabled - game.farm_tower drives the mouse/keyboard but constraints.allow_input is false; puni.crosscut.attribute_reverse: not ready - status=not_executable: missing capability 'battle.skill_select' (verified=unverified); missing capability 'battle.switch_pet' (verified=unverified); missing capability 'battl...; puni.roster.buy_salake: not ready - status=blocked: missing capability 'market.buy' (verified=unverified); prerequisite node 'puni.prepare.market_unlock' (P0-01 交易行解锁) not completed: feature 'market' never observed (no...; ... 42 more"
+    "nodes",
+    "  - puni.prepare.wild_45: attempted  [pet 烈火猴 level 36 < 45 (LIVE_VERIFIED); pet 烈焰猩猩 level UNKNOWN (LIVE_VERIFIED evidence); pet 小火猴 level UNKNOWN (not observed)]",
+    "outcome FAILED (exit 1): error budget 3 reached"
+   ]
+  },
+  {
+   "batch": 3,
+   "outcome": "FAILED",
+   "reason": "error budget 3 reached",
+   "exit_code": 1,
+   "elapsed_s": 34.0,
+   "stats": {
+    "actions": 0,
+    "battles": 0,
+    "elapsed_s": 33.4,
+    "errors": 3,
+    "loops": 3
+   },
+   "new_completed_nodes": [],
+   "diff": {
+    "new_completed_nodes": [],
+    "dropped_completed_nodes": [],
+    "battles_delta": 0,
+    "actions_delta": 0,
+    "errors_delta": 0,
+    "run_changed": true,
+    "before_status": "finished",
+    "after_status": "finished",
+    "after_stop_reason": "error budget 3 reached"
+   },
+   "tail": [
+    "nodes",
+    "  - puni.prepare.wild_45: attempted  [pet 烈火猴 level 36 < 45 (LIVE_VERIFIED); pet 烈焰猩猩 level UNKNOWN (LIVE_VERIFIED evidence); pet 小火猴 level UNKNOWN (not observed)]",
+    "outcome FAILED (exit 1): error budget 3 reached"
    ]
   }
  ]
