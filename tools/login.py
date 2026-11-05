@@ -10,7 +10,7 @@ relogin prompt, a client update).  Every one of those used to end a run, because
   3. press the login button (text first, then the measured fallback point)
   4. wait for the server list and pick server 1 (啦公星), dragging the scrollbar when
      the list is sorted by population and server 1 is off-page
-  5. wait until the world is really there (公屏聊天/卫兵/当前回合 …)
+  5. wait until the world is really there (卫兵 / 公屏聊天 • 在线, twice, with no server/login marker on screen)
 
     PYTHONPATH=.pydeps python3 tools/login.py
     PYTHONPATH=.pydeps python3 tools/login.py --server 啦公星 --timeout 240
@@ -37,7 +37,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: visible before a server has been chosen.  Trusting them made this tool report
 #: "already in the world" while the client sat on 选择服务器 — a false success that
 #: cost a whole session (2026-11-05, 19:47).
-WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "XIN计划，启动")
 #: Only strings that cannot appear before the character is in the world.
 #: 「XIN计划，启动！」 is the splash/loading caption and 「当前回合」 is battle HUD — both
 #: appear *before* arrival, and trusting them made this tool report "confirmed in the
@@ -49,7 +48,11 @@ WORLD_MARKERS = ("公屏聊天", "卫兵", "当前回合", "XIN计划，启动")
 PRIMARY_WORLD_MARKERS = ("卫兵", "已连接公屏聊天", "公屏聊天 • 在线", "公屏聊天•在线")
 #: Loading must be checked before anything else: it is the state that most looks like
 #: success and most certainly is not arrival.
-LOADING_MARKERS = ("正在加载", "版本检测中", "加载中")
+#: Deliberately NOT including 「版本检测中」: that string can sit on the *login page*
+#: while the art-pack dialog is up, and classifying it as loading made the login branch
+#: unreachable (the module would burn its whole timeout).  The popup is handled up front
+#: by clear_popup(); here only real page loads count.
+LOADING_MARKERS = ("正在加载", "加载中")
 LOGIN_MARKERS = ("航行公告", "账密登录", "登录，开启", "开启万圣夜冒险", "忘记密码")
 SERVER_MARKERS = ("选择服务器", "快速进入", "查看全部服务器", "请输入服务器编号")
 ANNOUNCE_MARKERS = ("我已知晓", "我知道了")
@@ -194,6 +197,13 @@ def drag_server_list(session: LiveSession, *, down: bool = True) -> None:
     # raised it drags some other app's content.
     if not session.ensure_frontmost():
         log("game window is not frontmost; refusing to drag the desktop")
+        return
+    # The geometry is captured once at open(); if the window moved since, the converted
+    # points are stale and the drag lands somewhere else — the exact bug being fixed.
+    try:
+        session._revalidate_geometry()
+    except Exception as exc:  # noqa: BLE001
+        log(f"window geometry changed; refusing to drag ({exc})")
         return
     p1 = geo.global_pt_from_game_px(SCROLLBAR_X, top)
     p2 = geo.global_pt_from_game_px(SCROLLBAR_X, bottom)

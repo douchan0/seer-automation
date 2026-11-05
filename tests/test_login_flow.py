@@ -141,3 +141,20 @@ def test_the_server_screen_is_not_the_world_even_though_it_says_chat():
 
     assert login.screen_kind(SERVER_LIST_FRAME) == "server"
     assert not any("公屏聊天 • 在线" in t for t in SERVER_LIST_FRAME)
+
+
+def test_a_stuck_version_check_must_not_block_the_login_branch():
+    """「版本检测中」 can sit on the login page while the art-pack dialog is up.
+
+    If that string classifies as `loading`, the login branch is unreachable and the
+    tool burns its whole timeout without ever pressing 登录.
+    """
+
+    assert "版本检测中" not in login.LOADING_MARKERS
+    stuck = ["版本检测中", "航行公告", "登录，开启秋日漫游"]
+    assert login.screen_kind(stuck) == "login"
+
+
+def test_the_dead_marker_set_is_gone():
+    # A second, unused world-marker tuple is how the comment and the code drifted apart.
+    assert not hasattr(login, "WORLD_MARKERS")
