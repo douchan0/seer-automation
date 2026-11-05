@@ -130,13 +130,29 @@ reason:   1 node(s) ready; picked puni.prepare.level_45 (priority 48) ... game.f
 | B-11 | `explain_goal` 的能力缺口数字虚高约 7 倍 | 把整晚路线指向错误的工作量 | 拆成 `unblocks` / `blocks` 两列，并**改掉据此写下的路线判断** |
 | B-12 | `explain_goal` 通过 `open_runner` **再开一条 seerdx 采集流** | 在真机跑着时执行它 = 搞坏正在用的流 | 改为直接读 SQLite，永不 open session |
 
-B-11 直接推翻了我在 21:30 写下的结论。修正后的事实：
+B-11 直接推翻了我在 21:30 写下的结论。修正后的事实（22:32 复算，`--all` 全量）：
 
-- 46 个节点中 `executable=true` 只有 **5 个**，`not_executable=29`；
-- 补 `battle.skill_select` **只会立刻解开 1 个节点**（不是 13 个）；
-- 全图"仅缺一个能力即可开跑"的节点共 **6 个**。
+- 49 个节点中 `executable=true` **6 个**，`not_executable=29`，`unknown=8`，`blocked=4`；
+- **没有任何能力是"补上就能开跑"的**：`unblocks` 列在修掉"把非 executable 节点也算进去"之后
+  变成**空**（唯一的 `observe.truebody_life` 也还缺前置节点）；
+- 也就是说，"能力缺口表"本身是个误导性的视角——真正卡住的是**前置节点与 UNKNOWN 机制**。
 
-→ 所以今晚不能靠"补能力"打开局面；目标图本身需要重新设计（这也是**下一轮最该做的事**）。
+→ 结论改了两次，最终这一版才站得住：**今晚不能靠补能力打开局面**；
+目标图的依赖形状需要重新设计（`docs/NEXT_ACTIONS.md` 的 P0）。
+
+### C.0.1 本轮因此做的一件事：让目标图重新有东西可排程
+
+不是靠改判据讨好自己，而是**加真实可验收的节点**：`puni.prepare.level_45/60/80`
+（刷塔练级，完成判据 = 现场复读等级 ≥ N，playbook = travel → tower_status → farm_tower）。
+离线用 runner 自己的 `build_request` + `DeterministicPlanner` 复算（不点任何东西）：
+
+```
+selected: 'puni.prepare.level_45'   capability: game.farm_tower
+reason:   1 node(s) ready; picked puni.prepare.level_45 (priority 48) ...
+```
+
+这是"AI 能不能自己把一夜推下去"这个问题唯一有意义的回答方式：
+**先让它有一步能走，再让日志证明它真的走了。**
 
 
 ---

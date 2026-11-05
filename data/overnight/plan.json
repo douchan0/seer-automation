@@ -706,87 +706,8 @@
    "missing_capability": 1
   },
   "schedulable_but_missing_capability": 1,
-  "capability_unblocks": [
-   {
-    "name": "shop.buy",
-    "count": 1,
-    "nodes": [
-     "puni.prepare.buy_potions"
-    ]
-   },
-   {
-    "name": "puni.panel",
-    "count": 1,
-    "nodes": [
-     "puni.roster.spt_saiweier"
-    ]
-   },
-   {
-    "name": "catch.pet",
-    "count": 1,
-    "nodes": [
-     "puni.roster.kelida_awaken"
-    ]
-   },
-   {
-    "name": "battle.skill_select",
-    "count": 1,
-    "nodes": [
-     "puni.roster.kelida_awaken"
-    ]
-   },
-   {
-    "name": "battle.defeat_branch",
-    "count": 1,
-    "nodes": [
-     "puni.crosscut.defeat_retry"
-    ]
-   },
-   {
-    "name": "daily.quota",
-    "count": 1,
-    "nodes": [
-     "puni.crosscut.defeat_retry"
-    ]
-   }
-  ],
+  "capability_unblocks": [],
   "capability_blocks": [
-   {
-    "name": "battle.skill_select",
-    "count": 2,
-    "nodes": [
-     "puni.seal.eternity_6",
-     "puni.truebody.life_4_life"
-    ]
-   },
-   {
-    "name": "fuse.pet",
-    "count": 1,
-    "nodes": [
-     "puni.roster.fuse_flame"
-    ]
-   },
-   {
-    "name": "exp.give",
-    "count": 1,
-    "nodes": [
-     "puni.roster.fuse_flame"
-    ]
-   },
-   {
-    "name": "battle.log_read",
-    "count": 1,
-    "nodes": [
-     "puni.seal.eternity_6"
-    ]
-   },
-   {
-    "name": "battle.stage_read",
-    "count": 1,
-    "nodes": [
-     "puni.seal.eternity_6"
-    ]
-   },
    {
     "name": "observe.truebody_life",
     "count": 1,
@@ -809,48 +730,6 @@
     "count": 1,
     "nodes": [
      "puni.prepare.level_80"
-    ]
-   },
-   {
-    "name": "puni.roster.catch_jier",
-    "count": 1,
-    "nodes": [
-     "puni.roster.fuse_flame"
-    ]
-   },
-   {
-    "name": "puni.roster.spt_hamoleite",
-    "count": 1,
-    "nodes": [
-     "puni.seal.eternity_6"
-    ]
-   },
-   {
-    "name": "puni.roster.spt_naduolei",
-    "count": 1,
-    "nodes": [
-     "puni.seal.eternity_6"
-    ]
-   },
-   {
-    "name": "puni.roster.fuse_flame",
-    "count": 1,
-    "nodes": [
-     "puni.seal.eternity_6"
-    ]
-   },
-   {
-    "name": "puni.truebody.life_3_energy",
-    "count": 1,
-    "nodes": [
-     "puni.truebody.life_4_life"
-    ]
-   },
-   {
-    "name": "puni.roster.kelida_awaken",
-    "count": 1,
-    "nodes": [
-     "puni.truebody.life_4_life"
     ]
    },
    {

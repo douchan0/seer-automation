@@ -101,6 +101,11 @@ def summarise(report: dict) -> dict:
     for r in rows:
         if r["status"] in NOT_SCHEDULABLE:
             continue
+        if not r["executable"]:
+            # `executable: false` is static: no capability added tonight changes it, so
+            # counting its missing capability as "work to do" is the same overstatement
+            # the first version made, just narrower.
+            continue
         caps = [x for x in r["unmet"] if x.startswith("missing capability ")]
         other = [x for x in r["unmet"] if not x.startswith("missing capability ")]
         for reason in caps:
