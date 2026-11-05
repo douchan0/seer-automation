@@ -144,7 +144,7 @@ def main() -> int:
     env = dict(os.environ, PYTHONPATH=".pydeps")
     proc = subprocess.run(cmd, cwd=ROOT, env=env)
     log(f"goal run exited {proc.returncode}")
-    return 0
+    return proc.returncode
 
 
 if __name__ == "__main__":
