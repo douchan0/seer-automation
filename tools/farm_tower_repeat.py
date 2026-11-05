@@ -61,6 +61,10 @@ LEDGER_PATH = os.path.join(LEDGER_DIR, "tower_ledger.jsonl")
 FRAME_DIR = os.path.join(LEDGER_DIR, "frames")
 STATE_PATH = os.path.join(LEDGER_DIR, "tower_state.json")
 PAUSE_FILE = "/tmp/seerauto.pause"
+#: The master switch from the user protocol (AGENTS.md 5.6): 「暂停，保存」 writes this.
+#: The tool must honour it as well as the runner's own pause file, otherwise a paused
+#: system keeps clicking because one worker never learned about the pause.
+MASTER_PAUSE = "/tmp/seerauto.master.pause"
 STOP_FILE = "/tmp/seerauto.stop"
 #: Measured 2026-11-04: one floor pays this much 积累经验.  An *estimate*, used only
 #: for the headline number — the ledger keeps measured reward dialogs separately.
@@ -259,7 +263,18 @@ def one_round(*, index: int, skills, ctx, floors: int, read_floor_wanted: bool,
 
 
 def pause_requested(control) -> bool:
-    return control.paused()
+    return control.paused() or os.path.exists(MASTER_PAUSE)
+
+
+def wait_out_pause(control) -> float:
+    """Block until every pause marker is gone; returns seconds waited."""
+
+    started = time.monotonic()
+    while pause_requested(control):
+        if control.stop_requested():
+            break
+        time.sleep(0.5)
+    return time.monotonic() - started
 
 
 def main() -> int:
@@ -347,7 +362,7 @@ def main() -> int:
                 log("PAUSED: no new round starts while the pause file exists")
                 ledger.stopped_because = "paused by user"
                 write_state(ledger, {"dry_run": args.dry_run, "status": "paused"})
-                waited = control.wait_while_paused()
+                waited = wait_out_pause(control)
                 if waited <= 0:
                     log("pause released immediately; continuing")
                 else:

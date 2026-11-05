@@ -167,3 +167,33 @@ def test_a_paused_round_is_never_counted_as_no_work():
     led = TowerLedger(guards=Guards(max_no_work=1))
     led.add(_round(won=0, xp=0, interrupted=True))
     assert led.no_work_streak == 0
+
+
+# -- the master pause switch (AGENTS.md 5.6) -------------------------------- #
+def test_the_master_pause_switch_is_honoured(tmp_path, monkeypatch):
+    """「暂停，保存」 writes /tmp/seerauto.master.pause; a worker that only watches the
+    runner's own file keeps clicking.  The farm worker must see both."""
+
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("farm_tool_pause",
+                                                  root / "tools" / "farm_tower_repeat.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["farm_tool_pause"] = mod
+    spec.loader.exec_module(mod)
+
+    class FakeControl:
+        def paused(self):
+            return False
+
+        def stop_requested(self):
+            return False
+
+    marker = tmp_path / "master.pause"
+    monkeypatch.setattr(mod, "MASTER_PAUSE", str(marker))
+    assert mod.pause_requested(FakeControl()) is False
+    marker.write_text("1")
+    assert mod.pause_requested(FakeControl()) is True
