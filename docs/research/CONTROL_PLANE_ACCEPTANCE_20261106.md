@@ -1,354 +1,309 @@
 # Independent acceptance — dual-mode control plane (2026-11-06 night)
 
-Reviewer: `usage-eng` (task-2 ownership extended by the Lead). This is an **independent,
-adversarial acceptance** of `infra-eng`'s task-1 deliverable: `seerauto/dual/*`,
-`tools/overnight_control.py`, `tests/test_dual_*.py`.
+Reviewer: `usage-eng` (task-2 ownership extended by the Lead). Independent, adversarial
+acceptance of `infra-eng`'s deliverable: `seerauto/dual/*`, `tools/overnight_control.py`,
+`tests/test_dual_*.py` (plus the shared ledger helper touched in `seerauto/skills/catch.py`).
 
-Rules I held myself to: **no edits to the reviewed code** (write scope is this doc only),
-all destructive experiments in `/tmp/accept/*` scratch dirs, no game input, no network, and
-nothing written outside `/tmp` + this file. Every claim below names the command that
-reproduces it.
+Rules held throughout: **no edits to the reviewed code** (my only write is this doc), all
+destructive experiments in `/tmp/accept/*`, no game input, no network, nothing written to
+`~/.dsh`.
 
-Artifacts were frozen for review at **2026-11-06T23:10:04+08:00**; sha256 prefixes are in §7.
-`infra-eng` was still editing until 23:08, so the tests were re-run on the frozen state.
+Three rounds, all recorded; only round 3 is the current state:
 
-Environment caveat that matters for one finding: **`ps` is blocked in this sandbox**
-(`PermissionError: [Errno 1] Operation not permitted: 'ps'`). The code's documented fallback
-(supervisor log → exit report → UNKNOWN) works, but the process-probe path itself could not be
-exercised live; finding **A17** was proven by simulating the `ps` output instead.
-
----
-
-## 1. Verdict summary
-
-| # | Assertion | Verdict | One-line |
+| round | when | state | outcome |
 |---|---|---|---|
-| A1 | Append-only ledgers, ledger-stamped `ts`, single-write + fsync | PASS | verified by code read + test + live records |
-| A2 | Crash-truncated tail tolerated, counted and marked as tail | PASS | half-line appended, readers survive |
-| A3 | Corruption in the middle is **not** excused as a tail | PASS | reported `truncated_tail: False` |
-| A4 | Checkpoint replaced atomically (no torn reads) | PASS | 7,184 writes vs 48,910 reads, 0 torn |
-| A5 | SIGKILL mid-checkpoint-write leaves a parseable file | PASS | 12 kills, 12 parseable; stale `.tmp` swept |
-| A6 | Wake fires once, then cooldown-suppresses; counts persisted | PASS | DEADLINE + NO_WORK_STREAK + STALL sequences |
-| A7 | No wake/health flood at sub-second cadence | PASS | 40 cycles → 0 extra wake events, +1 health record |
-| A8 | Suppression counters are fully on disk after a **clean** exit | **PARTIAL** | exit JSON said `suppressed_total=4`, checkpoint had `0` |
-| A9 | Every switch audited, suppressed switches recorded with reason | PASS | applied / reason_cooldown / min_dwell / already_in_mode |
-| A10 | Five facts stay separate, three states each, no "healthy" aggregate | PASS | 5 keys, `UNKNOWN`≠FALSE, no merged boolean |
-| A11 | No proxy: alive process/goal must not imply game progress | PASS | GOAL TRUE + everything else FALSE/UNKNOWN coexists |
-| A12 | `status` safe and read-only with no state at all | PASS | nonexistent dir: exit 0, JSON, directory not created |
-| A13 | A bad stored deadline must not blind the control plane | **FAIL** | `status` and `health` both return only an error; watchdog stops evaluating |
-| A13b | `status` is strictly read-only | **PARTIAL** | corrupt checkpoint triggers move-aside + event append |
-| A14 | `status` survives concurrent writers | PASS | 0 failures in 100 calls against a live health loop |
-| A15 | `usage_meter` ↔ `ledger` contract (single writer, tolerant reader) | PASS | no writer in dual layer; `init` never truncates; half-line flagged |
-| A16 | Global `--checkpoint` flag works for every subcommand | **PARTIAL** | `health` ignores it and writes the default checkpoint |
-| A17 | Process probe does not match its own command line | **PARTIAL** | simulated `ps`: `--supervisor-pattern X` matches the `status` argv (latent; `ps` EPERM here) |
-| A18 | `status` shows why each fact is what it is | **PARTIAL** | emits states only, drops `evidence`; reads repo-global files under `--data-dir` |
-| A19 | Checkpoint read-modify-write is serialized across processes | **PARTIAL** | simulated interleaving lost a mode switch (audit says applied, checkpoint says old mode) |
-| A20 | Required test deliverables present and green | PASS | 129 passed (dual + outcome), full suite 781 passed / 2 skipped |
+| 1 | 23:14:06 | first frozen snapshot | 14 PASS · 6 PARTIAL · 1 FAIL (21 assertions) → reported |
+| 2 | 23:29:18 | after the 23:18–23:21 fixes | 18 PASS · 4 PARTIAL · 1 FAIL (23) → reported (A22/A21 found) |
+| 3 | **23:48:35** | after the 23:34–23:43 fixes (A22, A21, ledger durability) | **22 PASS · 2 PARTIAL · 0 FAIL (24)** |
 
-Counts: **12 PASS, 7 PARTIAL, 1 FAIL.** No PASS was granted on a docstring alone — every PASS
-has a command below.
+Round-1/2 findings are kept in each section as history. Environment caveat: **`ps` is blocked
+in this sandbox** (`PermissionError: Operation not permitted: 'ps'`), so the process-probe path
+cannot run live here; A17/A22 were verified by reading the code and injecting a realistic `ps`
+output, and the fallback path (log → exit report → UNKNOWN) is what runs here.
+
+If a file's sha256 no longer matches §7, re-run the commands in §2/§3 before quoting a verdict.
 
 ---
 
-## 2. Test runs (real numbers, frozen state)
+## 1. Verdict summary (round 3, current)
+
+| # | Assertion | R1 | R2 | R3 | Evidence |
+|---|---|---|---|---|---|
+| A1 | Append-only ledgers, ledger-stamped `ts`, single-write + fsync | PASS | PASS | PASS | code + live records + 64 KiB guard |
+| A2 | Crash-truncated tail tolerated, counted, marked as tail | PASS | PASS | PASS | half-line → `truncated_tail: true` |
+| A3 | Middle corruption is **not** excused as a tail | PASS | PASS | PASS | `truncated_tail: false` |
+| A4 | Checkpoint replaced atomically (no torn reads) | PASS | PASS | PASS | 13,082 writes / 118,565 reads / 0 torn |
+| A5 | SIGKILL mid-checkpoint-write leaves a parseable file | PASS | PASS | PASS | 20 kills, 0 torn; stale `.tmp` swept |
+| A6 | Wake fires once, then cooldown-suppresses; survives restart | PASS | PASS | PASS | DEADLINE / NO_WORK / STALL sequences |
+| A7 | No wake/health flood at sub-second cadence | PASS | PASS | PASS | 40 cycles → 0 extra wake events |
+| A8 | Suppression counters on disk after a **clean** exit | PARTIAL | PASS | PASS | exit == checkpoint == last `health.final` |
+| A9 | Every switch audited; suppressed switches recorded | PASS | PASS | PASS | applied / reason_cooldown / min_dwell / already_in_mode |
+| A10 | Five facts separate, three states, no aggregate "healthy" | PASS | PASS | PASS | 5 keys, `UNKNOWN`≠FALSE |
+| A11 | No proxy: alive process/goal ≠ game progress | PASS | PASS | PASS | GOAL TRUE + rest FALSE/UNKNOWN coexists |
+| A12 | `status` safe and read-only with no state | PASS | PASS | PASS | nonexistent dir: exit 0, JSON, dir not created |
+| A13 | Bad stored deadline must not blind the control plane | **FAIL** | PASS | PASS | validated `--set`; degrades with `deadline_error`; watchdog evaluates |
+| A13b | `status` strictly read-only | PARTIAL | PARTIAL | PARTIAL | corrupt checkpoint still moved aside + event appended |
+| A14 | `status` survives concurrent writers | PASS | PASS | PASS | 0/100 failures vs a live health loop |
+| A15 | `usage_meter` ↔ `ledger` contract | PASS | PASS | PASS | single writer; `init` never truncates; half-line flagged |
+| A16 | Global `--checkpoint` works for every subcommand | PARTIAL | PASS | PASS | `health` lands state in the override; default untouched |
+| A17 | Process probe does not match its own command line | PARTIAL | PARTIAL | **PASS** | own pid + `overnight_control.py` + grep/ps lines skipped; fake-ps proof |
+| A18 | `status` shows why each fact is what it is | PARTIAL | PARTIAL | PARTIAL | still states-only; no `facts_evidence`/`probe_error` |
+| A19 | Checkpoint RMW serialized across processes | PARTIAL | PASS | PASS | async interleaving preserved; 50/50 concurrent increments |
+| A20 | Required test deliverables present and green | PASS | PASS | PASS | 145 passed; full suite 837 passed / 2 skipped |
+| A21 | Lock contention still honours the JSON/exit contract | — | PARTIAL | **PASS** | `switch` → JSON exit 3; `health --watch` → `health.lock_timeout`, keeps running |
+| A22 | The A17 fix actually works | — | FAIL | **PASS** | `probe_processes(..., exclude_pids=…)` exists and is honoured |
+| A23 | Append after a crash-truncated tail cannot swallow the next record | — | — | **PASS** | starts on a fresh line; naive concatenation contrast shown |
+
+**Round-3 counts: 22 PASS, 2 PARTIAL, 0 FAIL (24 assertions).** No PASS is granted on a
+docstring; each has a command below.
+
+---
+
+## 2. Test runs (real, round-3 frozen state)
 
 ```bash
 cd /Users/ceontou/Documents/code/seer-automation-night
 PYTHONPATH=.pydeps python3 -m pytest -q tests/test_dual_*.py tests/test_outcome*.py
-# -> 129 passed in 0.30s
+# -> 145 passed in 0.85s            (round 2: 138; round 1: 129)
 PYTHONPATH=.pydeps python3 -m pytest -q
-# -> 781 passed, 2 skipped in 39.99s
+# -> 837 passed, 2 skipped in 42.60s  (round 2: 804 / 2 skipped; round 1: 785 / 2 skipped)
 ```
 
-Coverage surface (test functions before parametrisation): `test_dual_ledger.py` 25,
-`test_dual_modes.py` 26, `test_dual_switch.py` 14, `test_dual_watchdog.py` 18,
-`test_outcome.py` 12. The switch/watchdog test files were **missing at 23:03** and appeared at
-23:05–23:06 while this acceptance was running; the numbers above are from the frozen state.
+`tests/test_dual_switch.py` / `tests/test_dual_watchdog.py` were absent at 23:03 and appeared
+23:05–23:06. Every claim below was re-derived independently; their tests were inspected but not
+trusted as evidence.
 
 ---
 
-## 3. Finding that must be fixed now — A13
+## 3. Round-3 fixes — independently verified
 
-**Assertion.** An unparseable deadline stored in the checkpoint must degrade, not disable.
-`tools/overnight_control.py` itself states the principle: *"a broken status command during a
-live night is worse than a useless one"*.
+### A22 (was FAIL) — the probe fix is now real
 
-**How verified** (both operator-reachable paths):
-
-```bash
-D=/tmp/accept/d17; rm -rf $D
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D init --goal-status active
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D checkpoint --set 'deadline="23:59ish"'   # documented CLI, no validation on this key
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D status          # exit 3
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D health          # exit 3
-wc -l < $D/runtime_health.jsonl                                                      # 0
-```
-
-Observed:
-
-```
-status -> {"ok":false,"error":"deadline '23:59ish' is not ISO-8601"}                          exit 3
-health -> {"ok":false,"error":"ValueError: deadline '23:59ish' is not ISO-8601"}              exit 3
-runtime_health.jsonl -> 0 lines     (the watchdog never evaluated anything)
-```
-
-**Why this is a FAIL, not a nitpick.** One unvalidated `checkpoint --set deadline=...` (or a
-hand edit) removes, in a single step: the mode, policy, remaining time, all five facts, the
-night state and the deadline — and stops the watchdog from evaluating at all. That is exactly
-the "nobody was watching" failure the control plane exists to prevent, and it happens at 03:00
-when nobody is there to repair it. Note the writers that validate (`init`, `deadline --set`)
-are fine; only the generic `checkpoint --set` path and a corrupted file can create the state.
-
-**Suggested fix (owner: infra-eng, ~15 lines).**
-1. In `cmd_status` / `cmd_health`, catch `ValueError` from `resolve_deadline`/`parse_deadline`
-   and continue with `deadline=None` plus an explicit `"deadline_error": <message>`,
-   `"ok": true` (or `ok:false` *with the full payload*). A missing deadline is already a
-   supported state (`remaining_s: null`).
-2. In `Watchdog.step`, treat an unparseable configured deadline as a non-firing DEADLINE
-   criterion with `evidence="deadline unparseable: …"`, so the loop keeps watching the other
-   seven conditions.
-3. Validate the `deadline` key in `cmd_checkpoint --set` (same `parse_deadline` call) so the
-   bad state is refused at write time.
-4. Add one regression test: malformed stored deadline → `status` exit 0 with facts, `health`
-   exit 0 with a health record.
-
----
-
-## 4. Remaining PARTIALs, severity-ranked
-
-### A8 — clean exit loses pending suppression counters (severity: medium-low, evidence honesty)
-
-**Assertion.** "Suppression … is counted, none is dropped" (watchdog docstring) and the exit
-line's `suppressed_total` should be what is on disk.
-
-**How verified.**
-
-```bash
-D=/tmp/accept/d18; rm -rf $D
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D init \
-    --deadline-at "2026-11-06T22:00:00+08:00"          # deadline already passed -> 2 wake kinds/tick
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D health \
-    --watch --cycles 3 --cadence 0.01
-```
-
-Observed: exit line `{"ok":true,"cycles":3,"wakes_total":2,"suppressed_total":4}` but the
-persisted checkpoint had `watchdog.suppressed_total: 0`; the next invocation started counting
-from 0. Longer run: 40 cycles reported `suppressed_total=82`, only `4` reached disk (this is
-the same mechanical gap, not a different bug).
-
-**Why it matters.** Wakes are always written (the important part), so the night does not lose
-*incidents*; it loses the counter evidence for claims like "it flapped N times and we
-suppressed it". The exit JSON overstates what is durable, which can leak into a report.
-
-**Suggested fix (owner: infra-eng).** In `Watchdog.run`'s exit path (`finally`), if
-`_pending_suppressed` is non-empty or `suppressed_total` changed since the last persist, write
-one final `runtime_health` record and `_save_state()`. Alternatively state in the CLI output
-`suppressed_total_persisted` separately from the in-memory count.
-
-### A19 — checkpoint RMW is not serialized across processes (severity: medium-low, integrity)
-
-**Assertion.** Two processes may both read-modify-write `checkpoint.json`; nothing serializes
-them (`save_checkpoint` is atomic per write, but load→modify→save is not).
-
-**How verified** (deterministic simulation of the load/save window; not observed in the wild):
+`facts.py` now has the parameter the CLI passes, and the filter is name-based as well as
+pid-based:
 
 ```python
-# /tmp/accept/d10: watchdog-style process loads the checkpoint, a switch is applied by
-# another Ledger handle between that read and _save_state()'s write.
-class InterleavingLedger(Ledger):
-    def load_checkpoint(self, *, path=None, default=None):
-        state = super().load_checkpoint(path=path, default=default)
-        if self.hook and not self.fired:
-            self.fired = True; self.hook()      # concurrent switch lands here
-        return state
+def probe_processes(pattern, *, timeout_s=5.0, exclude_pids: Iterable[int] = ()) -> list[str]:
+    skip = {int(pid) for pid in exclude_pids} | {os.getpid()}
+    ...
+    if "grep" in text or "ps -axo" in text or "overnight_control.py" in text:
+        continue
+    pid_text, _, _command = text.partition(" ")
+    if pid_text.isdigit() and int(pid_text) in skip:
+        continue
 ```
 
-Observed: `mode_switches.jsonl` says `applied: True` (EFFICIENT→MAX_RESULTS) while
-`checkpoint.json` ends with `"mode": "EFFICIENT"`. The window is only the few ms of
-`_save_state`, so the odds per night are small — but the consequence is precisely the kind of
-divergence a post-mortem would misread, and the dual-mode token attribution depends on the
-checkpoint's mode being the truth.
+Verified with a fake `ps` output that contains the caller's own argv, a real supervisor line and
+a grep line:
 
-**Suggested fix (owner: infra-eng).** Take an `fcntl.flock` on `checkpoint.json.lock` (or on
-the checkpoint fd) around `load_checkpoint`→`save_checkpoint` in the mutating paths
-(`Watchdog._save_state`, `ModeSwitchService.request`, `cmd_checkpoint --set`,
-`cmd_progress`). A watchdog-only single writer would also do, but the CLI must then refuse to
-mutate while the loop owns it.
+```
+status-style plain('sleep 60')  -> []                      # was: matched its own status argv
+health-style excl('sleep 60')   -> []
+real supervisor match           -> ['4242 python3 tools/supervise.py --minutes 40']
+```
 
-### A16 — `health` ignores the global `--checkpoint` override (severity: low, contract)
+Both call sites now use it (`status` line 224, `health` line 403). No `TypeError`, no silent
+`_probe_failed` fallback. Fix verified → **A17 now PASS as well**.
+
+### A21 (was PARTIAL) — lock contention degrades instead of killing the CLI
+
+With the checkpoint lock held by another process for 10 s:
 
 ```bash
-D=/tmp/accept/d12; rm -rf $D
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D init
-PYTHONPATH=.pydeps python3 tools/overnight_control.py --data-dir $D --checkpoint $D/alt.json health
-ls $D/alt.json        # missing
-python3 -c "import json;print(json.load(open('$D/checkpoint.json')).get('watchdog') is not None)"  # True
+switch --to MAX_RESULTS --reason NEED_RESEARCH --evidence x
+# exit=3, stdout = {"ok":false,"error":"LedgerError: checkpoint lock ... was not acquired within 5.0s; ..."}
+# stderr traceback count = 0                                   (round 2: exit 1, empty stdout, traceback)
+health --watch --cycles 4 --cadence 1
+# exit=0, stdout = 4/5 JSON lines, traceback count = 0; loop keeps evaluating
+# runtime_health kinds: ["health", "health.lock_timeout", "health.final", "health.lock_timeout"]
 ```
 
-`Watchdog.__init__` has no `checkpoint_path` parameter; `watch_config` reads the override but
-state saves go to `<data-dir>/checkpoint.json`. Every other subcommand honours it. Fix: pass
-the path through (constructor arg) and use it in `_load_checkpoint`/`_save_state`; add a test.
+`state_persisted` is now present in the health JSON (True on a persisted cycle), so a reader can
+tell "evaluated but could not save" from "saved". Fix verified.
 
-### A17 — process probe can match its own command line (severity: low, latent here)
+### A23 (new) — ledger durability: append after a crash-truncated tail
 
-`probe_processes(pattern)` filters only lines containing `grep` / `ps -axo`. If `ps` works and
-the operator passes `--supervisor-pattern X`, the `status` process's own argv contains
-`X` (argparse puts the flag and value there), so the probe reports a supervisor that does not
-exist. Reproduced by feeding a realistic `ps` output (sandbox blocks real `ps`):
+Both ledgers (`seerauto/dual/ledger.py:append` and
+`seerauto/skills/catch.py:append_catch_ledger`) open with `O_RDWR|O_APPEND`, `pread` the last
+byte and prefix `"\n"` when the tail is not a newline. Reproduced by writing half a JSON line
+(no trailing newline) and then appending a normal record:
 
 ```
-matches for pattern 'sleep 60' when ONLY the status process contains it:
-  MATCH: 4242 python3 tools/overnight_control.py --data-dir /tmp/accept/d7 status --supervisor-pattern 'sleep 60'
+raw tail                        ... outcom\n{"kind":"after-truncation",...}\n
+parseable kinds                 ['first', 'after-truncation']
+appended record recovered       True
+problems(events)                [{'line': 2, 'truncated_tail': False}]
 ```
 
-The default pattern (`tools/supervise.py`) does **not** appear in the status argv, so the
-default path is safe. Fix: exclude `os.getpid()` and the calling process's argv from the scan
-(or require the pattern to be matched against `argv[0..1]` only). Add a test with a fake
-`ps` output that includes the caller.
+Contrast — the old failure mode, concatenation without the newline:
 
-### A18 — `status` drops per-fact evidence and leaks repo-global evidence sources (severity: low, operator visibility)
+```
+kinds ['first']                       # the following record was swallowed
+problems [{'line': 2, 'truncated_tail': True}]   # the concatenated line was excused as "the tail"
+```
 
-Two separate observations:
+Normal appends are unaffected (3 records → 3 lines, no blank lines).
 
-1. `status` emits `facts.compact()` (states only). The full `collect()` carries
-   `evidence`/`source`/`age_s` per fact — which is exactly what distinguishes "the executor is
-   dead" from "the probe could not run". In this sandbox `ps` is EPERM, yet `status` says
-   `SUPERVISOR_RUNNING: FALSE` with no hint that the process probe was unavailable:
-   ```
-   collect(...).to_dict()["SUPERVISOR_RUNNING"]:
-     state=FALSE source=supervisor.log
-     evidence="process probe unavailable (PermissionError); supervisor.log records it finished: 11-06 01:21:28 supervisor done"
-   ```
-   `status` shows only `FALSE`. Fix: include `facts_evidence` (or at least `probe_error`) in
-   the status payload; it costs no extra probe.
-2. With `--data-dir /tmp/...`, `status` still reads the repo-global `data/supervisor.log` and
-   `data/overnight/wild_cycle.jsonl` (facts defaults are absolute), so an isolated experiment's
-   facts depend on the main repo's files — observed `EXECUTOR_ALIVE: FALSE` from a 17-hour-old
-   `wild_cycle.jsonl`. `health` has override flags for all of these; `status` has none. Fix:
-   add the same override flags to `status` (or resolve defaults through a documented
-   `runtime_root`).
+**Observation (not a defect, worth knowing):** after a crash-heal the remnant is no longer the
+last line, so `problems()` reports it as `truncated_tail: False` — i.e. the *positional* "tail"
+contract now classifies a healed crash remnant as a mid-file hole. `status.ledger_problems`
+will therefore stay non-empty for the rest of the night after any crash-heal. That is honest
+(the hole is really there) but an operator should know it is expected, not a second writer. A
+one-line note in the ledger docstring would prevent a 03:00 false alarm.
 
-### A13b — `status` is not strictly read-only on a corrupt checkpoint (severity: low, doc vs behaviour)
+### Round-2 fixes re-checked on the round-3 hashes (no reverts)
 
-With `checkpoint.json` truncated to 32 bytes, `status` exits 0 but **moves the file aside**
-(`checkpoint.json.corrupt-1793977433`) and appends a `checkpoint.corrupt` event. The append is
-good forensics and the file is not destroyed, but the docstring says status is read-only and
-does not create data; strictly it rewrites state. Recommendation: either document the repair
-path in the status docstring, or gate it behind an explicit `--repair` flag (status report
-"checkpoint unreadable, run `init --force`" and change nothing). Owner: infra-eng, wording +
-test.
+- **A13**: `checkpoint --set deadline="23:59ish"` → exit 3 `{"key":"deadline"}`, checkpoint
+  sha256 unchanged; corrupt deadline on disk → `status` exit 0 with `deadline_error` + five
+  facts, `health` exit 0 and `persisted: True`.
+- **A8**: `health --watch --cycles 3 --stall-s 1 --cooldown 9999` → exit `suppressed_total=2` ==
+  `checkpoint.watchdog.suppressed_total=2` == last record kind `health.final`.
+- **A19**: async interleaving (watchdog save vs a `switch` subprocess) → final mode
+  `MAX_RESULTS`, watchdog key preserved, switch exit 0.
 
 ---
 
-## 5. PASS evidence (the things I tried to break and could not)
+## 4. Still-open PARTIALs (both low severity, no blocking defect)
 
-**A1/A2/A3 — ledger.** `Ledger.append` injects `ts`/`ts_epoch` at write time (a payload
-cannot backdate), single `os.write` on `O_APPEND` + `fsync`, 64 KiB record guard (tested:
-70 KB payload → `LedgerError`). Appending `{"ts":"…","kind":"pass.end","outcom` to
-`events.jsonl`:
+### A18 — `status` drops per-fact evidence and leaks repo-global sources
+
+Round-3 `status` keys: `data_dir, deadline, deadline_error, deadline_source,
+executor_heartbeat_age_s, facts, initialized, last_event, last_verified_progress,
+ledger_problems, ledgers, mode, night, ok, policy, remaining_s, resolved_mode, unknown_facts`.
+`facts` is still states only (`{"GOAL_ALIVE":"TRUE","AGENT_DECIDING":"UNKNOWN",…}`); there is no
+`facts_evidence` or `probe_error` key. The evidence that separates "no process" from "probe
+broke" lives only in `collect().to_dict()` and in `health` records, e.g.:
+
 ```
-problems(events) -> [{'line': 5, 'truncated_tail': True}]
-read(events)     -> 4 parseable records (session.init + 3 events), streak still counted
-status           -> exit 0, ledger_problems: {"events":[{"line":5,"truncated_tail":true}]}
+SUPERVISOR_RUNNING state=FALSE source=supervisor.log
+  evidence="process probe unavailable (PermissionError); supervisor.log records it finished: 11-06 01:21:28 supervisor done"
 ```
-A `GARBAGE-NOT-JSON` line in the middle was reported `truncated_tail: False` while the tail
-half-line stayed `True` — the distinction the contract promises.
 
-**A4/A5 — checkpoint atomicity.** 5 s of racing writer (`save_checkpoint` in a loop) against a
-reader doing `json.loads` on the same path: **7184 writes, 48910 reads, 0 torn reads.**
-12 × `SIGKILL` at random 50–400 ms offsets: checkpoint parseable after every kill; stale
-`checkpoint.json.tmp` sometimes left behind (by design), `init`'s `sweep_tmp` removed it.
+A `status` reader cannot see that `ps` was unavailable. Also `--data-dir` does not isolate the
+default fact sources: `data/supervisor.log` and `data/overnight/wild_cycle.jsonl` are absolute
+repo paths (an isolated experiment inherits the main repo's evidence — observed
+`EXECUTOR_ALIVE: FALSE` from a 17-hour-old `wild_cycle.jsonl`). `health` has override flags for
+all of these; `status` has none. Fix (owner: infra-eng): add at least `probe_error` (or full
+`facts_evidence`) and the same path overrides to `status`.
 
-**A6/A7 — watchdog debounce.** Deadline already in the past: first `health` applied
-`DEADLINE` + `EXECUTOR_DEAD` and wrote two `wake` events; second `health` 0.3 s later applied
-nothing, `suppressed_this_tick: ["DEADLINE","EXECUTOR_DEAD"]`,
-`remaining_cooldown_s: 599.711`, `suppressed_total: 2`, exactly 2 `wake` events and 2
-`runtime_health` records. `--watch --cycles 40 --cadence 0.02`: **0** additional wake events,
-**+1** health record, 82 suppression counts — no flood. NO_WORK sequence: batches 1–2 →
-`NO_WORK_STREAK` wake; batches 3–4 → suppressed; a `PROGRESS` batch resets
-`consecutive_no_work` to 0. STALL sequence (aged milestone proof): STALL fires once, next tick
-suppressed, new proof clears it (`GAME_PROGRESSING: TRUE`). Cooldown state survives process
-restart via `checkpoint.watchdog.wake_last_epoch`.
+### A13b — `status` is not strictly read-only on a corrupt checkpoint
 
-**A9 — switch audit.** EFFICIENT→MAX_RESULTS/NEED_RESEARCH applied; immediately
-MAX_RESULTS→EFFICIENT/NEED_RESEARCH suppressed `reason_cooldown`
-(`reason_remaining_s: 899.696`); different reason within dwell suppressed `min_dwell`; no-op
-suppressed `already_in_mode`; empty evidence rejected exit 3 with **no** record. All four
-requests are in `mode_switches.jsonl` (applied flag + `suppressed_by` + `cooldown` block), and
-the three suppressed ones also appear as `mode.switch.suppressed` events.
-
-**A10/A11 — five facts.** `status` payload has exactly `GOAL_ALIVE, AGENT_DECIDING,
-SUPERVISOR_RUNNING, EXECUTOR_ALIVE, GAME_PROGRESSING`, no aggregate healthy key. Exercised
-each source independently: `GOAL` TRUE (checkpoint active) ↔ FALSE (paused); `AGENT_DECIDING`
-TRUE (fresh deciding marker) ↔ FALSE (idle) ↔ **UNKNOWN** (deciding marker 10 min old — the
-stale-marker path is the important one); `EXECUTOR_ALIVE` TRUE (fresh heartbeat) ↔ FALSE
-(600 s heartbeat). `GAME_PROGRESSING` FALSE with a 1-hour-old proof (window 900 s) and TRUE
-with a fresh one. Coexistence test: `GOAL_ALIVE: TRUE` while `GAME_PROGRESSING: FALSE` in the
-same payload — a live goal is not progress, which is the anti-proxy property. Their own
-`test_changing_one_evidence_source_changes_exactly_one_fact` covers the same invariant.
-
-**A12/A14 — status safety.** Nonexistent data dir: exit 0, full JSON with nulls,
-`facts` all UNKNOWN/FALSE, and the directory was **not created**. Corrupt checkpoint
-(see A13b for the caveat): no traceback, JSON out, corrupt file preserved aside. 100 `status`
-calls while a health loop appended: **0 failures**, every stdout parsed as JSON.
-
-**A15 — meter/ledger contract.** No code in `seerauto/dual/` or `tools/overnight_control.py`
-writes `model_usage.jsonl` (`grep` shows only docstring mentions + the `LEDGERS` tuple).
-Running `init` over a directory that already holds the meter's file leaves its sha256
-unchanged (the `ensure()` `touch` does not truncate) and `status` reports its byte size. A
-half-written meter line is reported as
-`ledger_problems.model_usage = [{"line": 2, "truncated_tail": true}]` and both the control plane
-and `tools/usage_meter.py report` keep working. The meter's real record is parseable by
-`Ledger.read("model_usage")` (`kind: usage_snapshot`, `ts` present). Minor note: meter records
-carry `epoch_ms` but not `ts_epoch`; nothing reads model_usage records today, and any reader
-using `parse_ts(record.get("ts"))` handles it.
-
-**A20 — deliverables.** All four required test files exist (the two missing at 23:03 arrived
-by 23:06) and the suite is green on the frozen fingerprints. No LLM/network/GUI imports in
-`seerauto/dual/` (`grep` for `requests|urllib|socket|openai|anthropic|llm|Quartz|CGEvent|pyautogui`
-finds only the `__init__` sentence saying it does not).
+Truncating `checkpoint.json` to `{"mode":` and running `status`: exit 0 (correct degradation),
+but the file is moved aside (`checkpoint.json.corrupt-<epoch>`, 1 file) and an event is appended
+(`events.jsonl` 1→2). Good forensics, data preserved — but the docstring says status is
+read-only. Fix: document the repair path in the status docstring, or gate it behind `--repair`.
 
 ---
 
-## 6. What I did NOT verify (honesty boundary)
+## 5. PASS evidence (tried to break, could not)
 
-- A real nine-hour soak: no multi-hour run was performed; all cooldowns/throttles were
-  exercised with injected clocks or sub-second cadences.
-- The `ps` success path on an unsandboxed host (blocked here with EPERM); A17 is therefore a
-  simulated-output proof, and SUPERVISOR_RUNNING in this environment always uses the log/report
-  fallback.
-- Executor/game-layer integration: nothing in this repo writes `executor_heartbeat.json`,
-  `world_snapshots.jsonl` or `failures.jsonl` yet (game lane is separate), so those writers'
-  contracts are only unit-tested, not observed writing.
-- The five facts with a *real* live executor: `EXECUTOR_ALIVE` was TRUE only from a synthetic
-  heartbeat; the running game lane has not published one.
+**A1/A2/A3/A23 — ledger.** `append` stamps `ts`/`ts_epoch` at write time (a payload cannot
+backdate), one `os.write` on `O_APPEND` + `fsync`, 64 KiB guard (70 KB payload → `LedgerError`),
+and the new `pread`/newline logic shown in §3. `problems()` distinguishes a tail
+(`truncated_tail: true`) from a middle hole (`false`); readers skip both without raising, and the
+NO_WORK streak is preserved across a crash remnant.
+
+**A4/A5 — checkpoint atomicity.** Racing writer vs a `json.loads` reader: **13,082 writes /
+118,565 reads / 0 torn** (7,184/48,910/0 on the 23:06 ledger). `SIGKILL` at random 50–400 ms
+offsets: 12 + 8 kills across ledger versions → checkpoint parseable every time; stale
+`checkpoint.json.tmp` left in 6/8 runs (by design) and removed by `init`'s `sweep_tmp`.
+
+**A6/A7 — debounce.** Deadline already passed: tick 1 applies `DEADLINE`+`EXECUTOR_DEAD` and
+writes 2 `wake` events; tick 2 applies nothing, `suppressed_this_tick` lists both,
+`remaining_cooldown_s: 599.711`, counters persisted. 40 cycles at 0.02 s add **0** wake events
+and **+1** health record. NO_WORK 1–2 → wake, 3–4 → suppressed; a `PROGRESS` batch resets
+`consecutive_no_work` (and does **not** set `GAME_PROGRESSING`). Aged-proof STALL fires once,
+next tick suppressed, fresh proof clears it.
+
+**A9 — switch audit.** applied `EFFICIENT→MAX_RESULTS/NEED_RESEARCH`; immediate reverse with the
+same reason → suppressed `reason_cooldown` (≈899.7 s left); different reason inside dwell →
+suppressed `min_dwell`; no-op → `already_in_mode`; empty evidence → exit 3 with **no** record.
+Suppressed requests also appear as `mode.switch.suppressed` events.
+
+**A10/A11 — five facts.** Exactly `GOAL_ALIVE, AGENT_DECIDING, SUPERVISOR_RUNNING,
+EXECUTOR_ALIVE, GAME_PROGRESSING`, no aggregate healthy key. Each source exercised
+independently (goal active/paused; agent deciding/idle/**stale-deciding→UNKNOWN**; executor
+fresh/stale heartbeat; game fresh/1-hour-old proof), and `GOAL_ALIVE: TRUE` coexists with
+`GAME_PROGRESSING: FALSE` in one payload.
+
+**A12/A14 — status safety.** Nonexistent data dir → exit 0, nulls, directory not created.
+100 `status` calls while a health loop appended → 0 failures, every stdout parsed as JSON.
+
+**A15 — meter/ledger contract.** Nothing in `seerauto/dual/` or the CLI writes
+`model_usage.jsonl` (grep finds only docstring mentions + the `LEDGERS` tuple). `init` over a
+directory holding the meter's file leaves its sha256 unchanged; a half-written meter line shows
+up as `ledger_problems.model_usage [{line:2, truncated_tail:true}]` and both the control plane
+and `tools/usage_meter.py report` keep working. Minor note: meter records carry `ts` (ISO) +
+`epoch_ms`, not `ts_epoch`; no dual reader parses them and `parse_ts(ts)` handles the shape.
+
+**A20 — tests.** All four required test files exist and the suite is green on the frozen hashes
+(§2). No LLM/network/GUI imports in `seerauto/dual/` (grep for
+`requests|urllib|socket|openai|anthropic|llm|Quartz|CGEvent|pyautogui` finds only the `__init__`
+sentence saying it does not).
 
 ---
 
-## 7. Frozen fingerprints (frozen 2026-11-06T23:10:04+08:00)
+## 6. Operational state of the live night (read-only observation, 23:48)
+
+- Last watchdog record: `kind: "health.final"` at **23:43:02**, after a `wake PAUSE` for
+  `/tmp/seerauto.stop` and a `watchdog.stop` event (`cycles: 219`). The background watchdog is
+  **not writing now** — it exited cleanly on the stop flag, which is the intended behaviour of
+  that flag. If a watchdog is meant to be running, it needs to be started again; a fresh start
+  picks up all round-2/3 fixes (A8 flush, A19 locking, A21 lock-timeout, A22 probe).
+- `runtime_health.jsonl` had 69 records with `suppressed_total` 3,706–3,738 — expected for a
+  permanently stalled/executor-dead night: wakes are coalesced by cooldown, suppressions counted,
+  no event flood.
+- The dual-mode experiment is live and the control plane is being used correctly:
+  - `checkpoint.json` (1,415 B) exists; `mode_switches.jsonl` has one **applied** switch at
+    **23:16:13** `EFFICIENT→MAX_RESULTS` / `NEW_COMPLEX_TASK` with an evidence pointer.
+  - `model_usage.jsonl` now has two meter records: `PREP` at 22:57:50 (42 requests,
+    2,537,528 tokens) and `EFFICIENT` at **23:16:13** (63 requests, 5,454,568 tokens) — i.e. the
+    snapshot was taken exactly at the switch with the mode that had just ended, which is the
+    protocol `tools/usage_meter.py` documents. The per-mode table will work as designed.
+  - `world_snapshots.jsonl` and `failures.jsonl` are receiving live writes from the game lane /
+    task-5 runner; `executor_heartbeat.json` and `agent_turn.json` do not exist yet, so
+    `EXECUTOR_ALIVE` is running from the (stale) `wild_cycle` ledger and `AGENT_DECIDING` stays
+    UNKNOWN — correct behaviour for absent evidence, not a defect.
+
+---
+
+## 7. Frozen fingerprints (round 3, frozen 2026-11-06T23:48:35+08:00; no drift at freeze)
 
 | file | sha256 (16) | mtime |
 |---|---|---|
 | `seerauto/dual/__init__.py` | `f835963a751334ff` | 22:56:44 |
-| `seerauto/dual/facts.py` | `022735da715d3bf3` | 22:58:27 |
-| `seerauto/dual/ledger.py` | `a49eed91b0d186b9` | 23:06:36 |
+| `seerauto/dual/facts.py` | `aceb844a6b29effe` | 23:34:52 |
+| `seerauto/dual/ledger.py` | `2d1ce47b7126e335` | 23:40:32 |
 | `seerauto/dual/modes.py` | `da24b42497a07ba9` | 22:52:37 |
 | `seerauto/dual/outcome.py` | `18488861922b2a6d` | 23:00:06 |
 | `seerauto/dual/state.py` | `f3c9de90afc10ac5` | 23:05:31 |
-| `seerauto/dual/switch.py` | `02e9e8ecdfffb653` | 23:04:39 |
-| `seerauto/dual/watchdog.py` | `200797ad9f6a906e` | 23:01:45 |
-| `tools/overnight_control.py` | `09143a184a8fa84f` | 23:08:13 |
-| `tests/test_dual_ledger.py` | `9b96c5b757a982d3` | 23:06:57 |
+| `seerauto/dual/switch.py` | `e57ec889a976316a` | 23:19:02 |
+| `seerauto/dual/watchdog.py` | `e731535ff8e51522` | 23:35:09 |
+| `tools/overnight_control.py` | `aa92b316a72dac87` | 23:35:46 |
+| `tests/test_dual_ledger.py` | `ec06c2d475990590` | 23:42:25 |
 | `tests/test_dual_modes.py` | `3c2ffb796ffc27ce` | 23:00:06 |
-| `tests/test_dual_switch.py` | `12371b2c62edb758` | 23:05:09 |
-| `tests/test_dual_watchdog.py` | `18b31f60bea2278a` | 23:06:36 |
+| `tests/test_dual_switch.py` | `c8819a6041e3ece8` | 23:21:04 |
+| `tests/test_dual_watchdog.py` | `688b26e4687231ed` | 23:35:46 |
 | `tests/test_outcome.py` | `09c8c9eca8ef1c00` | 07:34:26 (pre-existing) |
+| `seerauto/skills/catch.py` (shared ledger helper) | `e437a387feeda8b6` | 23:43:36 |
 
-Live reading of the real experiment dir at 23:10:56 (read-only `status`):
-`initialized: True`, `deadline_source: checkpoint`, `remaining_s: 28143.5`,
-`facts: GOAL_ALIVE TRUE / AGENT_DECIDING UNKNOWN / SUPERVISOR_RUNNING FALSE / EXECUTOR_ALIVE FALSE / GAME_PROGRESSING FALSE`,
-`ledgers: events 1576, model_usage 1676, mode_switches 0, runtime_health 13925, failures 0, milestones 0`,
-`ledger_problems: {}`.
+Round-2 (23:29) hashes for comparison: `facts 022735da715d3bf3`, `ledger fe25dc178e2c0a0d`,
+`watchdog fcaad2f540981801`, `overnight_control e5780a05af9f4db1`,
+`test_dual_ledger 9c9e98096eb547f1`, `test_dual_watchdog f860223012e3cc91`.
 
-If any file's sha256 differs from the table above, re-run §2 and the §3 command before quoting
-these verdicts.
+---
+
+## 8. What I did NOT verify (honesty boundary)
+
+- A real nine-hour soak; all cooldowns/throttles were exercised with injected clocks or
+  sub-second cadences.
+- The `ps` success path on an unsandboxed host (EPERM here); A17/A22 were proven by reading the
+  code and injecting a realistic `ps` output, plus the sandbox fallback path was exercised.
+- Executor/game-layer integration: `world_snapshots.jsonl` and `failures.jsonl` began receiving
+  live writes at 23:13–23:45 (game lane / task-5 `tools/night_runner.py`), but that integration
+  is out of scope here and I did not validate it; `executor_heartbeat.json` and
+  `agent_turn.json` still do not exist, so `EXECUTOR_ALIVE`/`AGENT_DECIDING` have never been
+  exercised against live writers.
+- A production-scale lock-contention scenario (A21 was forced by holding the lock 10–14 s).
+- The new CAP-CATCH files (`seerauto/skills/catch.py` is shared here only for the ledger-durability
+  fix; the catch feature itself is out of scope for this acceptance).

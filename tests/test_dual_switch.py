@@ -233,3 +233,48 @@ def test_adversarial_alternation_cannot_flap_the_mode(tmp_path):
     assert suppressed and all(r["suppressed_by"] for r in suppressed)
     # The mode on disk equals the last applied switch, never the last *request*.
     assert ledger.load_checkpoint()["mode"] == applied[-1][1]
+
+
+# --------------------------------------------------------------------------- #
+# acceptance regression A19: concurrent requests must not lose a switch
+# --------------------------------------------------------------------------- #
+def test_concurrent_switch_requests_leave_a_consistent_audit_chain(tmp_path):
+    import threading
+
+    ledger, service = _service(tmp_path, reason_cooldown_s=0.0, min_dwell_s=0.0)
+    ledger.save_checkpoint({"mode": "EFFICIENT", "policy": "ADAPTIVE"})
+    barrier = threading.Barrier(2)
+    errors: list[BaseException] = []
+
+    def ask(target: str, reason: str) -> None:
+        try:
+            barrier.wait(timeout=10)
+            service.request(target, reason, evidence="concurrency test", now=NOW)
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=ask, args=("MAX_RESULTS", "OPPORTUNITY")),
+               threading.Thread(target=ask, args=("EFFICIENT", "RESOLVED"))]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+    assert not errors
+
+    records = ledger.read("mode_switches")
+    assert len(records) == 2  # both decisions were recorded
+    applied = [record for record in records if record["applied"]]
+    assert applied, "at least one request must have been applied"
+    for record in records:
+        assert "cooldown" in record and record["cooldown"]["reason_cooldown_s"] == 0.0
+    # The chain is coherent: each applied switch starts where the previous one ended.
+    chain_target = None
+    for record in applied:
+        if chain_target is not None:
+            assert record["from"] == chain_target
+        chain_target = record["to"]
+    assert ledger.load_checkpoint()["mode"] == applied[-1]["to"]
+    # The audit trail and the effective mode never disagree (the A19 failure mode).
+    assert ledger.load_checkpoint()["mode"] == records[-1].get("to") \
+        or any(record["applied"] and record["to"] == ledger.load_checkpoint()["mode"]
+               for record in records)

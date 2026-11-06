@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "status": "UNCALIBRATED",
+  "_readme": [
+    "CAP-CATCH live calibration. SPEC: docs/research/20261106_CATCH_SPEC.md §5 (A1/A2/A3 are P0).",
+    "status MUST be CALIBRATED before seerauto.skills.catch.CatchPet will ever click. The shipped values are",
+    "placeholders copied from documented anchor points, NOT measurements: they are here so the schema is",
+    "concrete and the validator has types to check. A mismatch between reference.capture_px and the live",
+    "window makes the skill refuse (window geometry changes every session; AGENTS.md §5.5).",
+    "All *_px values are game_px = window-local DEVICE pixels of the current capture (2400x1600 on a 1200x800pt",
+    "Retina window). All *_roi_px are [x0,y0,x1,y1] in the same game_px space.",
+    "How to fill it: run tools/ctl.py look / hover (read-only) in a live battle, record A1/A2/A3, then edit this",
+    "file and set status=CALIBRATED + calibrated_at/by. Never guess a coordinate: leave it null and the skill",
+    "will refuse with the missing field named."
+  ],
+  "calibrated_at": null,
+  "calibrated_by": null,
+  "reference": {
+    "capture_px": [
+      2400,
+      1600
+    ],
+    "window_pt": [
+      1200,
+      800
+    ],
+    "scale": 2.0
+  },
+  "battle": {
+    "report_roi_px": [
+      420,
+      60,
+      1560,
+      360
+    ],
+    "opponent_regex": "对方【(?P<name>[^】]+)】(?:(?:Lv|等级)(?P<level>\\d+))?",
+    "item_button_px": null,
+    "item_panel": {
+      "markers": [
+        "道具",
+        "胶囊"
+      ],
+      "capsule_slot_px": null,
+      "use_button_px": null,
+      "selection_markers": [
+        "已选择",
+        "使用",
+        "投掷",
+        "数量"
+      ],
+      "timeout_s": 5.0
+    },
+    "result_roi_px": [
+      420,
+      360,
+      1560,
+      760
+    ],
+    "result_keywords": {
+      "success": [
+        "捕捉成功",
+        "成功捕获",
+        "收服",
+        "获得了"
+      ],
+      "escaped": [
+        "挣脱",
+        "逃脱",
+        "逃出了"
+      ],
+      "fled": [
+        "逃跑了",
+        "逃跑"
+      ],
+      "defeated": [
+        "没有可出战的精灵",
+        "战斗失败",
+        "很遗憾"
+      ]
+    },
+    "sample_gap_s": 0.6,
+    "verdict_timeout_s": 8.0
+  },
+  "inventory": {
+    "capsule_count_roi_px": null,
+    "note": "P1 (SPEC §5 B1): storage-box capsule icon + count. When null the session reports capsules_before=null and uses the configured upper budget."
+  },
+  "budget": {
+    "max_throws_per_session": 5,
+    "reserve_capsules": 1,
+    "max_failures": 3
+  },
+  "safety": {
+    "confirm_words": [
+      "确认",
+      "确定",
+      "我知道了",
+      "关闭"
+    ],
+    "extra_forbidden_words": []
+  },
+  "targets": {
+    "pippi": {
+      "display_name": "皮皮",
+      "scene": "克洛斯星",
+      "level_max": 3,
+      "note": "SPEC §4: Lv1-2 wild 皮皮 on 克洛斯星 is the safest first target (no HP shaving needed)."
+    }
+  }
+}

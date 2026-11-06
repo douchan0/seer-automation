@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "status": "CALIBRATED",
+  "_readme": [
+    "试炼之塔无人值守刷塔校准。SPEC/证据: docs/research/TOWER_GRIND_20261107.md + task-6.",
+    "ONLY the live operator fills this: measure on the live client, then set status=CALIBRATED,",
+    "calibrated_at/by. All *_px are game_px = window-local device pixels of reference.capture_px.",
+    "reference.capture_px MUST equal the live capture or the runner refuses to click.",
+    "LIVE-VERIFIED anchors (2026-11-06 23:59, do not change without re-measuring):",
+    "  guardian body click (1190,760) twice to start a fight; 选择楼层 (1484,887); 继续挑战 (1481,1007);",
+    "  floor presets 1/11/21 at x=1895, y=795/877/956; clicking preset 1 teleports inside; painted floor on the ground.",
+    "STILL TO MEASURE (P0): inside.floor_roi_px (the painted 01/02 text area) — everything else below is a",
+    "documented anchor or an unverified placeholder; verify each on screen before trusting it.",
+    "2026-11-07: floor OCR is unreliable (true 03 read as 08 at conf 0.30) -> inside.signature roi_mean_color is the INSIDE fallback; NEXT now accepts xp_value>0 as progress evidence with the floor as a secondary cross-check.",
+    "2026-11-07 live: ENGAGE is two-step: approach_px -> wait approach_wait_s -> guardian_px. Clicking the guardian body while standing on the non-walkable glass only walks the character; it never starts a fight. Whole posture is retried at most 3 rounds, then BLOCKED. Tactical constants (gameops, same session): F3-F7 = 3300-3630 XP/floor, 30-37 s/floor, PP -1/floor, F8 also uses the two-step posture, no bottom bar => travel is impossible inside; PP-out and defeat paths still UNOBSERVED.",
+    "2026-11-07: guardian moves per floor, so ENGAGE sweeps tower.guardian_sweep_px (approach -> wait -> each candidate until battle markers; whole posture <=2 rounds, <=12 guardian clicks, then BLOCKED). RunBattle consumes the reward panels and returns rewards=[], xp=0.0, so progress is ALSO verified independently via tower.pet_panel every --verify-every cycles: xp_to_next decreasing or level increasing => PROGRESS (xp_source=pet_panel_delta)."
+  ],
+  "calibrated_at": "2026-11-07T00:35:00+08:00",
+  "calibrated_by": "gameops",
+  "reference": {
+    "capture_px": [
+      2400,
+      1600
+    ],
+    "window_pt": [
+      1200,
+      800
+    ],
+    "scale": 2.0
+  },
+  "tower": {
+    "guardian_px": [
+      1220,
+      800
+    ],
+    "guardian_gap_s": 1.2,
+    "dialog": {
+      "pick_floor_px": [
+        1484,
+        887
+      ],
+      "continue_px": [
+        1481,
+        1007
+      ],
+      "markers": [
+        "选择楼层",
+        "继续挑战",
+        "当前到达第"
+      ],
+      "floor_presets": {
+        "1": [
+          1895,
+          795
+        ],
+        "11": [
+          1895,
+          877
+        ],
+        "21": [
+          1895,
+          956
+        ]
+      },
+      "preset": 1
+    },
+    "inside": {
+      "floor_roi_px": [
+        1127,
+        1191,
+        1325,
+        1314
+      ],
+      "floor_regex": "^0*(?P<floor>\\d{1,2})$",
+      "timeout_s": 6.0,
+      "signature": {
+        "mode": "roi_mean_color",
+        "roi_px": [
+          850,
+          650,
+          1500,
+          1100
+        ],
+        "expect_rgb": [
+          159,
+          181,
+          170
+        ],
+        "tolerance": 40,
+        "channel_order": "RGB",
+        "note": "Wide platform ROI (beige+cyan) is deliberately larger than a pure-colour patch: it survives animation/lighting between cycles (narrow cyan patches drifted 24-44 per channel across real frames).",
+        "evidence": "REPLAY-PASS 2026-11-07: sampled from data/overnight/20261106_dual_mode/live/{tower_now,tower_floor03_shot,cycle2_inside_0013,floor2_after_0017}.png (4 inside-tower frames, max channel delta 10) and rejected room_after_tower/base_enter/aux_dialog/battery/wild frames (min delta 49 > tolerance 40). Reference frame channels from cv2 are BGR; this runner compares in RGB."
+      },
+      "note": "painted floor digits cyan tight bbox +4px pad, re-measured on floor 23 (2026-11-07 01:13). Previous [1152,1192,1324,1313] was measured on a 1-digit-ish '03' frame and is TOO NARROW for 2-digit numbers >= 20: it clipped the leading digit (OCR read '3' instead of '23')."
+    },
+    "battle": {
+      "enter_wait_s": 12.0,
+      "battle_markers": [
+        "回合",
+        "战报",
+        "技能",
+        "精灵"
+      ],
+      "max_seconds": 300.0
+    },
+    "result": {
+      "roi_px": [
+        300,
+        250,
+        2100,
+        1450
+      ],
+      "xp_regex": "XIN精灵获得经验[:：]\\s*(?P<xp>\\d+)",
+      "xp_to_next_regex": "离升级还需经验[:：]\\s*(?P<xp>\\d+)",
+      "confirm_words": [
+        "确认",
+        "确定"
+      ],
+      "defeat_markers": [
+        "很遗憾",
+        "挑战未能获胜"
+      ],
+      "pp_markers": [
+        "没有PP",
+        "PP不足",
+        "无法使用技能",
+        "没有可使用的技能"
+      ],
+      "max_confirm_clicks": 10,
+      "levelup_markers": [
+        "升级",
+        "等级提升",
+        "升到"
+      ],
+      "confirm_px_chain": [
+        {
+          "step": "victory",
+          "px": [
+            1191,
+            997
+          ]
+        },
+        {
+          "step": "xp_panel",
+          "px": [
+            1188,
+            999
+          ]
+        },
+        {
+          "step": "level_up_panel",
+          "px": null,
+          "note": "same 确认 sprite; OCR text contains 成功升级到了"
+        },
+        {
+          "step": "accum_exp",
+          "px": [
+            1198,
+            983
+          ]
+        },
+        {
+          "step": "xindou",
+          "px": [
+            1198,
+            983
+          ]
+        },
+        {
+          "step": "gacha_card",
+          "px": [
+            1198,
+            988
+          ]
+        }
+      ]
+    },
+    "budget": {
+      "max_cycles": 0,
+      "max_reentries": 3,
+      "max_failures": 3,
+      "cycle_timeout_s": 180.0,
+      "max_unverified": 3
+    },
+    "approach_px": [
+      1238,
+      900
+    ],
+    "approach_wait_s": 1.6,
+    "guardian_candidates_px": [
+      [
+        1220,
+        860
+      ],
+      [
+        1200,
+        745
+      ],
+      [
+        1190,
+        760
+      ],
+      [
+        1180,
+        700
+      ],
+      [
+        1200,
+        880
+      ]
+    ],
+    "guardian_sweep_px": [
+      [
+        1220,
+        800
+      ],
+      [
+        1220,
+        860
+      ],
+      [
+        1200,
+        745
+      ],
+      [
+        1190,
+        760
+      ],
+      [
+        1180,
+        700
+      ],
+      [
+        1120,
+        780
+      ],
+      [
+        1060,
+        860
+      ],
+      [
+        1200,
+        880
+      ],
+      [
+        1260,
+        860
+      ],
+      [
+        1320,
+        780
+      ]
+    ],
+    "pet_panel": {
+      "open_px": [
+        720,
+        1090
+      ],
+      "xp_roi_px": [
+        1500,
+        560,
+        1860,
+        680
+      ],
+      "xp_to_next_regex": "升级所需经验值[:：]?\\s*(?P<xp>\\d+)",
+      "level_regex": "等级[:：]?\\s*(?P<level>\\d+)",
+      "close_px": null,
+      "_measured_on": "live/tower_petbag_read_0050.png: 等级：47 box [1531,578,1636,616]; 升级所需经验值：1678 box [1527,626,1820,662]",
+      "verify_every": 3,
+      "hp_roi_px": [
+        770,
+        700,
+        910,
+        765
+      ],
+      "hp_regex": "(?P<hp>\\d+)/(?P<hpmax>\\d+)"
+    }
+  },
+  "_calibration_notes": [
+    "guardian body centre measured 1220,800 (1190,760 misses); two clicks needed (walk then engage)",
+    "reward chain: 胜利确认(1191,997) -> XP面板(1188,999) -> 升级面板(if any) -> 积累经验(1198,983) -> XIN豆(1198,983) -> 扭蛋牌(1198,988); every step clicked 确认",
+    "floor_roi_px is a PLACEHOLDER: the painted digit is stylised; Vision reads 03 as '08' at conf 0.30 and nothing in a tight crop. Treat floor reads as best-effort until a template matcher exists.",
+    "guardian moves per floor (live 2026-11-07): F10 at (1220,860); fixed (1220,800) fails on glass. guardian_candidates_px is tried in order inside each posture round after guardian_px[1200,745].",
+    "candidate order by measured hit rate (gameops 2026-11-07): (1220,800) 5/5 F3-F7, (1220,860) 5/5 F10-F13/F15, (1200,745) works with approach (1238,900) on F8, (1190,760) F1. Level-up info is NOT a separate dialog (same 确认), settlement chain <=5 confirms.",
+    "pet panel opened from inside the tower via the bottom-left device (720,1090); the xp_to_next read is the INDEPENDENT progress evidence when the settlement panels are consumed by the battle layer. guardian_sweep_px is a platform grid to be swept inside each posture round (guardian moves every floor)."
+  ]
+}

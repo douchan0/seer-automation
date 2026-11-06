@@ -60,6 +60,36 @@ from .errors import (
 
 FULL_FRAME_PX = G.Rect(0.0, 0.0, *G.CAPTURE_PX)
 
+#: A warm ScreenCaptureKit stream of the game always contains UI/HUD variance.
+#: A frame with essentially zero colour variance is a *placeholder* (the second
+#: stream on a window another daemon already drives can deliver exactly one solid
+#: dark frame and then stall — observed 2026-11-07 as a constant
+#: ``mean_rgb=(61,107,150)`` in background nohup runs).  Treating it as the game
+#: screen is how a whole night of automation "saw" a dead picture.
+UNIFORM_FRAME_STD_MAX = 1.0
+
+
+def frame_stats(array: np.ndarray) -> dict[str, Any]:
+    """Mean colour + per-channel std of a BGR frame (cheap; a few ms at 2400x1600)."""
+
+    if not isinstance(array, np.ndarray) or array.ndim != 3 or array.shape[2] < 3:
+        return {"mean_bgr": None, "mean_rgb": None, "std": None,
+                "uniform": True}
+    # Keep ~50k samples at 2400x1600 (sub-ms) but never stride past a small frame:
+    # a 2x4 frame sampled every 8th pixel would collapse to one pixel and look
+    # "uniform", which is exactly the false positive this guard must not have.
+    step = max(1, max(array.shape[0], array.shape[1]) // 256)
+    sample = array[::step, ::step, :3]
+    mean_bgr = [float(v) for v in sample.reshape(-1, 3).mean(axis=0)]
+    std = float(sample.reshape(-1, 3).std(axis=0).max())
+    return {
+        "mean_bgr": [round(v, 1) for v in mean_bgr],
+        "mean_rgb": [round(mean_bgr[2], 1), round(mean_bgr[1], 1),
+                     round(mean_bgr[0], 1)],
+        "std": round(std, 3),
+        "uniform": std < UNIFORM_FRAME_STD_MAX,
+    }
+
 
 # --------------------------------------------------------------------------- #
 # cv2 helpers (imported lazily so doctor works without .pydeps on PYTHONPATH)
@@ -582,6 +612,7 @@ class DaemonCapture:
         ref: G.ReferenceSpace = G.DEFAULT_REFERENCE,
         warm: bool = True,
         tmpdir: str | None = None,
+        reject_uniform: bool = True,
     ):
         self.client = client
         self.geometry = geometry
@@ -589,6 +620,12 @@ class DaemonCapture:
         self.warm = warm
         self.tmpdir = tmpdir
         self.session_error: str | None = None
+        #: A uniform frame from a *warm* stream is a placeholder, not the game.
+        #: Rejecting it makes the failure loud (CaptureUnavailable) instead of a
+        #: night of automation acting on a dead picture.
+        self.reject_uniform = bool(reject_uniform)
+        self.uniform_frames_seen = 0
+        self.last_stats: dict[str, Any] | None = None
         self._session_ops: set[str] = set()
         self._last_frame: Frame | None = None
         self._seq = 0
@@ -671,6 +708,19 @@ class DaemonCapture:
             decode_ns = time.perf_counter_ns() - decode_started
             if cache_key is not None:
                 self._decode_cache = (cache_key, array)
+        stats = frame_stats(array)
+        self.last_stats = stats
+        meta.update({key: stats[key] for key in ("mean_rgb", "std", "uniform")})
+        meta["source_path"] = str(reply.get("path") or "")
+        meta["warm_session"] = self.warm
+        if stats["uniform"]:
+            self.uniform_frames_seen += 1
+            if self.warm and self.reject_uniform:
+                raise CaptureUnavailable(
+                    "daemon warm stream delivered a uniform placeholder frame "
+                    f"(mean_rgb={tuple(stats['mean_rgb'])}, std={stats['std']} < "
+                    f"{UNIFORM_FRAME_STD_MAX}); refusing to treat it as the game "
+                    "screen (see tools/capture_probe.py)")
         if not self.warm and reply.get("w") and reply.get("h"):
             meta["reported_size"] = (int(reply["w"]), int(reply["h"]))
         # Preserve the daemon's sequence: a repeated seq means "same frame",

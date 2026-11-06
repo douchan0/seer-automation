@@ -1,30 +1,34 @@
 {
- "rounds": 3,
+ "rounds": 4,
  "productive_rounds": 0,
  "floors_won": 0,
- "xp_income": 0.0,
+ "xp_income": 0,
  "spend": {},
- "no_work_streak": 2,
- "failure_streak": 1,
+ "no_work_streak": 0,
+ "failure_streak": 4,
  "stopped_because": "",
- "started_at": "2026-11-06T01:04:23",
+ "started_at": "2026-11-06T23:40:15",
  "last_round": {
-  "index": 8,
-  "started_at": "2026-11-06T01:11:29+08:00",
-  "ended_at": "",
+  "index": 12,
+  "started_at": "2026-11-06T23:43:54+08:00",
+  "ended_at": "2026-11-06T23:43:54+08:00",
   "floors_won": 0,
   "tower_floor_before": null,
   "tower_floor_after": null,
   "floors_gained": null,
-  "xp_income": 0.0,
+  "xp_income": 0,
   "xp_events": [],
   "spend": {},
   "currencies_after": {},
   "outcome": "BLOCKED",
   "interrupted": false,
   "blocked": true,
-  "notes": [],
-  "error": "tower dialog did not open (no known entrance in this room)"
+  "notes": [
+   "guardian click refused: WindowMoved: window moved/resized by 30.0pt (was (268.0, 44.0) (1200.0, 800.0), now (270,74) 1200x80",
+   "frame /Users/ceontou/Documents/code/seer-automation-night/data/overnight/frames/round_012.png"
+  ],
+  "error": "farm_tower BLOCKED: guardian click refused: WindowMoved: window moved/resized by 30.0pt (was (268.0, 44.0) (1200.0, 800.0), now (270,74) 1200x80"
  },
- "updated_at": "2026-11-06T01:12:01+08:00"
+ "dry_run": false,
+ "updated_at": "2026-11-06T23:43:54+08:00"
 }

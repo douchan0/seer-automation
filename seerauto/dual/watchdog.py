@@ -51,7 +51,7 @@ from typing import Any, Callable, Mapping
 from .facts import (DECIDE_MAX_AGE_S, HEARTBEAT_MAX_AGE_S, PROGRESS_WINDOW_S,
                     SUPERVISOR_MAX_AGE_S, DEFAULT_PAUSE_FILES, FactKind, FactSet,
                     FactState, collect)
-from .ledger import Ledger, parse_ts
+from .ledger import Ledger, LedgerError, parse_ts
 from .state import DerivedCache, NightState
 
 __all__ = [
@@ -310,11 +310,13 @@ class Watchdog:
 
     def __init__(self, ledger: Ledger | None = None,
                  config: WatchdogConfig | None = None, *,
+                 checkpoint_path: str | None = None,
                  clock: Callable[[], float] = time.time,
                  process_probe: Callable[[], list[str]] | None = None,
                  state: Mapping[str, Any] | None = None) -> None:
         self.ledger = ledger or Ledger()
         self.config = config or WatchdogConfig()
+        self.checkpoint_path = checkpoint_path
         self.clock = clock
         self._process_probe = process_probe
         self._cache = DerivedCache(self.ledger)
@@ -343,7 +345,8 @@ class Watchdog:
         return int(self.state.get("wakes_total") or 0)
 
     def _load_checkpoint(self) -> dict[str, Any]:
-        checkpoint = self.ledger.load_checkpoint(default={}) or {}
+        checkpoint = self.ledger.load_checkpoint(path=self.checkpoint_path,
+                                                 default={}) or {}
         stored = checkpoint.get(self.CHECKPOINT_KEY)
         if isinstance(stored, Mapping) and not self.state:
             self.state.update({k: v for k, v in stored.items()
@@ -353,7 +356,6 @@ class Watchdog:
         return checkpoint
 
     def _save_state(self) -> None:
-        checkpoint = self.ledger.load_checkpoint(default={}) or {}
         payload = {
             "wake_last_epoch": {k: round(v, 3) for k, v in self.wake_last.items()},
             "seen_milestone_seq": int(self.state.get("seen_milestone_seq") or 0),
@@ -363,8 +365,12 @@ class Watchdog:
             "started_epoch": self.state.get("started_epoch") or round(self.clock(), 3),
             "cooldown_s": self.config.cooldown_s,
         }
-        checkpoint[self.CHECKPOINT_KEY] = payload
-        self.ledger.save_checkpoint(checkpoint)
+        # Locked read-modify-write: a mode switch saved by the CLI between our load
+        # and our save must not be lost (2026-11-06 acceptance, A19).
+        def mutate(checkpoint: dict[str, Any]) -> None:
+            checkpoint[self.CHECKPOINT_KEY] = payload
+
+        self.ledger.mutate_checkpoint(mutate, path=self.checkpoint_path)
 
     # -- supervisor probe (throttled: ps is not free) ---------------------- #
     def _probe(self, now: float) -> Callable[[], list[str]] | None:
@@ -395,7 +401,14 @@ class Watchdog:
         now = float(now if now is not None else self.clock())
         self.cycles += 1
         checkpoint = self._load_checkpoint()
-        deadline = parse_deadline(self.config.deadline or checkpoint.get("deadline"))
+        deadline_error: str | None = None
+        try:
+            deadline = parse_deadline(self.config.deadline or checkpoint.get("deadline"))
+        except ValueError as exc:
+            # A corrupt stored deadline must degrade to "no deadline", never stop the
+            # watchdog: at 03:00 a silent shutdown would be worse than a missing rule.
+            deadline = None
+            deadline_error = str(exc)
         session_start = parse_ts(checkpoint.get("session_started_ts"))
         night = self._cache.get(checkpoint=checkpoint, now=now)
         facts = collect(ledger=self.ledger, checkpoint=checkpoint, now=now,
@@ -464,6 +477,7 @@ class Watchdog:
             "facts": facts.to_dict(),
             "facts_compact": facts.compact(),
             "deadline": deadline.isoformat() if deadline else None,
+            "deadline_error": deadline_error,
             "remaining_s": (round(remaining_seconds(deadline, now), 1)
                             if deadline else None),
             "night": night.to_dict(),
@@ -492,8 +506,72 @@ class Watchdog:
             self._pending_suppressed.clear()
             self._last_persist_epoch = now
             self._last_report_signature = self._signature(report)
-            self._save_state()
+            try:
+                self._save_state()
+                report["state_persisted"] = True
+            except LedgerError as exc:
+                # Another writer holds the checkpoint lock (acceptance finding A21).
+                # The evaluation is still valid; degrade and leave a durable record
+                # instead of killing the watch loop or claiming the state was saved.
+                report["state_persisted"] = False
+                report["state_error"] = f"{type(exc).__name__}: {exc}"
+                self.note_lock_timeout(exc)
         return report
+
+    def flush(self, now: float | None = None) -> dict[str, Any] | None:
+        """Write a final health record so pending suppression counters are durable.
+
+        The loop throttles ``runtime_health`` writes, so a clean ``--cycles N`` exit
+        could otherwise drop the counters that only lived in memory: the exit JSON
+        printed ``suppressed_total=4`` while the checkpoint still said 0 (acceptance
+        finding A8).  A final record + a state save closes that gap.
+        """
+
+        now = float(now if now is not None else self.clock())
+        pending = {k: {"count": int(v["count"]),
+                       "first_epoch": round(v["first_epoch"], 3),
+                       "last_epoch": round(v["last_epoch"], 3)}
+                   for k, v in self._pending_suppressed.items()}
+        record = self.ledger.append("runtime_health", {
+            "kind": "health.final",
+            "final": True,
+            "cycles": self.cycles,
+            "facts_compact": {},
+            "wakes_total": self.wakes_total,
+            "suppressed_total": self.suppressed_total,
+            "suppressed_pending": pending,
+            "deadline": None,
+            "remaining_s": None,
+            "night": {},
+            "checks": [],
+            "wakes": [],
+            "applied": [],
+            "suppressed_this_tick": [],
+            "persisted": True,
+        }, ts=now)
+        self._pending_suppressed.clear()
+        self._last_persist_epoch = now
+        try:
+            self._save_state()
+        except LedgerError as exc:
+            self.note_lock_timeout(exc)
+        return record
+
+    def note_lock_timeout(self, exc: BaseException) -> None:
+        """Record checkpoint-lock contention durably; never raises.
+
+        Called from ``step``/``flush``/``run`` when the checkpoint lock is held by
+        another process.  ``runtime_health`` appends do not need the lock, so this
+        trace survives even while the lock is unavailable.
+        """
+
+        self.lock_timeouts = int(getattr(self, "lock_timeouts", 0)) + 1
+        self.ledger._append_safely("runtime_health", {
+            "kind": "health.lock_timeout",
+            "error": f"{type(exc).__name__}: {exc}"[:300],
+            "cycles": self.cycles,
+            "lock_timeouts": self.lock_timeouts,
+        })
 
     def _should_persist(self, report: Mapping[str, Any], now: float) -> bool:
         # An applied wake is a change worth an fsync immediately.  A *suppressed*
@@ -534,7 +612,17 @@ class Watchdog:
         done = 0
         try:
             while cycles is None or done < cycles:
-                report = self.step()
+                try:
+                    report = self.step()
+                except LedgerError as exc:
+                    # Defensive: step() already degrades its own state save, but a
+                    # lock timeout anywhere else must not kill an unattended loop.
+                    self.note_lock_timeout(exc)
+                    done += 1
+                    if cycles is not None and done >= cycles:
+                        break
+                    sleep(self.config.cadence_s)
+                    continue
                 done += 1
                 if on_report is not None:
                     on_report(report)
@@ -551,4 +639,12 @@ class Watchdog:
             self.ledger.append("events", {"kind": "watchdog.stop",
                                           "reason": "KeyboardInterrupt",
                                           "cycles": done})
+        finally:
+            # Every suppression counted since the last health record is flushed here,
+            # so the counters in the exit JSON are the counters on disk.  A lock
+            # timeout at exit is recorded, never raised (A21).
+            try:
+                self.flush()
+            except LedgerError as exc:
+                self.note_lock_timeout(exc)
         return done

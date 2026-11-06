@@ -68,3 +68,6 @@ data/overnight/snapshots/
 
 # Local delivery staging (sandbox cannot write the shared .git)
 .delivery/
+
+# Night-run evidence frames stay on disk (4 MB each); the JSONL/MD evidence is versioned
+data/overnight/20261106_dual_mode/live/*.png

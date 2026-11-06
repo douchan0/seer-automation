@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import os
 import subprocess
 import time
 from dataclasses import dataclass
@@ -188,21 +189,38 @@ def _read_json(path: Path) -> Any:
         return None
 
 
-def probe_processes(pattern: str, *, timeout_s: float = 5.0) -> list[str]:
+def probe_processes(pattern: str, *, timeout_s: float = 5.0,
+                    exclude_pids: Iterable[int] = ()) -> list[str]:
     """Local ``ps`` scan for a command-line pattern; returns matched command lines.
 
     stdout is parsed, stderr ignored.  A broken/blocked ``ps`` raises — callers turn
     that into UNKNOWN rather than "not running", because a failed probe is not a
     negative observation.
+
+    ``exclude_pids`` plus our own pid are filtered out.  This is not optional
+    hygiene: the *caller's own command line* contains the pattern when an operator
+    runs ``overnight_control.py status --supervisor-pattern tools/supervise.py``, so
+    without the filter "the supervisor is running" would become true because the
+    status command asked about it (acceptance finding A22 — "alive is not working").
+    Lines that are the ``ps`` invocation itself or ``grep`` are skipped for the same
+    reason; ``overnight_control.py`` lines are skipped by name because a health loop
+    re-invokes the CLI.
     """
 
     out = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True,
                          text=True, timeout=timeout_s, check=False)
+    skip = {int(pid) for pid in exclude_pids} | {os.getpid()}
     matches = []
     for line in (out.stdout or "").splitlines():
         text = line.strip()
-        if pattern in text and "grep" not in text and "ps -axo" not in text:
-            matches.append(text)
+        if not text or pattern not in text:
+            continue
+        if "grep" in text or "ps -axo" in text or "overnight_control.py" in text:
+            continue
+        pid_text, _, _command = text.partition(" ")
+        if pid_text.isdigit() and int(pid_text) in skip:
+            continue
+        matches.append(text)
     return matches
 
 

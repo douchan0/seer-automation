@@ -643,7 +643,7 @@ final class Daemon {
         case "capture.roi":
             guard stream != nil else { return ["error": "no stream (call capture.start first)"] }
             guard let r = obj["rect"] as? [Double], r.count == 4 else { return ["error": "rect required"] }
-            let path = (obj["path"] as? String) ?? "/tmp/seerdx_roi.bgra"
+            let path = (obj["path"] as? String) ?? "/tmp/seerdx_roi_\(getpid()).bgra"
             guard let reply = store.materializeROI(x: Int(r[0]), y: Int(r[1]),
                                                    rw: Int(r[2]), rh: Int(r[3]), path: path) else {
                 return ["error": "no frame yet"]
@@ -708,7 +708,14 @@ if let i = CommandLine.arguments.firstIndex(of: "--target"), i + 1 < CommandLine
     log("target override: \(TARGET_HINTS)")
 }
 
-let daemon = Daemon(framePath: "/tmp/seerdx_frame.bgra")
+// Per-process frame path.  A single fixed path is shared by every daemon on the
+// machine: with two sessions alive (e.g. a foreground operator session and a
+// background nohup run) one daemon can read the *other* daemon's frame file while
+// trusting its own seq/w/h/stride — which is exactly the "constant dark frame in
+// the background process" report of 2026-11-07.  Python reads reply["path"], so a
+// per-pid path is transparent to every client.
+let framePath = "/tmp/seerdx_frame_\(getpid()).bgra"
+let daemon = Daemon(framePath: framePath)
 let commandQueue = DispatchQueue(label: "seerdx.commands")
 var pending: [(String?, DispatchSemaphore)] = []   // (line, done) — guarded by queue
 let pendingLock = NSLock()

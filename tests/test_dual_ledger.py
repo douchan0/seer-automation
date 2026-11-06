@@ -417,3 +417,262 @@ def test_cli_event_deadline_checkpoint_and_agent_turn(tmp_path, capsys):
     status = json.loads(capsys.readouterr().out)
     assert status["mode"] == "MAX_RESULTS"
     assert status["facts"]["AGENT_DECIDING"] == "TRUE"
+
+
+# --------------------------------------------------------------------------- #
+# acceptance regressions A13 (corrupt deadline must not blind the operator)
+# --------------------------------------------------------------------------- #
+def _corrupt_deadline(tmp_path: pathlib.Path, value: str = "23:59ish") -> None:
+    path = tmp_path / "checkpoint.json"
+    state = json.loads(path.read_text(encoding="utf-8"))
+    state["deadline"] = value
+    path.write_text(json.dumps(state, indent=1), encoding="utf-8")
+
+
+def test_cli_checkpoint_rejects_a_schema_violation_before_writing(tmp_path, capsys):
+    args = ["--data-dir", str(tmp_path)]
+    ctl.main(args + ["init", "--deadline-at", "2026-11-07T07:00:00+08:00"])
+    capsys.readouterr()
+
+    assert ctl.main(args + ["checkpoint", "--set", 'deadline="23:59ish"']) == 3
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False and payload["key"] == "deadline"
+    assert "ISO-8601" in payload["error"]
+    # Nothing was written: the previous valid deadline is intact.
+    state = json.loads((tmp_path / "checkpoint.json").read_text(encoding="utf-8"))
+    assert state["deadline"] == "2026-11-07T07:00:00+08:00"
+
+    assert ctl.main(args + ["checkpoint", "--set", "mode=TURBO"]) == 3
+    assert "unknown mode" in json.loads(capsys.readouterr().out)["error"]
+    assert ctl.main(args + ["checkpoint", "--set", "mode=MAX_RESULTS"]) == 0
+    capsys.readouterr()
+
+
+def test_cli_status_still_evaluates_with_a_corrupt_stored_deadline(tmp_path, capsys):
+    """A13: at 03:00 a bad deadline must not hide the five facts (exit was 3)."""
+
+    args = ["--data-dir", str(tmp_path)]
+    ctl.main(args + ["init", "--deadline-at", "2026-11-07T07:00:00+08:00"])
+    capsys.readouterr()
+    _corrupt_deadline(tmp_path)
+
+    assert ctl.main(args + ["status"]) == 0
+    status = json.loads(capsys.readouterr().out)
+    assert status["ok"] is True
+    assert status["initialized"] is True
+    assert status["deadline"] is None
+    assert "ISO-8601" in status["deadline_error"]
+    assert status["mode"] == "EFFICIENT" and status["policy"] == "ADAPTIVE"
+    assert set(status["facts"]) == {"GOAL_ALIVE", "AGENT_DECIDING",
+                                    "SUPERVISOR_RUNNING", "EXECUTOR_ALIVE",
+                                    "GAME_PROGRESSING"}
+    assert status["night"]["batches"] == 0
+
+
+def test_cli_deadline_reports_a_corrupt_stored_value_instead_of_exiting(tmp_path,
+                                                                       capsys):
+    args = ["--data-dir", str(tmp_path)]
+    ctl.main(args + ["init"])
+    capsys.readouterr()
+    _corrupt_deadline(tmp_path)
+
+    assert ctl.main(args + ["deadline"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["deadline"] is None
+    assert "ISO-8601" in payload["deadline_error"]
+    # A valid --set repairs it.
+    assert ctl.main(args + ["deadline", "--set",
+                            "2026-11-07T07:00:00+08:00"]) == 0
+    assert json.loads(capsys.readouterr().out)["deadline"].endswith("+08:00")
+
+
+# --------------------------------------------------------------------------- #
+# acceptance regression A19 (no lost checkpoint updates between writers)
+# --------------------------------------------------------------------------- #
+def test_mutate_checkpoint_serialises_concurrent_read_modify_write(tmp_path):
+    import threading
+
+    ledger = Ledger(tmp_path, fsync=False)
+    ledger.save_checkpoint({"a": 0, "b": 0})
+    rounds = 25
+    barrier = threading.Barrier(2)
+    errors: list[BaseException] = []
+
+    def bump(key: str) -> None:
+        try:
+            barrier.wait(timeout=10)
+            for _ in range(rounds):
+                ledger.mutate_checkpoint(
+                    lambda state: state.__setitem__(key, int(state.get(key) or 0) + 1))
+        except BaseException as exc:  # noqa: BLE001 - surface in the assert below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=bump, args=("a",)),
+               threading.Thread(target=bump, args=("b",))]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+    assert not errors
+    state = ledger.load_checkpoint()
+    # With the lock, no update is lost; without it one side's merge would vanish.
+    assert state["a"] == rounds and state["b"] == rounds
+
+
+def test_cli_health_evaluates_with_a_corrupt_stored_deadline(tmp_path, capsys):
+    """A13 for `health`: exit 0, facts present, DEADLINE rule off (was exit 3)."""
+
+    args = ["--data-dir", str(tmp_path)]
+    ctl.main(args + ["init", "--deadline-at", "2026-11-07T07:00:00+08:00"])
+    capsys.readouterr()
+    _corrupt_deadline(tmp_path)
+
+    assert ctl.main(args + ["health", "--stall-s", "60",
+                            "--supervisor-log", str(tmp_path / "none.log")]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["ok"] is True
+    assert report["deadline"] is None
+    assert "ISO-8601" in report["deadline_error"]
+    assert report["facts_compact"]["GOAL_ALIVE"] == "TRUE"
+    assert any(check["kind"] == "DEADLINE" and check["fires"] is False
+               for check in report["checks"])
+
+
+def test_cli_health_honours_the_checkpoint_override(tmp_path, capsys):
+    """The global --checkpoint must be used by `health`, not only by `switch`."""
+
+    data = tmp_path / "data"
+    checkpoint = tmp_path / "elsewhere.json"
+    base = ["--data-dir", str(data), "--checkpoint", str(checkpoint)]
+    ctl.main(base + ["init"])
+    capsys.readouterr()
+
+    assert ctl.main(base + ["health", "--stall-s", "999999",
+                            "--supervisor-log", str(tmp_path / "none.log")]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["mode"] == "EFFICIENT"
+    assert report["policy"] == "ADAPTIVE"
+    # ...and the state was written to that checkpoint, not to the default one.
+    assert json.loads(checkpoint.read_text(encoding="utf-8"))["watchdog"]
+    assert not (data / "checkpoint.json").exists()
+
+
+# --------------------------------------------------------------------------- #
+# acceptance regressions A22 (fake ps through the CLI) and A21 (lock timeout)
+# --------------------------------------------------------------------------- #
+def _fake_ps(monkeypatch, lines: list[str]) -> None:
+    import seerauto.dual.facts as facts_mod
+
+    class _Proc:
+        returncode = 0
+
+        def __init__(self) -> None:
+            self.stdout = "\n".join(lines)
+
+    monkeypatch.setattr(facts_mod.subprocess, "run", lambda *a, **k: _Proc())
+
+
+def _ps_lines() -> list[str]:
+    import os
+
+    return [
+        f"{os.getpid()} python3 tools/overnight_control.py status "
+        f"--supervisor-pattern tools/supervise.py",
+        f"{os.getppid()} bash -c 'tools/supervise.py'",
+        " 12345 python3 tools/supervise.py --minutes 60",
+        " 22222 python3 tools/overnight_control.py health",
+        " 33333 grep tools/supervise.py",
+    ]
+
+
+def test_cli_status_with_fake_ps_does_not_count_its_own_process(tmp_path, capsys,
+                                                               monkeypatch):
+    """A22 through the real CLI: the status command's own argv contains the pattern."""
+
+    _fake_ps(monkeypatch, _ps_lines())
+    assert ctl.main(["--data-dir", str(tmp_path), "status",
+                     "--supervisor-pattern", "tools/supervise.py"]) == 0
+    status = json.loads(capsys.readouterr().out)
+    assert status["facts"]["SUPERVISOR_RUNNING"] == "TRUE"
+    assert status["facts"]["EXECUTOR_ALIVE"] in ("TRUE", "FALSE", "UNKNOWN")
+
+
+def test_cli_health_with_fake_ps_does_not_raise_on_exclude_pids(tmp_path, capsys,
+                                                                monkeypatch):
+    """A22: `health` passed exclude_pids to a function that did not accept it."""
+
+    _fake_ps(monkeypatch, _ps_lines())
+    assert ctl.main(["--data-dir", str(tmp_path), "health",
+                     "--supervisor-log", str(tmp_path / "none.log")]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["facts_compact"]["SUPERVISOR_RUNNING"] == "TRUE"
+    assert report["ok"] is True
+    # `health` carries the evidence: exactly the real supervisor line, never our own.
+    evidence = report["facts"]["SUPERVISOR_RUNNING"]["evidence"]
+    assert evidence.startswith("1 matching process") and "12345" in evidence
+    assert "overnight_control.py" not in evidence
+
+
+def test_cli_switch_lock_timeout_is_json_not_a_traceback(tmp_path, capsys):
+    """A21: a held checkpoint lock -> exit 3 with a JSON error, no traceback."""
+
+    import fcntl
+
+    args = ["--data-dir", str(tmp_path)]
+    ctl.main(args + ["init"])
+    capsys.readouterr()
+    ledger = Ledger(tmp_path, fsync=False, lock_timeout_s=0.1)
+    holder = ledger.lock_path().open("a+")
+    fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+    try:
+        code = ctl.main(["--data-dir", str(tmp_path), "--lock-timeout-s", "0.1",
+                         "switch", "--to", "MAX_RESULTS", "--reason", "OPPORTUNITY",
+                         "--evidence", "lock test"])
+    finally:
+        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+        holder.close()
+    assert code == 3
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert "checkpoint lock" in payload["error"]
+    # The audit trail was not silently half-written: mode stayed EFFICIENT.
+    assert json.loads((tmp_path / "checkpoint.json").read_text())["mode"] == "EFFICIENT"
+
+
+def test_cli_health_one_shot_degrades_a_lock_timeout(tmp_path, capsys):
+    """A21: `health` still evaluates and reports state_persisted=false."""
+
+    import fcntl
+
+    ctl.main(["--data-dir", str(tmp_path), "init"])
+    capsys.readouterr()
+    ledger = Ledger(tmp_path, fsync=False, lock_timeout_s=0.1)
+    holder = ledger.lock_path().open("a+")
+    fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+    try:
+        code = ctl.main(["--data-dir", str(tmp_path), "--lock-timeout-s", "0.1",
+                         "health", "--stall-s", "999999",
+                         "--supervisor-log", str(tmp_path / "none.log")])
+    finally:
+        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+        holder.close()
+    assert code == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["ok"] is True
+    assert report["state_persisted"] is False
+    assert "checkpoint lock" in report["state_error"]
+    assert report["facts_compact"]["GOAL_ALIVE"] == "TRUE"
+
+
+def test_append_after_a_truncated_tail_starts_a_new_line(tmp_path):
+    """A crash-truncated tail must not swallow the next record by concatenation."""
+
+    ledger = Ledger(tmp_path, fsync=False)
+    ledger.append("events", {"kind": "first"})
+    with ledger.path("events").open("a", encoding="utf-8") as fh:
+        fh.write('{"kind": "half-writ')  # process died mid-append
+    ledger.append("events", {"kind": "second"})
+    records = ledger.read("events")
+    assert [record["kind"] for record in records] == ["first", "second"]
+    # The truncated fragment stays as a reported tail line, but no longer hides data.
+    assert ledger.problems("events") == [{"line": 2, "truncated_tail": False}]

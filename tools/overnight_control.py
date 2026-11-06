@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pathlib
 import sys
 import time
 from typing import Any
@@ -45,7 +46,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from seerauto.dual.facts import (FactKind, collect, probe_processes)  # noqa: E402
 from seerauto.dual.ledger import (CHECKPOINT_NAME, DEFAULT_DATA_DIR,  # noqa: E402
-                                  LEDGERS, Ledger)
+                                  LEDGERS, Ledger, LedgerError)
 from seerauto.dual.modes import Mode, Policy, Signals, resolve  # noqa: E402
 from seerauto.dual.outcome import canonical  # noqa: E402
 from seerauto.dual.state import derive  # noqa: E402
@@ -65,7 +66,8 @@ def emit(payload: Any) -> None:
 
 
 def ledger_for(args: argparse.Namespace) -> Ledger:
-    return Ledger(args.data_dir, fsync=not args.no_fsync)
+    return Ledger(args.data_dir, fsync=not args.no_fsync,
+                  lock_timeout_s=getattr(args, "lock_timeout_s", 5.0))
 
 
 def checkpoint_for(args: argparse.Namespace, ledger: Ledger) -> dict[str, Any]:
@@ -132,53 +134,60 @@ def _last_event(ledger: Ledger) -> dict[str, Any] | None:
 def cmd_init(args: argparse.Namespace) -> int:
     ledger = ledger_for(args).ensure()
     ledger.sweep_tmp()
-    existing = ledger.load_checkpoint(path=args.checkpoint, default=None)
-    if existing and not args.force:
-        emit({"ok": True, "already_initialized": True,
-              "checkpoint": str(ledger.checkpoint_path),
-              "mode": existing.get("mode"), "policy": existing.get("policy"),
-              "deadline": existing.get("deadline")})
-        return EXIT_OK
+    target = (pathlib.Path(args.checkpoint) if args.checkpoint
+              else ledger.checkpoint_path)
 
-    manifest = manifest_for(ledger)
-    try:
-        deadline = parse_deadline(args.deadline_at or manifest.get("hard_deadline"))
-        # The experiment may have started before this init call (the manifest records
-        # the real start); a checkpoint that claims a later start would understate
-        # every "time without progress" number the watchdog reports.
-        started = parse_deadline(args.started_at) if args.started_at else None
-    except ValueError as exc:
-        emit({"ok": False, "error": str(exc)})
-        return EXIT_STATE
-    now = started.timestamp() if started else time.time()
-    mode = Mode.parse(args.mode)
-    policy = Policy.parse(args.policy)
-    state = {
-        "experiment": manifest.get("experiment") or ledger.data_dir.name,
-        "created_ts": _iso(now),
-        "created_epoch": round(now, 3),
-        "session_started_ts": _iso(now),
-        "session_started_epoch": round(now, 3),
-        "mode": mode.value,
-        "mode_since_epoch": round(now, 3),
-        "policy": policy.value,
-        "deadline": deadline.isoformat() if deadline else None,
-        "goal": {
-            "id": args.goal_id,
-            "status": args.goal_status,
-            "started_ts": _iso(now),
-            "started_epoch": round(now, 3),
-        },
-        "last_verified_progress_ts": None,
-        "last_verified_progress": None,
-        "last_switch_ts": None,
-        "last_switch_epoch": None,
-        "checkpoint_epoch": round(now, 3),
-    }
-    if existing:
-        state["previous_mode"] = existing.get("mode")
-        state["reinitialized_epoch"] = round(now, 3)
-    ledger.save_checkpoint(state, path=args.checkpoint)
+    # Lock "already initialised?" + write, so two inits cannot both "win".
+    with ledger.checkpoint_lock(path=target):
+        existing = ledger.load_checkpoint(path=args.checkpoint, default=None)
+        if existing and not args.force:
+            emit({"ok": True, "already_initialized": True,
+                  "checkpoint": str(ledger.checkpoint_path),
+                  "mode": existing.get("mode"), "policy": existing.get("policy"),
+                  "deadline": existing.get("deadline")})
+            return EXIT_OK
+
+        manifest = manifest_for(ledger)
+        try:
+            deadline = parse_deadline(args.deadline_at or
+                                      manifest.get("hard_deadline"))
+            # The experiment may have started before this init call (the manifest
+            # records the real start); a checkpoint that claims a later start would
+            # understate every "time without progress" number the watchdog reports.
+            started = parse_deadline(args.started_at) if args.started_at else None
+        except ValueError as exc:
+            emit({"ok": False, "error": str(exc)})
+            return EXIT_STATE
+        now = started.timestamp() if started else time.time()
+        mode = Mode.parse(args.mode)
+        policy = Policy.parse(args.policy)
+        state = {
+            "experiment": manifest.get("experiment") or ledger.data_dir.name,
+            "created_ts": _iso(now),
+            "created_epoch": round(now, 3),
+            "session_started_ts": _iso(now),
+            "session_started_epoch": round(now, 3),
+            "mode": mode.value,
+            "mode_since_epoch": round(now, 3),
+            "policy": policy.value,
+            "deadline": deadline.isoformat() if deadline else None,
+            "goal": {
+                "id": args.goal_id,
+                "status": args.goal_status,
+                "started_ts": _iso(now),
+                "started_epoch": round(now, 3),
+            },
+            "last_verified_progress_ts": None,
+            "last_verified_progress": None,
+            "last_switch_ts": None,
+            "last_switch_epoch": None,
+            "checkpoint_epoch": round(now, 3),
+        }
+        if existing:
+            state["previous_mode"] = existing.get("mode")
+            state["reinitialized_epoch"] = round(now, 3)
+        ledger._save_checkpoint_unlocked(state, target)
+
     ledger.append("events", {"kind": "session.init", "mode": mode.value,
                              "policy": policy.value,
                              "deadline": state["deadline"],
@@ -202,14 +211,18 @@ def cmd_status(args: argparse.Namespace) -> int:
     now = time.time()
     checkpoint = checkpoint_for(args, ledger)
     night = derive(ledger, checkpoint=checkpoint, now=now)
+    deadline_error: str | None = None
     try:
         deadline = resolve_deadline(args, checkpoint, ledger)
     except ValueError as exc:
-        emit({"ok": False, "error": str(exc)})
-        return EXIT_STATE
+        # Degrade to "no deadline" but keep reporting mode/facts/night.  At 03:00 an
+        # operator needs the five facts far more than a hard error (acceptance A13).
+        deadline = None
+        deadline_error = str(exc)
     pattern = args.supervisor_pattern
     facts = collect(ledger=ledger, checkpoint=checkpoint, now=now,
-                    process_probe=lambda: probe_processes(pattern),
+                    process_probe=lambda: probe_processes(
+                        pattern, exclude_pids=(os.getpid(), os.getppid())),
                     night=night)
     mode = checkpoint.get("mode")
     policy = checkpoint.get("policy")
@@ -244,6 +257,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         "policy": policy,
         "resolved_mode": resolved,
         "deadline": deadline.isoformat() if deadline else None,
+        "deadline_error": deadline_error,
         "remaining_s": (round(remaining_seconds(deadline, now), 1)
                         if deadline else None),
         "deadline_source": ("arg" if getattr(args, "deadline_at", None)
@@ -303,10 +317,25 @@ def cmd_switch(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 # checkpoint
 # --------------------------------------------------------------------------- #
+#: Checkpoint keys whose value has a schema; a typo must be rejected at write time,
+#: not discovered by the watchdog at 03:00.
+def _validate_checkpoint_field(key: str, value: Any) -> Any:
+    if key == "deadline":
+        if value in (None, "", "null"):
+            return None
+        return parse_deadline(str(value)).isoformat()
+    if key == "mode":
+        return Mode.parse(value).value
+    if key == "policy":
+        return Policy.parse(value).value
+    return value
+
+
 def cmd_checkpoint(args: argparse.Namespace) -> int:
     ledger = ledger_for(args)
     checkpoint = checkpoint_for(args, ledger)
     if args.set:
+        changes: dict[str, Any] = {}
         for item in args.set:
             if "=" not in item:
                 emit({"ok": False, "error": f"--set wants KEY=VALUE, got {item!r}"})
@@ -316,9 +345,18 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
                 parsed: Any = json.loads(value)
             except json.JSONDecodeError:
                 parsed = value
-            checkpoint[key] = parsed
-        checkpoint["checkpoint_epoch"] = time.time()
-        ledger.save_checkpoint(checkpoint, path=args.checkpoint)
+            try:
+                parsed = _validate_checkpoint_field(key, parsed)
+            except ValueError as exc:
+                emit({"ok": False, "error": str(exc), "key": key})
+                return EXIT_STATE
+            changes[key] = parsed
+
+        def mutate(state: dict[str, Any]) -> None:
+            state.update(changes)
+            state["checkpoint_epoch"] = time.time()
+
+        checkpoint = ledger.mutate_checkpoint(mutate, path=args.checkpoint)
         ledger.append("events", {"kind": "checkpoint", "set": args.set})
         emit({"ok": True, "updated": args.set, "checkpoint": checkpoint})
         return EXIT_OK
@@ -361,8 +399,10 @@ def cmd_health(args: argparse.Namespace) -> int:
     ledger = ledger_for(args)
     config = watch_config(args, ledger)
     watchdog = Watchdog(
-        ledger, config,
-        process_probe=lambda: probe_processes(config.supervisor_pattern))
+        ledger, config, checkpoint_path=args.checkpoint,
+        process_probe=lambda: probe_processes(config.supervisor_pattern,
+                                              exclude_pids=(os.getpid(),
+                                                            os.getppid())))
     if args.watch:
         def on_report(report: dict[str, Any]) -> None:
             emit(_slim_health(report, full=args.full))
@@ -396,27 +436,31 @@ def cmd_deadline(args: argparse.Namespace) -> int:
     checkpoint = checkpoint_for(args, ledger)
     if args.set or args.clear:
         if args.clear:
-            checkpoint["deadline"] = None
+            new_deadline = None
         else:
             try:
                 moment = parse_deadline(args.set)
             except ValueError as exc:
                 emit({"ok": False, "error": str(exc)})
                 return EXIT_STATE
-            checkpoint["deadline"] = moment.isoformat() if moment else None
-        checkpoint["checkpoint_epoch"] = time.time()
-        ledger.save_checkpoint(checkpoint, path=args.checkpoint)
-        ledger.append("events", {"kind": "deadline.set",
-                                 "deadline": checkpoint.get("deadline")})
+            new_deadline = moment.isoformat() if moment else None
+
+        def mutate(state: dict[str, Any]) -> None:
+            state["deadline"] = new_deadline
+            state["checkpoint_epoch"] = time.time()
+
+        checkpoint = ledger.mutate_checkpoint(mutate, path=args.checkpoint)
+        ledger.append("events", {"kind": "deadline.set", "deadline": new_deadline})
+    deadline_error: str | None = None
     try:
         deadline = resolve_deadline(args, checkpoint, ledger)
     except ValueError as exc:
-        emit({"ok": False, "error": str(exc)})
-        return EXIT_STATE
+        deadline, deadline_error = None, str(exc)
     now = time.time()
     remaining = remaining_seconds(deadline, now)
     emit({"ok": True,
           "deadline": deadline.isoformat() if deadline else None,
+          "deadline_error": deadline_error,
           "remaining_s": round(remaining, 1) if remaining is not None else None,
           "expired": (remaining is not None and remaining <= 0),
           "updated": bool(args.set or args.clear)})
@@ -440,13 +484,15 @@ def cmd_progress(args: argparse.Namespace) -> int:
         "proof": args.proof,
         "evidence": args.evidence,
     })
-    checkpoint["last_verified_progress_ts"] = record["ts_epoch"]
-    checkpoint["last_verified_progress"] = {
-        "ts": record["ts"], "node": args.node, "proof": args.proof,
-        "evidence": args.evidence,
-    }
-    checkpoint["checkpoint_epoch"] = round(now, 3)
-    ledger.save_checkpoint(checkpoint, path=args.checkpoint)
+    def mutate(state: dict[str, Any]) -> None:
+        state["last_verified_progress_ts"] = record["ts_epoch"]
+        state["last_verified_progress"] = {
+            "ts": record["ts"], "node": args.node, "proof": args.proof,
+            "evidence": args.evidence,
+        }
+        state["checkpoint_epoch"] = round(now, 3)
+
+    checkpoint = ledger.mutate_checkpoint(mutate, path=args.checkpoint)
     # The events copy is for the timeline only: kind "progress.recorded" is not one
     # of state.PROGRESS_KINDS, so the milestone is counted once, in milestones.jsonl.
     ledger.append("events", {"kind": "progress.recorded", "node": args.node,
@@ -514,6 +560,9 @@ def build_parser() -> argparse.ArgumentParser:
                              + CHECKPOINT_NAME + ")")
     parser.add_argument("--no-fsync", action="store_true",
                         help="skip fsync on appends (tests only; not crash-safe)")
+    parser.add_argument("--lock-timeout-s", type=float, default=5.0,
+                        help="how long to wait for the checkpoint lock before "
+                             "reporting a lock timeout (default 5 s)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("init", help="create the checkpoint and empty ledgers")
@@ -610,9 +659,11 @@ def main(argv: list[str] | None = None) -> int:
         return int(args.func(args))
     except BrokenPipeError:  # pragma: no cover - only when piped to `head`
         return EXIT_OK
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, LedgerError) as exc:
         # A status command that tracebacks during a live night is worse than one
-        # that prints a machine-readable error: the caller can then decide.
+        # that prints a machine-readable error: the caller can then decide.  A
+        # checkpoint-lock timeout (A21) lands here as exit 3 with JSON, not a
+        # traceback.
         emit({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
         return EXIT_STATE
 

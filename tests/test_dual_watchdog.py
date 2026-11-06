@@ -537,3 +537,111 @@ def test_watchdog_config_is_serialisable(tmp_path):
     assert payload["pause_files"] == [str(tmp_path / "p")]
     assert cfg.cooldown_for(WakeKind.DEADLINE) == 600.0
     assert cfg.cooldown_for(WakeKind.STALL) == 300.0
+
+
+# --------------------------------------------------------------------------- #
+# acceptance regressions A13 (corrupt deadline) and A8 (clean-exit flush)
+# --------------------------------------------------------------------------- #
+def test_watchdog_degrades_a_corrupt_stored_deadline(tmp_path):
+    """A13 for `health`: bad deadline -> no DEADLINE rule, everything else evaluated."""
+
+    ledger = Ledger(tmp_path, fsync=False)
+    ledger.save_checkpoint({
+        "mode": "EFFICIENT", "policy": "ADAPTIVE",
+        "deadline": "23:59ish",  # corrupt, e.g. written by an older tool
+        "session_started_ts": _iso(NOW - 100),
+        "goal": {"status": "active"},
+    })
+    watchdog = _watchdog(tmp_path, stall_s=10_000.0)
+    report = watchdog.step(now=NOW)
+    assert report["deadline"] is None
+    assert "ISO-8601" in report["deadline_error"]
+    deadline_check = next(c for c in report["checks"] if c["kind"] == "DEADLINE")
+    assert deadline_check["fires"] is False
+    # The rest of the evaluation still happened.
+    assert report["facts_compact"]["GOAL_ALIVE"] == "TRUE"
+    assert report["night"]["batch_count"] == 0
+
+
+def test_clean_exit_flushes_pending_suppression_counters(tmp_path):
+    """A8: `--cycles N` exit must persist every suppression it counted."""
+
+    ledger = Ledger(tmp_path, fsync=False)
+    ledger.save_checkpoint({
+        "mode": "EFFICIENT", "policy": "ADAPTIVE",
+        "session_started_ts": _iso(NOW - 2000),
+        "goal": {"status": "active"},
+    })
+    watchdog = _watchdog(tmp_path, stall_s=60.0, cooldown_s=300.0,
+                         persist_every_s=30.0)
+    watchdog.step(now=NOW)  # STALL applied
+    for offset in range(1, 6):
+        watchdog.step(now=NOW + offset)  # 5 suppressions, throttled (not persisted)
+    assert watchdog.suppressed_total == 5
+
+    watchdog.run(cycles=1, sleep=lambda _s: None)
+    # One more step in run() (another suppression or a repeat wake), then flush.
+    state = ledger.load_checkpoint()["watchdog"]
+    assert state["suppressed_total"] == watchdog.suppressed_total
+    assert state["wakes_total"] == watchdog.wakes_total
+    finals = [record for record in ledger.read("runtime_health")
+              if record.get("kind") == "health.final"]
+    assert finals, "clean exit must write a final health record"
+    assert finals[-1]["suppressed_total"] == watchdog.suppressed_total
+    assert finals[-1]["cycles"] >= 1
+
+
+# --------------------------------------------------------------------------- #
+# acceptance regressions A22 (ps self-match) and A21 (lock timeout degrades)
+# --------------------------------------------------------------------------- #
+def test_probe_processes_excludes_its_own_and_the_callers_pids(monkeypatch):
+    """A22: a `ps` line holding the pattern must not be the asking process itself."""
+
+    import seerauto.dual.facts as facts_mod
+
+    class _Proc:
+        returncode = 0
+        stdout = "\n".join([
+            f"{os.getpid()} python3 tools/overnight_control.py status "
+            f"--supervisor-pattern tools/supervise.py",
+            f"{os.getppid()} bash -c ... tools/supervise.py ...",
+            " 12345 python3 tools/supervise.py --minutes 60",
+            " 22222 python3 tools/overnight_control.py health",
+            " 33333 grep tools/supervise.py",
+            "  4444 ps -axo pid=,command=",
+        ])
+
+    monkeypatch.setattr(facts_mod.subprocess, "run",
+                        lambda *a, **k: _Proc())
+    matches = facts_mod.probe_processes(
+        "tools/supervise.py", exclude_pids=(os.getpid(), os.getppid()))
+    assert len(matches) == 1
+    assert matches[0].strip().startswith("12345")
+    assert "overnight_control.py" not in matches[0]
+
+
+def test_watchdog_run_degrades_on_checkpoint_lock_timeout(tmp_path):
+    """A21: a held checkpoint lock is recorded, not raised out of the watch loop."""
+
+    watchdog = _watchdog(tmp_path, stall_s=10_000.0)
+    watchdog.ledger.lock_timeout_s = 0.05
+    watchdog.ledger.save_checkpoint({
+        "mode": "EFFICIENT", "policy": "ADAPTIVE",
+        "session_started_ts": _iso(NOW - 100),
+        "goal": {"status": "active"},
+    })
+    lock_path = watchdog.ledger.lock_path()
+    holder = lock_path.open("a+")
+    fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+    try:
+        cycles = watchdog.run(cycles=2, sleep=lambda _s: None)
+    finally:
+        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+        holder.close()
+
+    assert cycles == 2  # the loop survived
+    assert watchdog.lock_timeouts >= 1
+    records = [record for record in watchdog.ledger.read("runtime_health")
+               if record.get("kind") == "health.lock_timeout"]
+    assert records, "a lock timeout must be recorded durably"
+    assert "checkpoint lock" in records[-1]["error"]

@@ -180,8 +180,14 @@ class Ledger:
                               f"{_MAX_RECORD_BYTES}; split it instead of writing a "
                               f"multi-megabyte line")
 
-        fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+        # O_RDWR (not O_WRONLY) so the last byte can be inspected: if the previous
+        # append was interrupted mid-line, this record must start on a fresh line
+        # instead of being concatenated onto the unparsable tail.
+        fd = os.open(str(path), os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o644)
         try:
+            size = os.fstat(fd).st_size
+            if size and os.pread(fd, 1, size - 1) != b"\n":
+                data = b"\n" + data
             view = memoryview(data)
             while view:
                 written = os.write(fd, view)

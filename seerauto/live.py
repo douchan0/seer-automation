@@ -206,6 +206,18 @@ class LiveSession:
         if not self.backend.warm:
             self.close()
             raise LiveError("capture session is not warm (capture.start failed)")
+        # Fail fast on a placeholder stream.  A warm SCK stream that delivers one
+        # solid frame and then stalls used to look like a working capture for a
+        # whole run (2026-11-07: constant mean_rgb=(61,107,150) in background
+        # nohup processes).  Better to refuse the session than act on a dead picture.
+        try:
+            self.backend.latest()
+        except C.CaptureUnavailable as exc:
+            self.close()
+            raise LiveError(
+                "capture stream is delivering a placeholder frame; refusing the "
+                f"session: {exc}. If this is a background process, another daemon "
+                "may already own the warm stream (see tools/capture_probe.py)") from exc
         # NOTE: deliberately no ``activate`` here.  Raising the game window steals
         # the user's focus, and this project must be able to run while the machine
         # is in use.  Input goes through the background lane (``clickpid``) when

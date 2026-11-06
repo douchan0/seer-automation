@@ -31,6 +31,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from pathlib import Path
+
 from .ledger import Ledger, parse_ts
 from .modes import Mode, Policy, SwitchReason, resolve  # noqa: F401 - resolve in __all__
 
@@ -209,63 +211,75 @@ class ModeSwitchService:
             raise ValueError("a switch needs an evidence pointer "
                              "(path, ledger record or an explicit 'NOT FOUND')")
         now = float(now if now is not None else self.clock())
+        checkpoint_target = (Path(self.checkpoint_path) if self.checkpoint_path
+                             else self.ledger.checkpoint_path)
 
-        current_mode, current_policy = self.current()
-        if policy is not None:
-            current_policy = Policy.parse(policy)
-        last_same = self.last_applied_for(reason_value)
-        last_any = self.last_applied()
-        last_same_epoch = parse_ts((last_same or {}).get("ts_epoch")) or parse_ts(
-            (last_same or {}).get("ts"))
-        last_any_epoch = parse_ts((last_any or {}).get("ts_epoch")) or parse_ts(
-            (last_any or {}).get("ts"))
-
-        decision = decide(current=current_mode, to=target, reason=reason_value,
-                          evidence=evidence_text, now=now,
-                          last_same_reason_epoch=last_same_epoch,
-                          last_switch_epoch=last_any_epoch,
-                          reason_cooldown_s=self.reason_cooldown_s,
-                          min_dwell_s=self.min_dwell_s, note=note)
-
-        record = {
-            "kind": "mode.switch",
-            **decision.to_dict(),
-            "policy": current_policy.value if current_policy else None,
-            "actor": "overnight_control",
-            "effective_epoch": round(now, 3),
-        }
-        # The record is stamped with the *decision* epoch (not the append wall clock)
-        # so the audit trail's `ts` and `effective_epoch` agree and cooldown maths
-        # across records is exact.  In production `now` is the clock anyway.
-        written = self.ledger.append("mode_switches", record, ts=now)
-
-        if decision.applied:
+        # One checkpoint lock covers read-modify-write of both the mode and the last
+        # switch timestamp.  Without it the watchdog's periodic state save can land
+        # between our load and our save and silently restore the old mode (acceptance
+        # finding A19: the audit trail said MAX_RESULTS while the checkpoint stayed
+        # EFFICIENT).
+        with self.ledger.checkpoint_lock(path=checkpoint_target):
             checkpoint = self.ledger.load_checkpoint(path=self.checkpoint_path,
                                                      default={}) or {}
-            checkpoint["mode"] = target.value
-            checkpoint["mode_since_epoch"] = round(now, 3)
-            checkpoint["mode_since_ts"] = written.get("ts")
-            if current_policy is not None:
-                checkpoint["policy"] = current_policy.value
-            checkpoint["last_switch_ts"] = written.get("ts")
-            checkpoint["last_switch_epoch"] = round(now, 3)
-            self.ledger.save_checkpoint(checkpoint, path=self.checkpoint_path)
-            self.ledger.append("events", {
+            current_mode = (Mode.parse(checkpoint["mode"])
+                            if checkpoint.get("mode") else None)
+            current_policy = (Policy.parse(checkpoint["policy"])
+                              if checkpoint.get("policy") else None)
+            if policy is not None:
+                current_policy = Policy.parse(policy)
+            last_same = self.last_applied_for(reason_value)
+            last_any = self.last_applied()
+            last_same_epoch = parse_ts((last_same or {}).get("ts_epoch")) or parse_ts(
+                (last_same or {}).get("ts"))
+            last_any_epoch = parse_ts((last_any or {}).get("ts_epoch")) or parse_ts(
+                (last_any or {}).get("ts"))
+
+            decision = decide(current=current_mode, to=target, reason=reason_value,
+                              evidence=evidence_text, now=now,
+                              last_same_reason_epoch=last_same_epoch,
+                              last_switch_epoch=last_any_epoch,
+                              reason_cooldown_s=self.reason_cooldown_s,
+                              min_dwell_s=self.min_dwell_s, note=note)
+
+            record = {
                 "kind": "mode.switch",
-                "from": decision.from_mode.value if decision.from_mode else None,
-                "to": target.value,
-                "reason": reason_value.value,
-                "evidence": evidence_text,
-            }, ts=now)
-        else:
-            self.ledger.append("events", {
-                "kind": "mode.switch.suppressed",
-                "from": decision.from_mode.value if decision.from_mode else None,
-                "to": target.value,
-                "reason": reason_value.value,
-                "suppressed_by": decision.suppressed_by,
-                "evidence": evidence_text,
-            }, ts=now)
+                **decision.to_dict(),
+                "policy": current_policy.value if current_policy else None,
+                "actor": "overnight_control",
+                "effective_epoch": round(now, 3),
+            }
+            # The record is stamped with the *decision* epoch (not the append wall
+            # clock) so the audit trail's `ts` and `effective_epoch` agree and the
+            # cooldown maths across records is exact.  In production `now` is the
+            # clock anyway.
+            written = self.ledger.append("mode_switches", record, ts=now)
+
+            if decision.applied:
+                checkpoint["mode"] = target.value
+                checkpoint["mode_since_epoch"] = round(now, 3)
+                checkpoint["mode_since_ts"] = written.get("ts")
+                if current_policy is not None:
+                    checkpoint["policy"] = current_policy.value
+                checkpoint["last_switch_ts"] = written.get("ts")
+                checkpoint["last_switch_epoch"] = round(now, 3)
+                self.ledger._save_checkpoint_unlocked(checkpoint, checkpoint_target)
+                self.ledger.append("events", {
+                    "kind": "mode.switch",
+                    "from": decision.from_mode.value if decision.from_mode else None,
+                    "to": target.value,
+                    "reason": reason_value.value,
+                    "evidence": evidence_text,
+                }, ts=now)
+            else:
+                self.ledger.append("events", {
+                    "kind": "mode.switch.suppressed",
+                    "from": decision.from_mode.value if decision.from_mode else None,
+                    "to": target.value,
+                    "reason": reason_value.value,
+                    "suppressed_by": decision.suppressed_by,
+                    "evidence": evidence_text,
+                }, ts=now)
         return written
 
     # -- convenience ------------------------------------------------------- #

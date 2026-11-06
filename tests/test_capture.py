@@ -94,7 +94,15 @@ def write_png(path, w, h):
     def chunk(tag, data):
         body = tag + data
         return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xffffffff)
-    raw = b"".join(b"\x00" + b"\x11\x22\x33" * w for _ in range(h))
+    # A real window is never one flat colour; a uniform frame is a placeholder
+    # (rejected by DaemonCapture since the 2026-11-07 background bug), so the fake
+    # daemon produces a simple gradient-like pattern.
+    raw = b"".join(
+        b"\x00" + b"".join(bytes((11 + (row * 7 + col * 13) % 200,
+                                  34 + (row * 11 + col * 5) % 200,
+                                  51 + (row * 3 + col * 17) % 200))
+                            for col in range(w))
+        for row in range(h))
     png = (b"\x89PNG\r\n\x1a\n"
            + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
@@ -575,7 +583,12 @@ def test_daemon_caches_decode_for_a_repeated_seq(tmp_path, geometry):
     """Same (seq, geometry) must not be decoded twice: that is what makes
     polling a static screen free."""
     p = tmp_path / "cached.bgra"
-    write_raw_bgra(p, 4, 2, 16, [[(1, 1, 1, 255)] * 4, [(2, 2, 2, 255)] * 4])
+    # non-uniform content: uniform frames are placeholders and are rejected now
+    write_raw_bgra(p, 4, 2, 16,
+                   [[(1, 1, 1, 255), (60, 20, 20, 255), (120, 40, 40, 255),
+                     (180, 60, 60, 255)],
+                    [(10, 90, 10, 255), (40, 120, 30, 255), (70, 150, 50, 255),
+                     (200, 180, 70, 255)]])
 
     replies = [{"fmt": "bgra", "path": str(p), "w": 4, "h": 2, "stride": 16,
                 "seq": 5, "ts_ns": 1000}] * 2

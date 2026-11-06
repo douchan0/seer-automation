@@ -10,25 +10,50 @@
   "started_ts": "2026-11-06T22:41:14+08:00",
   "status": "active"
  },
- "last_switch_epoch": null,
- "last_switch_ts": null,
+ "last_switch_epoch": 1793989482.072,
+ "last_switch_ts": "2026-11-07T02:24:42+08:00",
  "last_verified_progress": null,
  "last_verified_progress_ts": null,
  "mode": "EFFICIENT",
- "mode_since_epoch": 1793976074.0,
+ "mode_since_epoch": 1793989482.072,
+ "mode_since_ts": "2026-11-07T02:24:42+08:00",
  "policy": "ADAPTIVE",
  "session_started_epoch": 1793976074.0,
  "session_started_ts": "2026-11-06T22:41:14+08:00",
+ "updated_ts": "2026-11-07T01:23:23+08:00",
  "watchdog": {
   "cooldown_s": 300.0,
-  "last_persist_epoch": 1793977954.909,
+  "last_persist_epoch": 1793993821.576,
   "seen_milestone_seq": 0,
   "started_epoch": 1793977843.136,
-  "suppressed_total": 182,
+  "suppressed_total": 30656,
   "wake_last_epoch": {
-   "EXECUTOR_DEAD": 1793977843.129,
-   "STALL": 1793977843.129
+   "EXECUTOR_DEAD": 1793993772.322,
+   "PAUSE": 1793993821.573,
+   "STALL": 1793993772.322
   },
-  "wakes_total": 2
+  "wakes_total": 108
+ },
+ "world": {
+  "all_pets_dead": true,
+  "battery_8x": "BLOCKED (game refuses enable)",
+  "floor_current": 23,
+  "floor_source": "live_screenshot tower_petbag_read_0050.png",
+  "heal_path": "defeat -> hall (bottom bar) -> 精灵恢复 20 XIN豆; in-tower heal NOT FOUND",
+  "hp": "0/144",
+  "hp_full": false,
+  "level": 49,
+  "pet": "烈焰猩猩",
+  "pp_flame_car": "0/25",
+  "puni_seals": "0/7 VERIFIED",
+  "puni_truebody": "0/6",
+  "roster": 6,
+  "roster_note": "1 烈焰猩猩 + 5 小蘑菇（用户判定小蘑菇无价值）",
+  "tower_floor": 23,
+  "tower_unverified_floors": 3,
+  "tower_verified_floors": 9,
+  "tower_verified_xp": 33778,
+  "trade_house": "LOCKED",
+  "xp_to_next": 5792
  }
 }
