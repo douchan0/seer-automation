@@ -1084,6 +1084,38 @@ class TowerGrind:
             self.calibration.defeat_markers)
         hit = next((word for word in blocking if word in text), None)
         if hit:
+            # 2026-11-07 live: the login-time banner
+            # 「检测到本日还未开启8倍经验与4倍学习力…[确认]」 made every RECOVER
+            # refuse before doing anything.  That banner is benign - its 确认 only
+            # dismisses the notice - so it is dismissed once and the window is
+            # re-observed.  Any other popup still blocks (no blind clicking).
+            benign = ("还未开启" in text or "8倍经验" in text
+                      or "检测到" in text)
+            if hit in self.calibration.confirm_words and benign:
+                target = None
+                for item in items:
+                    if hit in str(item.get("text") or ""):
+                        px = item.get("px") or (None, None)
+                        if px and px[0] is not None:
+                            target = (float(px[0]), float(px[1]))
+                            break
+                if target is not None:
+                    marker = CycleResult(cycle=self.cycles,
+                                         outcome=Outcome.UNVERIFIED_ACTIVITY)
+                    try:
+                        self._click(ctx, target, f"observe_dismiss:{hit}", marker)
+                    except Exception:  # noqa: BLE001 - dismissal is best effort
+                        return False, (f"popup/marker {hit!r} is on screen before "
+                                       f"RECOVER and could not be dismissed")
+                    self.sleep(1.5)
+                    try:
+                        items = self._ocr(ctx)
+                        text = " ".join(self._text(items))
+                    except Exception as exc:  # noqa: BLE001
+                        return False, f"could not OCR after dismissal: {exc}"
+                    hit = next((word for word in blocking if word in text), None)
+                    if hit is None:
+                        return True, "dismissed the benign 8x-exp banner"
             return False, f"popup/marker {hit!r} is on screen before RECOVER"
         return True, ""
 
@@ -1187,7 +1219,29 @@ class TowerGrind:
                     "screen_text": self._screen_summary(ctx)}
         step("travel", True, "tutor_room")
 
-        if not self._at_dialog(ctx):
+        # 2026-11-07 live: travel only moves the character into the training room; the
+        # tower dialog is opened by *clicking the machine*.  The old chain checked for
+        # the dialog without ever clicking the entrance, so `dialog` always failed
+        # (live: three identical runs; a single manual click at (1195,1150) opened it
+        # immediately).  Candidates are the operator-measured points, tried in order.
+        opened = self._at_dialog(ctx)
+        if not opened:
+            entrance_points = ((1195.0, 1150.0), (1195.0, 1180.0), (1230.0, 1150.0))
+            entrance_cycle = CycleResult(cycle=self.cycles, outcome=Outcome.FAILED)
+            for point in entrance_points:
+                if self._stopped() or self._paused():
+                    break
+                try:
+                    self._click(ctx, point, "tower_entrance", entrance_cycle)
+                except Exception:  # noqa: BLE001 - the click guard may refuse
+                    continue
+                self.sleep(2.0)
+                if self._at_dialog(ctx):
+                    opened = True
+                    break
+        step("entrance", opened,
+             "" if opened else "tower entrance click did not open the dialog")
+        if not opened:
             step("dialog", False, "tower dialog not found after travel")
             return {"ok": False, "steps": steps,
                     "screen_text": self._screen_summary(ctx)}
