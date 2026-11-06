@@ -1,0 +1,9 @@
+{
+  "ts": "2026-11-06T23:00:23+08:00",
+  "goal_id": "goal-00a07447-6994-4ad9-9570-53490b62ff49",
+  "phase": "active",
+  "activation": "armed",
+  "roundsStarted_at_23:00": 0,
+  "maxGoalRounds": 6,
+  "conclusion": "END_TURN_WITH_ARMED_GOAL_DID_NOT_START_A_ROUND (roundsStarted stayed 0 after turn 1 ended at ~23:00). Cross-round continuation therefore came from the at-scheduler reminder, not from the goal driver. Both are recorded; the goal's native continuation is NOT counted as verified autonomy."
+}

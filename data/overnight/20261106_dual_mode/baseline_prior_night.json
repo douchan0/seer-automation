@@ -1,0 +1,189 @@
+{
+  "schema": "usage_baseline.v1",
+  "generated_at": "2026-11-06T22:59:42+08:00",
+  "session": "session-fb389015-5471-459e-837c-13d1813e9b52",
+  "cwd": "/Users/ceontou/Documents/code",
+  "created_at": "2026-11-05T14:01:33+08:00",
+  "source": "/Users/ceontou/.dsh/storages/session_projcache/sessions/session-fb389015-5471-459e-837c-13d1813e9b52.json",
+  "raw_log": "/Users/ceontou/.dsh/sessions/--Users-ceontou-Documents-code--/session-fb389015-5471-459e-837c-13d1813e9b52/session.v4.jsonl.zstd",
+  "turns": 3,
+  "steps": 656,
+  "requests": 656,
+  "totals": {
+    "uncached_input": 3104715,
+    "output": 323945,
+    "cache_read": 198836736,
+    "cache_write": 0
+  },
+  "total": 202265396,
+  "total_per_request": 308331.4,
+  "uncached_per_request": 4732.8,
+  "cache_read_per_request": 303104.8,
+  "cache_hit": 0.984626,
+  "surface_tokens": 414213,
+  "context_window": 1000000,
+  "pressure_tokens": 558337,
+  "surface_window_ratio": 0.4142,
+  "per_request": {
+    "requests": 656,
+    "prompt_mean": 307837.6,
+    "prompt_median": 320863.0,
+    "prompt_p90": 513076.0,
+    "prompt_p95": 531158.0,
+    "prompt_max": 558337,
+    "total_mean": 308331.4,
+    "total_median": 321077.0,
+    "output_mean": 493.8,
+    "output_median": 315.0
+  },
+  "hours": [
+    {
+      "hour": "2026-11-05 19",
+      "requests": 80,
+      "uncached_input": 101491,
+      "output": 29661,
+      "cache_read": 4678784,
+      "cache_write": 0,
+      "total": 4809936,
+      "cache_hit": 0.9787687946823143,
+      "avg_total_per_request": 60124.2
+    },
+    {
+      "hour": "2026-11-05 21",
+      "requests": 207,
+      "uncached_input": 300657,
+      "output": 108345,
+      "cache_read": 39687936,
+      "cache_write": 0,
+      "total": 40096938,
+      "cache_hit": 0.9924814308920547,
+      "avg_total_per_request": 193705.01449275363
+    },
+    {
+      "hour": "2026-11-05 22",
+      "requests": 125,
+      "uncached_input": 102672,
+      "output": 62294,
+      "cache_read": 42055936,
+      "cache_write": 0,
+      "total": 42220902,
+      "cache_hit": 0.9975646254734027,
+      "avg_total_per_request": 337767.216
+    },
+    {
+      "hour": "2026-11-05 23",
+      "requests": 76,
+      "uncached_input": 60925,
+      "output": 37989,
+      "cache_read": 31094400,
+      "cache_write": 0,
+      "total": 31193314,
+      "cache_hit": 0.9980444755431054,
+      "avg_total_per_request": 410438.34210526315
+    },
+    {
+      "hour": "2026-11-06 00",
+      "requests": 40,
+      "uncached_input": 447497,
+      "output": 24177,
+      "cache_read": 17666048,
+      "cache_write": 0,
+      "total": 18137722,
+      "cache_hit": 0.9752948967195544,
+      "avg_total_per_request": 453443.05
+    },
+    {
+      "hour": "2026-11-06 01",
+      "requests": 45,
+      "uncached_input": 1490145,
+      "output": 23733,
+      "cache_read": 20379648,
+      "cache_write": 0,
+      "total": 21893526,
+      "cache_hit": 0.9318628667404396,
+      "avg_total_per_request": 486522.8
+    },
+    {
+      "hour": "2026-11-06 02",
+      "requests": 16,
+      "uncached_input": 11943,
+      "output": 8182,
+      "cache_read": 8097152,
+      "cache_write": 0,
+      "total": 8117277,
+      "cache_hit": 0.9985272092631792,
+      "avg_total_per_request": 507329.8125
+    },
+    {
+      "hour": "2026-11-06 03",
+      "requests": 14,
+      "uncached_input": 11204,
+      "output": 7497,
+      "cache_read": 7241600,
+      "cache_write": 0,
+      "total": 7260301,
+      "cache_hit": 0.9984552181473537,
+      "avg_total_per_request": 518592.9285714286
+    },
+    {
+      "hour": "2026-11-06 04",
+      "requests": 9,
+      "uncached_input": 3776,
+      "output": 1892,
+      "cache_read": 4714880,
+      "cache_write": 0,
+      "total": 4720548,
+      "cache_hit": 0.9991997721385072,
+      "avg_total_per_request": 524505.3333333334
+    },
+    {
+      "hour": "2026-11-06 05",
+      "requests": 13,
+      "uncached_input": 6852,
+      "output": 4260,
+      "cache_read": 6871680,
+      "cache_write": 0,
+      "total": 6882792,
+      "cache_hit": 0.9990038572183716,
+      "avg_total_per_request": 529445.5384615385
+    },
+    {
+      "hour": "2026-11-06 06",
+      "requests": 11,
+      "uncached_input": 7971,
+      "output": 5880,
+      "cache_read": 5882496,
+      "cache_write": 0,
+      "total": 5896347,
+      "cache_hit": 0.9986467965952445,
+      "avg_total_per_request": 536031.5454545454
+    },
+    {
+      "hour": "2026-11-06 07",
+      "requests": 20,
+      "uncached_input": 559582,
+      "output": 10035,
+      "cache_read": 10466176,
+      "cache_write": 0,
+      "total": 11035793,
+      "cache_hit": 0.9492477523994268,
+      "avg_total_per_request": 551789.65
+    }
+  ],
+  "reconcile": {
+    "ok": true,
+    "raw_sum": {
+      "uncached_input": 3104715,
+      "output": 323945,
+      "cache_read": 198836736,
+      "cache_write": 0
+    },
+    "procache_sum": {
+      "uncached_input": 3104715,
+      "output": 323945,
+      "cache_read": 198836736,
+      "cache_write": 0
+    },
+    "evidence": "/Users/ceontou/.dsh/sessions/--Users-ceontou-Documents-code--/session-fb389015-5471-459e-837c-13d1813e9b52/session.v4.jsonl.zstd vs /Users/ceontou/.dsh/storages/session_projcache/sessions/session-fb389015-5471-459e-837c-13d1813e9b52.json"
+  }
+}
