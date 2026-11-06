@@ -538,3 +538,12 @@ puni.prepare.level_up    blocked    no pet can battle (all pets at 0 HP); recove
 
 **结束时状态**：全员 0 血；客户端在 02:40 重启后卡在"版本检测中"并显示 502
 （服务端故障，见 `docs/BLOCKER_PET_HP.md` §8）。
+
+## Round 6 — 2026-11-06 夜 → 11-07 早（双模式长程实验）
+- 分支 `night/20261106-dual-mode`（提交 a71c8c7 / 4e60885 / 5ae9a21 / dd3fdd3）
+- **塔路线打通并验证为练级主线**：选择楼层→预设 1 可回低层（"只能往上"被证伪）；塔内开战=点守卫者本体两次；单层 1700–6100 XP，按层递增
+- **真机产出：171 层带 XP 原文 / 642,896 XP；等级 Lv41 → Lv72+（HP 上限 122 → 210）**；对照上一夜整夜野怪 +20,200 XP = 31.8 倍
+- 新增：`seerauto/dual/`（模式/账本/watchdog/切换）、`tools/{usage_meter,overnight_control,tower_grind,tower_supervise.sh,night_runner}.py`、`seerauto/skills/catch.py`（UNIT_ONLY）
+- 修复：`fix_startup.py` 缺 import time；capture 占位帧（第二个 warm SCK 流）致 4 次自动化白死；`tower_grind` 的 UNVERIFIED 终止态 / PP 子串误匹配 / 签名瞬态暗帧 / floor_roi 两位数被切 / RECOVER 不点塔入口 / observe 误拒无害横幅
+- 未完成：战斗层怪物模板覆盖（塔无人值守的真正上限）、抓宠标定、经验分配器入口、谱尼封印面板、交易行 gate
+- 详见 `docs/OVERNIGHT_DUAL_MODE_REPORT_2026_11_07.md`
