@@ -263,7 +263,7 @@ def find_server(session: LiveSession, name: str, tries: int = 6) -> tuple[float,
         if screen_kind([item["text"] for item in items]) != "server":
             log("server selection no longer visible; refusing further lookup or drag")
             return None
-        hit = session.find_text(items, aliases)
+        hit = session.find_text(items, aliases, exact=True)
         if hit:
             log(f"server {name!r} found at attempt {attempt}: {hit['px']}")
             return tuple(hit["px"])

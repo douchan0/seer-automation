@@ -6,7 +6,7 @@ spec=importlib.util.spec_from_file_location('login_policy',Path(__file__).parent
 login=importlib.util.module_from_spec(spec);spec.loader.exec_module(login)
 def session(frames):
  s=Mock();s.ocr.side_effect=frames
- s.find_text.side_effect=lambda items,aliases:next((i for i in items if any(a in i['text'] for a in aliases)),None)
+ s.find_text.side_effect=lambda items,aliases,exact=False:next((i for i in items if any((a == i['text'].strip()) if exact else (a in i['text']) for a in aliases)),None)
  return s
 def test_unknown_screen_never_drags(monkeypatch):
  s=session([[{'text':'航行公告','px':[4,4]}]])
@@ -54,3 +54,8 @@ def test_any_visible_server_uses_measured_rows_and_skips_closed_pvp():
 
 def test_any_visible_server_rejects_missing_layout_anchor():
  assert login.visible_server([{'text':'选择服务器','px':[1,1]}]) is None
+
+def test_substring_server_name_is_not_the_target(monkeypatch):
+ s=session([[{'text':'选择服务器','px':[1,1]},{'text':'超级啦公星','px':[8,8]}]])
+ monkeypatch.setattr(login,'drag_server_list',Mock());monkeypatch.setattr(login.time,'sleep',lambda _:None)
+ assert login.find_server(s,'啦公星',tries=1) is None
