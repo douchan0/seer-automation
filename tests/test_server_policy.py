@@ -29,7 +29,7 @@ def test_scene_change_after_scroll_stops(monkeypatch):
  assert drag.call_count==1
 
 def test_default_login_does_not_type_server_one(monkeypatch):
- s=Mock();s.client=Mock()
+ s=Mock();s.client=Mock();s.ocr.return_value=[]
  monkeypatch.setattr(login, 'list_game_windows', lambda: [{}])
  monkeypatch.setattr(login, 'clear_popup', lambda: True)
  monkeypatch.setattr(login, 'LiveSession', lambda **kwargs: Mock(open=lambda:s))
@@ -41,3 +41,16 @@ def test_default_login_does_not_type_server_one(monkeypatch):
  monkeypatch.setattr('sys.argv',['login.py'])
  login.main()
  numeric.assert_not_called()
+
+def test_any_visible_server_uses_measured_rows_and_skips_closed_pvp():
+ import json
+ raw=json.loads((Path(__file__).parent/'fixtures/server_history_ocr.json').read_text())
+ items=[{'text':i['text'],'conf':i['conf'],'norm':(i['x'],i['y'],i['w'],i['h']),
+         'px':((i['x']+i['w']/2)*2400,(1-i['y']-i['h']/2)*1600)} for i in raw]
+ chosen=login.visible_server(items)
+ assert chosen['number']==26
+ assert chosen['text']=='123'
+ assert chosen['px'][0] > 400
+
+def test_any_visible_server_rejects_missing_layout_anchor():
+ assert login.visible_server([{'text':'选择服务器','px':[1,1]}]) is None
