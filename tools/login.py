@@ -219,9 +219,12 @@ def drag_server_list(session: LiveSession, *, down: bool = True) -> None:
 def find_server(session: LiveSession, name: str, tries: int = 6) -> tuple[float, float] | None:
     """Find the server row, dragging the list when it is sorted by population."""
 
-    aliases = (name, name[-2:], "公星")
+    aliases = (name,)
     for attempt in range(tries):
         items = session.ocr(min_conf=0.25)
+        if screen_kind([item["text"] for item in items]) != "server":
+            log("server selection no longer visible; refusing further lookup or drag")
+            return None
         hit = session.find_text(items, aliases)
         if hit:
             log(f"server {name!r} found at attempt {attempt}: {hit['px']}")
@@ -313,8 +316,8 @@ def _log_kind(kind: str) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--server", default="啦公星")
-    ap.add_argument("--server-number", type=int, default=1,
-                    help="server id for the 请输入服务器编号 quick-enter path")
+    ap.add_argument("--server-number", type=int, default=None,
+                    help="explicit server id; omitted disables numeric fallback")
     ap.add_argument("--server-tries", type=int, default=6,
                     help="how many scroll attempts before falling back to the number field")
     ap.add_argument("--cooldown", type=float, default=0.0,
@@ -359,7 +362,7 @@ def main() -> int:
                     continue
                 log(f"server {args.server!r} is not on the visible page; "
                     f"using the number field instead")
-                if enter_server_by_number(session, args.server_number):
+                if args.server_number is not None and enter_server_by_number(session, args.server_number):
                     time.sleep(16)
                     continue
                 time.sleep(3)
