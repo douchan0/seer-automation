@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import time
 from typing import Any, Mapping
 
 import pytest
@@ -311,6 +313,20 @@ def test_control_stop_writes_checkpoint_and_stops(tmp_path):
     assert ck is not None, "a stop must always leave a recovery checkpoint"
 
 
+def test_user_pause_writes_fresh_checkpoint_and_paused_status(tmp_path):
+    r = _runner(tmp_path)
+    # No client is needed to verify the persistence contract; a live run will
+    # replace this with a fresh read-only observation before writing the checkpoint.
+    r.session = None
+    r._pause_checkpoint()
+    ck = r.store.last_checkpoint(r.run_id)
+    run = r.store.get_run(r.run_id)
+    assert ck is not None
+    assert "pause" in str(ck.get("label", "")).lower()
+    assert run["status"] == "paused"
+    assert "checkpoint saved" in str(run.get("stop_reason", ""))
+
+
 def test_budget_stops_the_loop(tmp_path):
     session = FakeSession()
     planner = FakePlanner(PlanDecision(goal="puni", selected_node="puni.prepare.level_up",
@@ -350,6 +366,37 @@ def test_pause_file_blocks_until_removed(tmp_path):
     assert ctl.paused()
     ctl.clear()
     assert not ctl.paused()
+
+
+def test_pause_callbacks_checkpoint_once_and_resume(tmp_path):
+    pause_seen = threading.Event()
+    resume_seen = threading.Event()
+    ctl = RunControl(str(tmp_path / "p.pause"), str(tmp_path / "p.stop"))
+    ctl.on_pause = pause_seen.set
+    ctl.on_resume = lambda elapsed: resume_seen.set()
+    ctl.request_pause()
+    worker = threading.Thread(target=lambda: ctl.wait_while_paused(poll_s=0.01))
+    worker.start()
+    assert pause_seen.wait(1.0), "pause callback should run before waiting"
+    assert worker.is_alive(), "runner must remain frozen while pause file exists"
+    ctl.pause_file.unlink()
+    worker.join(timeout=1.0)
+    assert not worker.is_alive()
+    assert resume_seen.is_set()
+
+
+def test_clear_stop_does_not_clear_user_pause(tmp_path):
+    ctl = RunControl(str(tmp_path / "p.pause"), str(tmp_path / "p.stop"))
+    ctl.request_pause()
+    ctl.request_stop()
+    ctl.clear_stop()
+    assert ctl.paused()
+    assert not ctl.stop_requested()
+
+
+def test_run_config_persists_background_mode():
+    cfg = RunConfig(allow_input=True, dry_run=False, background=True)
+    assert cfg.to_dict()["background"] is True
 
 
 def test_instance_lock_is_exclusive(tmp_path):

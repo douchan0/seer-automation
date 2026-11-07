@@ -822,6 +822,10 @@ class GoalRunner:
             run_id = self.store.start_run(cfg.goal, cfg.planner, budgets=cfg.budgets,
                                           options=cfg.to_dict())
         self.run_id = run_id
+        # Skill-internal pauses must checkpoint through the same callbacks as
+        # pauses between playbook steps (merged from the older control branch).
+        self.control.on_pause = self._pause_checkpoint
+        self.control.on_resume = self._resume_after_pause
         self.store.update_run(run_id, status="running")
         self.store.append_event(run_id, "run.started",
                                 f"goal={cfg.goal} planner={cfg.planner} dry_run={cfg.dry_run}",
