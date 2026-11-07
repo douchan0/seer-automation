@@ -94,5 +94,45 @@
     ],
     "conclusion": "the 'no engageable monster' at floor 2 was NOT a monster-template gap: it was the 个人信息 overlay (opened by clicking the player's own sprite) covering the tower floor. Root cause C confirmed by the frame sequence.",
     "honest_limit": "this was driven by me (the agent) with verified coordinates, not by tools/tower_grind.py end-to-end; the grinder still needs the overlay-close step wired in (it currently stops with BLOCKED when an overlay opens) and a second cycle was not run before the deadline"
+  },
+  "final": {
+    "ended_at": "2026-11-07T08:34:47+08:00",
+    "game_input": "PAUSED via /tmp/seerauto.master.pause (analysis may continue; no clicks)",
+    "cycles_completed": [
+      {
+        "cycle": "A",
+        "at": "07:55",
+        "executor": "tools/tower_grind.py",
+        "evidence": "ledger cycle 1 PROGRESS floor 1->2 xp=1710.0 (xp_source=battle_runner_after)",
+        "status": "VERIFIED"
+      },
+      {
+        "cycle": "B",
+        "at": "08:27-08:32",
+        "executor": "agent with verified coordinates",
+        "evidence": "live/ext_floor2_clear_0827.png (painted 02 + guardian) -> battle (当前回合:1) -> 胜利 -> 确认x4 -> live/ext_floor3_check_0831.png (painted 03)",
+        "status": "VERIFIED"
+      },
+      {
+        "cycle": "C",
+        "at": "08:34",
+        "executor": "none",
+        "evidence": "live/ext_floor3_clear_0834.png: painted 03 but no guardian visible in the frame; stopped rather than guessing clicks",
+        "status": "NOT DONE (time)"
+      }
+    ],
+    "count": "2 of 3 required cycles verified",
+    "faults": [
+      "profile overlay opened by clicking the player's own sprite (root cause of floor-2 stalls) - fixed in classification, close step still not wired into the grinder",
+      "profile panel POSITION MOVES between frames (0759 right / 0824 left) - fixed coordinates are invalid by design",
+      "heal gate (failed heal + unknown HP must BLOCK) was implemented, broke 3 existing tests that encode the old tolerate-heal behaviour, and was REVERTED to keep the tree green - recorded as next-round work, not claimed done",
+      "engage double-click per candidate was also reverted with the heal gate for the same reason"
+    ],
+    "next": [
+      "wire 'close recognised overlay' into tower_grind's cycle (use the latest frame to locate the X, click once, verify, then re-classify)",
+      "update the 3 recover tests to the new heal-gate semantics, then re-apply the heal gate and the engage double-click",
+      "template coverage is NOT the blocker for floor 2 anymore - re-test floors 3..N for the real remaining limit"
+    ],
+    "test_state": "884 passed / 2 skipped (full suite)"
   }
 }
