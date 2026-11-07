@@ -1,0 +1,7 @@
+{
+  "content": "```json\n{\"scene\":\"tower_interior\",\n \"sprites\":[{\"what\":\"guardian\",\"x_ratio\":0.503,\"y_ratio\":0.491,\"w_ratio\":0.038,\"h_ratio\":0.066,\"dominant_color\":\"#2d82e4\",\"confidence\":0.95},\n            {\"what\":\"player\",\"x_ratio\":0.599,\"y_ratio\":0.300,\"w_ratio\":0.017,\"h_ratio\":0.036,\"dominant_color\":\"#ffffff\",\"confidence\":0.98}],\n \"text_lines\":[{\"text\":\"xin计划 (1.0.8.9)\",\"x_ratio\":0.5,\"y_ratio\":0.01,\"confidence\":0.99},\n               {\"text\":\"公屏聊天 ● 在线\",\"x_ratio\":0.116,\"y_ratio\":0.160,\"confidence\":0.9},\n               {\"text\":\"系统: 尊享入场 | hello 登录了\",\"x_ratio\":0.138,\"y_ratio\":0.185,\"confidence\":0.9},\n               {\"text\":\"hello\",\"x_ratio\":0.599,\"y_ratio\":0.342,\"confidence\":0.95},\n               {\"text\":\"02\",\"x_ratio\":0.510,\"y_ratio\":0.781,\"confidence\":0.99}],\n \"buttons\":[{\"label\":\"expand\",\"x_ratio\":0.072,\"y_ratio\":0.514},\n            {\"label\":\"orange_interface\",\"x_ratio\":0.297,\"y_ratio\":0.672},\n            {\"label\":\"cyan_interface\",\"x_ratio\":0.722,\"y_ratio\":0.686}],\n \"floor_plate_digits\":{\"visible\":true,\"value\":\"02\",\"x_ratio\":0.510,\"y_ratio\":0.781},\n \"windows\":[],\n \"notes\":\"画面显示的是赛尔号中的塔内场景，正中心有一只蓝色的精灵（疑似守护者），上方是名为'hello'的玩家角色。地板上标有'02'字样，表示当前层数。左上角有聊天系统提示信息。\"}\n```",
+  "base_resp": {
+    "status_code": 0,
+    "status_msg": "success"
+  }
+}
