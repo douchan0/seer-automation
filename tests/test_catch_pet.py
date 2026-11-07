@@ -110,6 +110,10 @@ def _calibrated(tmp_path: pathlib.Path, **overrides):
 
 def _skill(tmp_path: pathlib.Path, *, clock=None, sleep=None, limits=None):
     calibration = _calibrated(tmp_path)
+    if limits is None:
+        # Keep the user's real pause/stop protection intact while fakes run.
+        limits = CatchLimits(pause_files=(str(tmp_path / "pause"),),
+                             stop_file=str(tmp_path / "stop"))
     return CatchPet(
         calibration, limits=limits,
         ledger_path=tmp_path / "catch_ledger.jsonl",

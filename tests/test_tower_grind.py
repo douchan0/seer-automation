@@ -15,6 +15,7 @@ The tests pin the things that made the previous tower tooling fail:
 from __future__ import annotations
 
 import importlib.util
+from dataclasses import replace
 import json
 import pathlib
 import sys
@@ -124,8 +125,18 @@ NOW = 1_800_000_000.0
 def _grinder(calibration, **kwargs):
     """No test may ever wait: fixed clock, sleep is a no-op."""
 
+    # Unit fakes must not inherit the user's real pause/stop state. Explicit
+    # per-test control paths are preserved, so pause/stop cases still exercise it.
+    limits = kwargs.pop("limits", cli.TowerLimits())
+    root = calibration.path.parent
+    limits = replace(limits,
+                     pause_files=tuple(str(root / pathlib.Path(p).name)
+                                       if p in cli.PAUSE_FILES else p
+                                       for p in limits.pause_files),
+                     stop_file=(str(root / "stop") if limits.stop_file == cli.STOP_FILE
+                                else limits.stop_file))
     return cli.TowerGrind(calibration, clock=lambda: NOW, sleep=lambda _s: None,
-                          **kwargs)
+                          limits=limits, **kwargs)
 
 
 class FakeFrame:

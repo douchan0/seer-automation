@@ -547,3 +547,7 @@ puni.prepare.level_up    blocked    no pet can battle (all pets at 0 HP); recove
 - 修复：`fix_startup.py` 缺 import time；capture 占位帧（第二个 warm SCK 流）致 4 次自动化白死；`tower_grind` 的 UNVERIFIED 终止态 / PP 子串误匹配 / 签名瞬态暗帧 / floor_roi 两位数被切 / RECOVER 不点塔入口 / observe 误拒无害横幅
 - 未完成：战斗层怪物模板覆盖（塔无人值守的真正上限）、抓宠标定、经验分配器入口、谱尼封印面板、交易行 gate
 - 详见 `docs/OVERNIGHT_DUAL_MODE_REPORT_2026_11_07.md`
+
+## 2026-11-07 分支整合（实验继续暂停）
+
+以1106 dual-mode为基准合并1105控制分支及独立选服修复，随后合入main。冲突决策与离线验证见 `docs/BRANCH_MERGE_20261107.md`。未进行性能测量或真机验收，A/B/C仍未验收。等待用户明确开始。

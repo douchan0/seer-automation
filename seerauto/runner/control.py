@@ -26,9 +26,10 @@ class LockHeld(RuntimeError):
 class RunControl:
     """Cooperative pause/stop via control files.
 
-    * ``touch /tmp/seerauto.pause``  -> the run stops *acting* within one
-      observation tick and waits; remove the file to resume (the runner
-      re-observes before acting again, because the game kept moving).
+    * ``touch /tmp/seerauto.pause``  -> at the next cooperative safe point the
+      runner performs a read-only observation, writes a durable checkpoint, marks
+      the run paused, and waits; remove the file to resume. The game itself may
+      continue advancing, so the runner re-observes before the next action.
     * ``touch /tmp/seerauto.stop``   -> the run finishes the current skill,
       writes a checkpoint and exits cleanly.
     """
@@ -39,6 +40,10 @@ class RunControl:
         self.stop_file = Path(stop_file)
         self._paused_since: float | None = None
         self._slept: float = 0.0
+        # The runner installs these callbacks so every pause entry point,
+        # including long-running Skills, writes the same durable checkpoint.
+        self.on_pause = None
+        self.on_resume = None
 
     # -- queries ----------------------------------------------------------- #
     def paused(self) -> bool:
@@ -57,6 +62,7 @@ class RunControl:
         self.pause_file.write_text(f"{time.time():.0f}\n", encoding="utf-8")
 
     def clear(self) -> None:
+        """Clear pause and stop requests (used only by an explicit resume)."""
         for p in (self.pause_file, self.stop_file):
             try:
                 p.unlink()
@@ -81,16 +87,18 @@ class RunControl:
         if not self.paused():
             return 0.0
         started = time.monotonic()
-        if on_pause is not None:
-            on_pause()
+        pause_cb = on_pause if on_pause is not None else self.on_pause
+        if pause_cb is not None:
+            pause_cb()
         while self.paused():
             if self.stop_requested():
                 break
             time.sleep(poll_s)
         elapsed = time.monotonic() - started
         self._slept += elapsed
-        if on_resume is not None:
-            on_resume(elapsed)
+        resume_cb = on_resume if on_resume is not None else self.on_resume
+        if resume_cb is not None:
+            resume_cb(elapsed)
         return elapsed
 
     @property

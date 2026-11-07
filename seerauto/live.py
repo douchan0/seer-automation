@@ -563,7 +563,7 @@ class LiveSession:
             raise InputRefused("input disabled")
         self._revalidate_geometry()
         gp = self.geo.global_pt_from_game_px(x, y)
-        self.client.send("move", x=gp.x, y=gp.y)
+        self.client.send("movepid" if self.background else "move", x=gp.x, y=gp.y)
 
     def click_text(self, needles: Iterable[str], *, min_conf: float = 0.3,
                    reason: str = "") -> dict[str, Any] | None:

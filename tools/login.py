@@ -8,8 +8,8 @@ relogin prompt, a client update).  Every one of those used to end a run, because
   1. clear the auxiliary art-pack window (a native window, so it is OCRd on its own)
   2. dismiss the announcement (我已知晓)
   3. press the login button (text first, then the measured fallback point)
-  4. wait for the server list and pick server 1 (啦公星), dragging the scrollbar when
-     the list is sorted by population and server 1 is off-page
+  4. wait for the server list and pick a recognized visible open row;
+     only search/scroll for a name when --server was explicitly supplied
   5. wait until the world is really there (卫兵 / 公屏聊天 • 在线, twice, with no server/login marker on screen)
 
     PYTHONPATH=.pydeps python3 tools/login.py
@@ -216,13 +216,54 @@ def drag_server_list(session: LiveSession, *, down: bool = True) -> None:
     session.client.send("drag", x1=p1.x, y1=p1.y, x2=p2.x, y2=p2.y, steps=18)
 
 
+def visible_server(items: list[dict]) -> dict | None:
+    """Pair visible number/name rows using the measured two-column OCR layout.
+
+    Bounds come from the title and view-all anchors, not a scroll position.
+    Unknown layouts fail closed; this replay-calibrated policy is not live-verified.
+    """
+    if screen_kind([i["text"] for i in items]) != "server":
+        return None
+    title = next((i for i in items if i["text"].strip() == "选择服务器" and "norm" in i), None)
+    bottom = next((i for i in items if "查看全部服务器" in i["text"] and "norm" in i), None)
+    if title is None or bottom is None:
+        return None
+    lower = bottom["norm"][1] + bottom["norm"][3]
+    upper = title["norm"][1]
+    rows = [i for i in items if "norm" in i and "px" in i
+            and lower < i["norm"][1] < upper and i.get("conf", 0) >= 0.4]
+    candidates = []
+    for number in rows:
+        text = number["text"].strip()
+        if not text.isascii() or not text.isdecimal() or not 1 <= int(text) <= 99:
+            continue
+        x, y, w, h = number["norm"]
+        labels = []
+        for label in rows:
+            lx, ly, lw, lh = label["norm"]
+            gap = lx - (x + w)
+            if (0.025 < gap < 0.18 and abs(ly + lh/2 - y - h/2) < max(h, lh)*0.65
+                    and label["text"].strip() != "00"):
+                labels.append(label)
+        if not labels:
+            continue
+        label = min(labels, key=lambda i: i["norm"][0])
+        if any(k in label["text"].upper() for k in ("PVP", "关闭", "测试", "组队")):
+            continue
+        candidates.append({**label, "number": int(text)})
+    return min(candidates, key=lambda i: (-i["norm"][1], i["norm"][0])) if candidates else None
+
+
 def find_server(session: LiveSession, name: str, tries: int = 6) -> tuple[float, float] | None:
     """Find the server row, dragging the list when it is sorted by population."""
 
-    aliases = (name, name[-2:], "公星")
+    aliases = (name,)
     for attempt in range(tries):
         items = session.ocr(min_conf=0.25)
-        hit = session.find_text(items, aliases)
+        if screen_kind([item["text"] for item in items]) != "server":
+            log("server selection no longer visible; refusing further lookup or drag")
+            return None
+        hit = session.find_text(items, aliases, exact=True)
         if hit:
             log(f"server {name!r} found at attempt {attempt}: {hit['px']}")
             return tuple(hit["px"])
@@ -312,9 +353,10 @@ def _log_kind(kind: str) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--server", default="啦公星")
-    ap.add_argument("--server-number", type=int, default=1,
-                    help="server id for the 请输入服务器编号 quick-enter path")
+    ap.add_argument("--server", default=None,
+                    help="explicit server name; omitted chooses a recognized visible open row")
+    ap.add_argument("--server-number", type=int, default=None,
+                    help="explicit server id; omitted disables numeric fallback")
     ap.add_argument("--server-tries", type=int, default=6,
                     help="how many scroll attempts before falling back to the number field")
     ap.add_argument("--cooldown", type=float, default=0.0,
@@ -352,14 +394,20 @@ def main() -> int:
                 continue
             if kind == "server":
                 log("at the server list")
-                pos = find_server(session, args.server, tries=args.server_tries)
+                if args.server:
+                    pos = find_server(session, args.server, tries=args.server_tries)
+                else:
+                    row = visible_server(session.ocr(min_conf=0.25))
+                    pos = tuple(row["px"]) if row else None
+                    if row:
+                        log(f"visible server {row['number']} {row['text']!r}; no scroll needed")
                 if pos:
                     session.click_px(pos[0], pos[1], f"enter {args.server}")
                     time.sleep(14)
                     continue
                 log(f"server {args.server!r} is not on the visible page; "
                     f"using the number field instead")
-                if enter_server_by_number(session, args.server_number):
+                if args.server_number is not None and enter_server_by_number(session, args.server_number):
                     time.sleep(16)
                     continue
                 time.sleep(3)
