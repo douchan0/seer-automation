@@ -1190,6 +1190,19 @@ class TowerGrind:
         """
 
         steps: list[dict[str, Any]] = []
+        # raise the client BEFORE any click; a recovery family of clicks on an
+        # unfocused window is exactly what wasted half the night (NotFrontmost)
+        try:
+            import ctypes  # noqa: F401 - plan A does not need it
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            import os as _os, subprocess as _sp
+            _sp.Popen(['open','-a','/Applications/SeerGame.app'])
+            self.sleep(1.2)
+            steps.append({'step':'activate','ok':True,'reason':'open -a SeerGame'})
+        except Exception as exc:  # noqa: BLE001
+            steps.append({'step':'activate','ok':False,'reason':str(exc)[:120]})
 
         def step(name: str, ok: bool, reason: str = "", **extra: Any) -> None:
             steps.append({"step": name, "ok": bool(ok), "reason": reason, **extra})

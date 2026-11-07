@@ -37,6 +37,7 @@ import os
 import re
 import sys
 import time
+from typing import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -52,6 +53,65 @@ from seerauto.skills.tower import (  # noqa: E402
     TowerSettlement,
     XP_RE,
 )
+
+
+def minimax_locate(frame_path: str) -> dict[str, Any] | None:
+    """Multi-model fallback: ask MiniMax to locate the ENEMY sprite on a frame.
+
+    Used ONLY when the local colour finder finds nothing (per-floor guardian shapes
+    vary; floor 11's ray is a low-saturation dark body that defeats a sat mask).
+    Returns ``{px, size, color, confidence}`` with px in game_px, or ``None``.
+    """
+
+    import subprocess as _sp
+
+    prompt = ('这是赛尔号塔内画面（2400×1600）。画面里有一个敌方守卫精灵，玩家角色叫 hello、'
+              '在另一处。只输出 JSON，不要解释：'
+              '{"sprites":[{"what":"enemy","x_ratio":0,"y_ratio":0,"w_ratio":0,"h_ratio":0,'
+              '"dominant_color":"","confidence":0}],'
+              '"player":{"x_ratio":0,"y_ratio":0}}'
+              ' 要求：1) only the ENEMY sprite (不要把我方的 hello / 跟随精灵算进来)；'
+              '2) 坐标用画面宽高比例 0..1；3) 看不见敌方就输出 {"sprites":[],"player":null}。')
+    try:
+        proc = _sp.run(['mmx', 'vision', 'describe', '--image', frame_path,
+                        '--prompt', prompt, '--output', 'json',
+                        '--max-tokens', '2000'],
+                       capture_output=True, text=True, timeout=120)
+    except Exception:  # noqa: BLE001
+        return None
+    try:
+        raw = json.loads(proc.stdout)
+    except Exception:  # noqa: BLE001
+        return None
+    content = raw.get('content')
+    body = content[0].get('text') if isinstance(content, list) else ''
+    i, j = body.find('{'), body.rfind('}')
+    if i < 0 or j <= i:
+        return None
+    try:
+        data = json.loads(body[i:j + 1])
+    except Exception:  # noqa: BLE001
+        return None
+    sprites = data.get('sprites') or []
+    best = None
+    for sp in sprites:
+        if str(sp.get('what')) != 'enemy':
+            continue
+        x = float(sp.get('x_ratio', 0)) * 2400.0
+        y = float(sp.get('y_ratio', 0)) * 1600.0
+        w = float(sp.get('w_ratio', 0)) * 2400.0
+        h = float(sp.get('h_ratio', 0)) * 1600.0
+        area = int(w * h * 0.5)
+        if area < 1200 or area > 120000:
+            continue
+        try:
+            conf = float(sp.get('confidence') or 0)
+        except (TypeError, ValueError):
+            conf = 0
+        if best is None or conf > best['confidence'] or area > best['area']:
+            best = {'px': (x, y), 'area': area, 'confidence': conf,
+                    'mean_rgb': None}
+    return best
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(ROOT, "native", "bin", "seerdx")
@@ -106,6 +166,7 @@ class ActionGuard:
     max_seconds: float = 900.0
     geometry_tolerance_pt: float = 2.0
     clock: Callable[[], float] = time.monotonic
+    sleep: Callable[[float], None] = time.sleep
     window_probe: Callable[[], dict[str, Any]] | None = None
     frontmost_probe: Callable[[], str | None] | None = None
     clicks: int = 0
@@ -169,19 +230,41 @@ class ActionGuard:
                     f"dw={dw:.1f} dh={dh:.1f} > {tol} pt)")
         return None
 
+    #: allowed to re-raise the game ONCE per check before refusing (never a silent
+    #: bypass: the re-check must then pass, and every attempt is recorded)
+    may_reactivate: bool = True
+    reactivations: int = 0
+
+    def _reactivate(self) -> None:
+        import subprocess as _sp
+
+        try:
+            _sp.Popen(['open', '-a', '/Applications/SeerGame.app'])
+            self.sleep(1.2)
+            self.reactivations += 1
+            self.history.append({'ts': now_iso(), 'kind': 'reactivated',
+                                 'count': self.reactivations})
+        except Exception:  # noqa: BLE001
+            pass
+
     def _frontmost(self) -> str | None:
         if self.frontmost_probe is None:
             # fail closed: no probe means the frontmost check cannot pass
             return "no frontmost probe configured; refusing to dispatch blind"
-        try:
-            owner = self.frontmost_probe()
-        except Exception as exc:  # noqa: BLE001
-            return f"frontmost probe failed: {exc}"
-        if owner is None:
-            return "cannot determine the frontmost application"
-        if "SeerGame" not in str(owner):
-            return f"the game window is not frontmost (frontmost={owner})"
-        return None
+        for attempt in range(2 if self.may_reactivate else 1):
+            try:
+                owner = self.frontmost_probe()
+            except Exception as exc:  # noqa: BLE001
+                return f"frontmost probe failed: {exc}"
+            if owner is None:
+                return "cannot determine the frontmost application"
+            if "SeerGame" in str(owner):
+                return None
+            if attempt == 0 and self.may_reactivate:
+                self.history.append({'ts': now_iso(), 'kind': 'frontmost_race',
+                                     'frontmost': str(owner)})
+                self._reactivate()
+        return f"the game window is not frontmost (frontmost={owner})"
 
     # -- public ------------------------------------------------------------ #
     def allow(self, reason: str) -> None:
@@ -360,6 +443,22 @@ def wait_change_or_battle(session: DaemonSession, before: str, *,
     return "unchanged"
 
 
+def plate_px_from_items(items: Sequence[Mapping[str, Any]]) -> tuple[float, float] | None:
+    """The painted floor plate's game_px (used to anchor the platform strip)."""
+
+    x0, y0, x1, y1 = FLOOR_ROI
+    w, h = (2400.0, 1600.0)
+    for it in items:
+        px = it.get("px")
+        if px is None or px[0] is None:
+            continue
+        cx, cy = float(px[0]), float(px[1])
+        if x0 <= cx <= x1 and y0 <= cy <= y1:
+            if FLOOR_RE.match(str(it["text"]).strip()) or FLOOR_CN_RE.search(str(it["text"])):
+                return (cx, cy)
+    return None
+
+
 def read_floor(session: DaemonSession) -> int | None:
     x0, y0, x1, y1 = FLOOR_ROI
     path = session.shot(SHOT)
@@ -435,15 +534,45 @@ def one_battle(session: DaemonSession, finder: GuardianFinder,
     row["floor_before"] = floor_before
 
     frame = session.latest()
-    found = finder.find(frame, items)
+    candidates = finder.candidates(frame, items)
+    # the guardian always stands just ABOVE the painted floor plate; a candidate
+    # outside this strip (corner decorative pods!) is a decoration, not an enemy.
+    plate = plate_px_from_items(items)
+    if plate is not None:
+        # live-measured: the guardian stands between y=747 (floor 2) and y=786
+        # (floor 12) while the plate sits at y≈1250, so the strip must reach up
+        # 560 px above the plate, not 400.
+        zone = (plate[0] - 240, plate[0] + 240, plate[1] - 560, plate[1] - 60)
+    else:
+        zone = (1000, 1600, 680, 1120)   # generous centre, plate unreadable
+    kept = [c for c in candidates
+            if zone[0] <= c["px"][0] <= zone[1] and zone[2] <= c["px"][1] <= zone[3]]
+    row["local_candidates"] = [
+        {"px": [round(c["px"][0], 1), round(c["px"][1], 1)], "area": c["area"]}
+        for c in candidates]
+    row["zone"] = [round(v) for v in zone]
+    row["kept_local"] = len(kept)
+    if kept:
+        found = max(kept, key=lambda c: c.get("area") or 0)
+        found_source = "local_finder"
+    else:
+        found = None
     if found is None:
-        row.update(outcome="BLOCKED",
-                   reason="no guardian sprite found in the current frame; "
-                          "refusing to sweep fixed coordinates")
-        row["elapsed_s"] = round(time.monotonic() - t0, 2)
-        return row
+        # per-floor guardian shapes vary (floor 02's blue, floor 11's dark ray);
+        # multi-model fallback locates the enemy on THIS frame and is recorded as such.
+        cv2.imwrite('/tmp/tower_live_frame.png', frame)
+        mmx = minimax_locate('/tmp/tower_live_frame.png')
+        if mmx is None:
+            row.update(outcome="BLOCKED",
+                       reason="no guardian: local finder found nothing AND MiniMax "
+                              "could not locate the enemy on the current frame")
+            row["elapsed_s"] = round(time.monotonic() - t0, 2)
+            return row
+        found = mmx
+        found_source = "minimax_vision"
     row["guardian"] = {"px": [round(found["px"][0], 1), round(found["px"][1], 1)],
-                       "area": found["area"], "mean_rgb": found["mean_rgb"]}
+                       "area": found.get("area"), "mean_rgb": found.get("mean_rgb"),
+                       "source": found_source}
 
     gx, gy = found["px"]
     try:
