@@ -194,19 +194,21 @@ func listWindows() -> [[String: Any]] {
     return (CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]]) ?? []
 }
 
-func findGameWindow() -> (id: Int, x: Double, y: Double, w: Double, h: Double)? {
+func findGameWindow(in windows: [[String: Any]] = listWindows())
+    -> (id: Int, pid: Int, x: Double, y: Double, w: Double, h: Double)? {
     // Never take "the first window whose owner matches": the game app also owns
     // small helper windows (observed: a 52x20 window titled "Window" that came to
     // the front and made `pin` resize the wrong thing). Pick the LARGEST match
     // instead, which is the actual game canvas.
-    var best: (id: Int, x: Double, y: Double, w: Double, h: Double)? = nil
+    var best: (id: Int, pid: Int, x: Double, y: Double, w: Double, h: Double)? = nil
     var bestArea = 0.0
-    for w in listWindows() {
+    for w in windows {
         let owner = (w[kCGWindowOwnerName as String] as? String ?? "").lowercased()
         let layer = w[kCGWindowLayer as String] as? Int ?? 0
         guard layer == 0 else { continue }
         guard TARGET_HINTS.contains(where: { owner.contains($0) }) else { continue }
-        let num = w[kCGWindowNumber as String] as? Int ?? -1
+        guard let num = w[kCGWindowNumber as String] as? Int, num > 0,
+              let pid = w[kCGWindowOwnerPID as String] as? Int, pid > 0 else { continue }
         guard let bd = w[kCGWindowBounds as String] as? [String: Any],
               let x = bd["X"] as? Double, let y = bd["Y"] as? Double,
               let ww = bd["Width"] as? Double, let hh = bd["Height"] as? Double else { continue }
@@ -214,10 +216,17 @@ func findGameWindow() -> (id: Int, x: Double, y: Double, w: Double, h: Double)? 
         let area = ww * hh
         if area > bestArea {
             bestArea = area
-            best = (num, x, y, ww, hh)
+            best = (num, pid, x, y, ww, hh)
         }
     }
     return best
+}
+
+func isFrontmostGameWindow(_ id: Int, _ pid: Int, in windows: [[String: Any]]) -> Bool {
+    let top = windows.first { ($0[kCGWindowLayer as String] as? Int) == 0 }
+    return (top?[kCGWindowNumber as String] as? Int) == id
+        && (top?[kCGWindowOwnerPID as String] as? Int) == pid
+        && NSWorkspace.shared.frontmostApplication?.processIdentifier == pid_t(pid)
 }
 
 func gameApp() -> NSRunningApplication? {
@@ -457,23 +466,23 @@ func typeText(_ s: String) {
 // --------------------------------------------------------------------------
 // OCR (Vision) — same normalised boxes as seerctl
 // --------------------------------------------------------------------------
-func ocrFile(_ path: String, _ minConf: Float) -> [[String: Any]] {
+func ocrFile(_ path: String, _ minConf: Float) -> [[String: Any]]? {
     guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
-          let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return [] }
+          let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
     // force a real decode: the handle alone is lazy and would make this "free"
     let wpx = img.width, hpx = img.height
     var decoded = [UInt8](repeating: 0, count: wpx * hpx * 4)
     guard let ctx = CGContext(data: &decoded, width: wpx, height: hpx,
                               bitsPerComponent: 8, bytesPerRow: wpx * 4,
                               space: CGColorSpaceCreateDeviceRGB(),
-                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return [] }
+                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
     ctx.draw(img, in: CGRect(x: 0, y: 0, width: wpx, height: hpx))
 
     let req = VNRecognizeTextRequest()
     req.recognitionLevel = .accurate
     req.usesLanguageCorrection = false
     req.recognitionLanguages = ["zh-Hans", "en-US"]
-    do { try VNImageRequestHandler(cgImage: img, options: [:]).perform([req]) } catch { return [] }
+    do { try VNImageRequestHandler(cgImage: img, options: [:]).perform([req]) } catch { return nil }
     var out: [[String: Any]] = []
     for obs in (req.results ?? []) {
         guard let c = obs.topCandidates(1).first, c.confidence >= minConf else { continue }
@@ -500,7 +509,7 @@ final class Daemon {
 
     func caps() -> [String] {
         var ops = ["ping", "caps", "win", "pin", "activate", "quit",
-                   "shot", "ocr", "click", "move", "key", "type",
+                   "shot", "ocr", "click", "click.guarded", "move", "key", "type",
                    // background lane: events posted straight to the game process,
                    // so the cursor never moves and the window need not be frontmost
                    "clickpid", "movepid", "keypid", "drag", "dragpid", "cursorpos"]
@@ -622,8 +631,10 @@ final class Daemon {
         case "ping": return ["ok": true]
         case "caps": return ["ops": caps()]
         case "win":
-            guard let f = findGameWindow() else { return ["error": "no window"] }
-            return ["id": f.id, "x": f.x, "y": f.y, "w": f.w, "h": f.h]
+            let windows = listWindows()
+            guard let f = findGameWindow(in: windows) else { return ["error": "no window"] }
+            return ["id": f.id, "pid": f.pid, "x": f.x, "y": f.y, "w": f.w, "h": f.h,
+                    "frontmost": isFrontmostGameWindow(f.id, f.pid, in: windows)]
         case "pin":
             return pinWindow(obj["x"] as? Double ?? 300, obj["y"] as? Double ?? 120,
                              obj["w"] as? Double ?? 1149, obj["h"] as? Double ?? 714)
@@ -659,7 +670,26 @@ final class Daemon {
             return shot((obj["path"] as? String) ?? "/tmp/seerdx_shot.png", rect: rect)
         case "ocr":
             let path = (obj["path"] as? String) ?? "/tmp/seerdx_shot.png"
-            return ["items": ocrFile(path, Float(obj["min"] as? Double ?? 0.3))]
+            guard let items = ocrFile(path, Float(obj["min"] as? Double ?? 0.3)) else {
+                return ["error": "OCR could not read the image"]
+            }
+            return ["items": items]
+        case "click.guarded":
+            let windows = listWindows()
+            guard let f = findGameWindow(in: windows),
+                  f.id == obj["id"] as? Int, f.pid == obj["pid"] as? Int,
+                  isFrontmostGameWindow(f.id, f.pid, in: windows),
+                  let bounds = obj["bounds"] as? [Double], bounds.count == 4,
+                  zip([f.x, f.y, f.w, f.h], bounds).allSatisfy({ abs($0.0 - $0.1) <= 2 }),
+                  let x = obj["x"] as? Double, let y = obj["y"] as? Double,
+                  x >= 0, y >= 0, x < f.w, y < f.h,
+                  !FileManager.default.fileExists(atPath: "/tmp/seerauto.master.pause"),
+                  !FileManager.default.fileExists(atPath: "/tmp/seerauto.pause"),
+                  !FileManager.default.fileExists(atPath: "/tmp/seerauto.stop") else {
+                return ["error": "guarded click refused"]
+            }
+            click(f.x + x, f.y + y, 1)
+            return ["ok": true]
         case "click":
             click(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0, obj["n"] as? Int ?? 1)
             return ["ok": true]

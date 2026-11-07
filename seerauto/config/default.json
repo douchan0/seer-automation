@@ -86,6 +86,9 @@
       "battle_victory_banner": {
         "file": "battle_victory_banner.png"
       },
+      "live/live_victory_word": {
+        "file": "live/live_victory_word.png"
+      },
       "monster_moguguai": {
         "file": "monster_moguguai.png"
       }
@@ -132,6 +135,12 @@
         0.28,
         0.62,
         0.45
+      ],
+      "live/live_victory_word": [
+        0.394,
+        0.347,
+        0.610,
+        0.471
       ],
       "monster_scan": [
         0.04,
@@ -340,6 +349,20 @@
             "name": "battle_victory_banner",
             "min_score": 0.85,
             "roi": "battle_victory_banner"
+          }
+        ]
+      },
+      {
+        "id": "battle_result_victory_word",
+        "state": "BATTLE_RESULT",
+        "priority": 92,
+        "enabled": true,
+        "detail": "gold victory word in the result header; the underlying battle grid can still be visible",
+        "all": [
+          {
+            "kind": "template_present",
+            "name": "live/live_victory_word",
+            "min_score": 0.80
           }
         ]
       },

@@ -74,3 +74,7 @@ data/overnight/20261106_dual_mode/live/*.png
 
 # OpenCode sandbox state remains local.
 .ocxdg/
+
+# Current night runner observations and window-only evidence stay local.
+data/overnight/20261107_codex_led/live/
+data/overnight/20261107_codex_led/tower_live.jsonl

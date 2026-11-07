@@ -566,8 +566,6 @@ class RunBattle(_Base):
                 # --- choose the move instead of letting the timer choose for us ---
                 live_skills = self.read_skills(s)
                 table = self._power_table(ctx)
-                if live_skills and not table:
-                    table = self.learn_power_table(ctx)
                 best_now = self.pick_skill(live_skills, table) if live_skills else None
                 if best_now is not None and best_now.get("pp", 0) <= 2:
                     # 精灵恢复 refills HP *and* uses for 20 XIN豆, so ending a pass one
@@ -744,7 +742,8 @@ class RunBattle(_Base):
     _PP_RE = re.compile(r"(?:PP|使用次数)\s*[:：]?\s*(\d+)\s*/\s*(\d+)", re.I)
 
     @classmethod
-    def read_skills(cls, session: Any) -> list[dict[str, Any]]:
+    def read_skills(cls, session: Any, *,
+                    items: Iterable[Mapping[str, Any]] | None = None) -> list[dict[str, Any]]:
         """Read the four move slots: remaining uses per slot.
 
         Returns ``[{slot, px, pp, pp_max}]``.  Power/name are filled in by
@@ -752,28 +751,31 @@ class RunBattle(_Base):
         show 威力 at all.
         """
 
-        items = session.ocr(min_conf=0.15)
-        counters = []
+        if items is None:
+            items = session.ocr(min_conf=0.15)
+        counters: dict[int, set[tuple[int, int]]] = {}
         for it in items:
-            m = cls._PP_RE.search(str(it.get("text") or ""))
-            if m:
-                counters.append((it["px"], int(m.group(1)), int(m.group(2))))
-        cells: list[dict[str, Any]] = []
-        for slot, (sx, sy) in cls.SKILL_SLOTS.items():
-            best = None
-            best_d = 1e9
-            for (px, pp, pp_max) in counters:
-                # Chebyshev distance: the four slots sit on a 256x122 grid, so a
-                # Manhattan radius loose enough for the wide gap also lets slot 3
-                # steal slot 1's counter (it did).
-                d = max(abs(px[0] - sx), abs(px[1] - sy))
-                if d < best_d and d < 120:
-                    best_d = d
-                    best = (pp, pp_max)
-            if best is None:
+            match = cls._PP_RE.search(str(it.get("text") or ""))
+            if match is None:
                 continue
-            cells.append({"slot": slot, "px": (sx, sy), "pp": best[0],
-                          "pp_max": best[1], "power": 0, "name": f"slot{slot}"})
+            pp, maximum = map(int, match.groups())
+            if not 0 <= pp <= maximum or maximum == 0:
+                continue
+            x, y = it["px"]
+            for slot, (sx, sy) in cls.SKILL_SLOTS.items():
+                # The OCR counter regions are disjoint. A missing OCR row
+                # cannot borrow its neighbour's PP.
+                if abs(x - sx) < 120 and abs(y - sy) < 60:
+                    counters.setdefault(slot, set()).add((pp, maximum))
+                    break
+        cells: list[dict[str, Any]] = []
+        for slot, px in cls.SKILL_SLOTS.items():
+            readings = counters.get(slot)
+            if readings is None or len(readings) != 1:
+                continue
+            pp, maximum = next(iter(readings))
+            cells.append({"slot": slot, "px": px, "pp": pp, "pp_max": maximum,
+                          "power": 0, "name": f"slot{slot}"})
         return cells
 
     @classmethod

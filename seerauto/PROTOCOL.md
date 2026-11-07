@@ -62,6 +62,7 @@ emit a frame only every ~378 ms (measured), while an animating window emits at
 | `shot` | `path`, `rect` optional | `{"path": str, "w": int, "h": int}` (one-shot, no warm session) |
 | `ocr` | `path`, `min` | `{"items": [{"text", "conf", "x", "y", "w", "h"}]}` Vision-normalised boxes |
 | `click` | `x, y` (global points), `n` | `{"ok": true}` |
+| `click.guarded` | Window-local `x, y` (points), captured `id, pid`, expected `bounds: [x, y, w, h]` (points) | `{"ok": true}` after one HID click, or `{"error": "guarded click refused"}` without input |
 | `move` | `x, y` (global points) | `{"ok": true}` |
 | `key` | `code` (macOS virtual key) | `{"ok": true}` |
 | `type` | `text` | `{"ok": true}` |
@@ -116,6 +117,11 @@ points from `actions.py`, so it never has to know about `game_px`.
    memory instead (microseconds) - still one round trip per tick.
 
 ## Not in scope for the daemon
+
+`win` also returns the owning PID and whether the exact window is frontmost.
+`click.guarded` independently verifies both identities, foreground status,
+bounds within 2 pt, coordinate bounds, and the global pause/stop files. The
+runner checks its task budget and verifies the resulting UI change.
 
 The daemon must not decide states, sleep, or click on its own. All policy lives
 in `seerauto/state.py`, `seerauto/executor.py` and `seerauto/tasks/`.
