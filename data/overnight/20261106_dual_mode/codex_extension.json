@@ -4,7 +4,7 @@
   "ack_at": "2026-11-07T07:49:48+08:00",
   "user_authorization": "user told the supervisor: '我让dsh再继续运行一小时，你再监督它教教它' - one more hour of DSH runtime is AUTHORIZED",
   "actual_start": "2026-11-07T07:49:31+08:00",
-  "hard_deadline": "2026-11-07T08:49:31+08:00",
+  "hard_deadline": null,
   "pause_state": "cleared at 07:49:31 for this extension; will be re-set at the deadline (game input paused at the end while analysis may continue)",
   "single_input_executor": "gameops (agent) OR tools/tower_grind.py - never both at once; Codex is read-only and never touches the mouse",
   "current_screenshot": "data/overnight/20261106_dual_mode/live/ext_now_0749.png",
@@ -86,6 +86,33 @@
         "first_confirm_command": "08:30:39.856"
       },
       "conclusion": "Both A (active skill choice) and B (timely settlement) are FAIL by measurement. The floor-2 win cannot be used as evidence of agent-driven skill selection."
+    },
+    {
+      "ack_id": "CODEX-P1-20261107-017",
+      "status": "ACK",
+      "at": "2026-11-07T08:41:36+08:00",
+      "deadline": "REMOVED - no global hard deadline; per-attempt timeouts and safety guards stay",
+      "scope": "ONLY the three items; no Puni research, no catch work, no XP grinding",
+      "safety_kept": [
+        "per-attempt timeout",
+        "max_failures / max_unverified",
+        "/tmp/seerauto.master.pause and stop flag honoured",
+        "single input executor (no concurrent capture daemons)",
+        "no blind clicking on unknown screens"
+      ],
+      "success_rule": "A/B/C live-verified individually + >=3 consecutive complete battles with zero per-turn model involvement; ACK and pytest alone do not count"
+    },
+    {
+      "ack_id": "CX-20261107-021",
+      "status": "ACK",
+      "at": "2026-11-07T09:16:26+08:00",
+      "instruction": "user (verbatim): 现在先停止，刚刚又是我帮忙点了胜利信息框的确认 / 等我说开始了，再继续实验 / 现在先让dsh记录、总结、写报告、同步到remote仓库",
+      "actions": [
+        "set /tmp/seerauto.master.pause AND /tmp/seerauto.stop",
+        "killed tower_live/tower_grind/tower_supervise (0 input processes confirmed)",
+        "told gameops to stand down (no clicks, no restart, no evidence-chasing)",
+        "no further game input; only records/report/git work from here"
+      ]
     }
   ],
   "three_hypotheses_for_floor2": {
@@ -202,5 +229,45 @@
     ],
     "wake_policy": "local event-driven; wake the model only on state change or exception",
     "deadline_note": "08:49:31 leaves no room to implement this now; recorded as the exact next-round task instead of faking a PASS"
-  }
+  },
+  "completion_condition": "three live-verified fixes: (A) active skill click before the 10s countdown auto-pick, (B) settlement confirm read-then-click with recorded latency and verbatim XP captured, (C) new-floor guardian located from the CURRENT frame (player sprite excluded) and battle UI confirmed; plus 3 consecutive complete battles with no per-turn model intervention",
+  "authorization": "user (via supervisor 2026-11-07 08:40): '我允许dsh一直运行到修复完这些问题之后，不受硬截止节点影响。这是这一轮最后的任务。'",
+  "route": {
+    "A": "reuse seerauto.skills.act.RunBattle + MovePicker.read_skills/pick_skill: one decision at battle start, local loop clicks before the countdown, log t_battle_ui/t_decision/t_click/t_round_change",
+    "B": "reuse tower_grind._settle_result: read popup -> capture verbatim XP -> click ONE confirm -> verify change; log t_appear/t_click per popup; no rapid multi-confirm",
+    "C": "guardian detection from the CURRENT full frame (sprite/colour, excluding the player sprite); no fixed-coordinate sweeps; PASS only on the battle UI appearing",
+    "model_role": "phases and exceptions only; ordinary clicks are local"
+  },
+  "state": "WAITING_FOR_USER_START",
+  "stopped_at": "2026-11-07T09:16:26+08:00",
+  "acceptance_final": {
+    "A_active_skill_decision": {
+      "status": "PARTIAL / NOT ACCEPTED",
+      "what_is_verified": "the local engine (seerauto/skills/tower.py TowerBattleLocal) reads the move slots and clicks a chosen move with per-turn timings, and unit tests prove the click happens locally inside the countdown and that learn_power_table is never called on the turn path",
+      "what_is_NOT_verified": "no live battle was fought end-to-end by that engine; the live wins so far include game-auto-picked moves (10s countdown) and at least one round where the user intervened",
+      "verdict": "does not meet the user's bar"
+    },
+    "B_settlement_confirm": {
+      "status": "FAIL",
+      "evidence": "the user manually clicked the victory-confirm box again at ~09:1x; a 51.7s delay had been measured earlier and my four rapid confirms also skipped the verbatim XP line",
+      "verdict": "FAIL - this battle cannot count as an unattended pass, and no XP line from it may be claimed"
+    },
+    "C_cross_floor_targeting": {
+      "status": "PARTIAL",
+      "what_is_verified": "the floor-2 -> floor-3 advance is real (painted 02 -> 03 with frames), and on floor 3 the central orange sprite WAS the guardian: two clicks started a battle whose enemy line reads 对方【烈焰猩猩】（3）",
+      "what_is_NOT_verified": "a general current-frame locator; GuardianFinder on the real floor-2/floor-3 frames still returns zero candidates after the colour-rule corrections, so targeting is currently by probe + battle-UI verification, not by sprite recognition",
+      "verdict": "partial - the mechanism is understood, the automatic locator is not done"
+    }
+  },
+  "unresolved_defects": [
+    "GuardianFinder returns 0 candidates on the real floor-2/floor-3 frames (platform band + compact-shape filter still too strict; measured guardian hues are 102 (blue) and 20 (orange), platform teal 80-90)",
+    "settlement confirm latency and the read-before-click behaviour are implemented in TowerSettlement but never validated live without user help",
+    "no 3 consecutive unattended battles",
+    "heal gate and engage double-click were reverted earlier to keep the suite green (they broke 3 old-semantics tests)"
+  ],
+  "next_repro": [
+    "PYTHONPATH=.pydeps python3 -m pytest -q tests/test_tower_local.py  (10 tests: local turn path, no external model, settlement read-then-click, guardian frame rules)",
+    "PYTHONPATH=.pydeps python3 tools/tower_live.py --dry-run   (read-only: prints the frame's guardian candidates + plan)",
+    "PYTHONPATH=.pydeps python3 tools/tower_live.py --battles 3 --allow-input   (only after the user says 开始; single operator, pause/stop honoured)"
+  ]
 }

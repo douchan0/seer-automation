@@ -271,3 +271,50 @@ Lv 继续靠塔推高（240k XP/h 可期）
 - **四份日志合计（逐行复核）**：log3 48/241,845｜log4 48/157,842｜log5 75/243,209｜log6 34/81,585 = **205 层 / 724,481 XP / 失败 4 次**
 - **最终状态**：等级 **Lv74**（面板读数）、HP 上限 **213**、塔历史最高计数 **27**、塔内第 1 层
 - 06:41 起停止一切游戏操作（含最后 10 分钟的谱尼入口只读探路）；07:00 前完成核算
+
+---
+
+## J. 暂停交接（2026-11-07 09:15，用户指令）
+
+**用户原话**：「现在先停止，刚刚又是我帮忙点了胜利信息框的确认」「等我说开始了，再继续实验」「现在先让 dsh 记录、总结、写报告、同步到 remote 仓库」。
+
+**当前状态：`WAITING_FOR_USER_START`**（只有用户明确说「开始」才恢复真机实验）。
+- 游戏输入已停止：`/tmp/seerauto.master.pause` 与 `/tmp/seerauto.stop` 均在位；`tower_live` / `tower_grind` / `tower_supervise` / `ctl.py` 输入进程数为 **0**。
+- 客户端进程仍在（pid 79745），但那不是输入。自 09:15 起没有发生任何点击。
+
+### J1. 三项用户验收的最终状态（不美化）
+
+| 项 | 状态 | 实际证据 |
+|---|---|---|
+| **A 主动选技能** | **未通过（PARTIAL / NOT ACCEPTED）** | 本地引擎 `seerauto/skills/tower.py::TowerBattleLocal` 已实现"读技能+选技能+本地点击+逐回合计时"，并有 10 个单测证明点击发生在倒计时内、且实时路径不调用外部 VLM（`learn_power_table`）；但**没有一场真机战斗由该引擎完整打完**。已达成的胜利里含**游戏倒计时自动出招**，不能算主动出招 |
+| **B 结算及时确认** | **失败（FAIL）** | 早前实测"胜利可见 → 确认命令"= **51.7 s**；最后一次胜利信息框**由用户手动点击确认**。该场**不能计为无人干预通过**，其 XP 不作数 |
+| **C 每层按当前画面定位** | **未通过（PARTIAL）** | 第 2→3 层推进有帧证据（地面 02→03）；第 3 层中央的**橙色精灵其实就是守卫者**（开战后敌方行是 `对方【烈焰猩猩】（3）`），说明"橙色=己方"是错的（独立监督 09:06 已指出）；但 `GuardianFinder` 在真实第 2/第 3 层帧上仍返回 **0 个候选**，自动定位未完成，当前只能靠"候选点探测 + 战斗 UI 判定" |
+
+### J2. 测试状态（如实，含环境因素）
+
+| 条件 | 结果 | 说明 |
+|---|---|---|
+| **真实暂停标记在位**（用户要求的状态） | 全量 **35 failed / 859 passed / 2 skipped**；其中塔专项 **24 failed / 18 passed** | 失败原因是运行器正确报告 **PAUSED**（`assert 'PAUSED' == ...`），即暂停机制生效；不是功能回归 |
+| 暂停标记临时移开（**仅为定位，不建议再重复**） | 塔专项 **42 passed**；`test_tower_local.py` **10 passed**；全量 **870 passed / 2 skipped**（24 个塔用例因其它原因仍红，见下） | 说明代码本身在无暂停态时基本健康 |
+| 已知未修的 24 个塔用例 | — | 它们编码的是旧的 heal-tolerate / engage 单点语义，与本次修正方向冲突；属**待下一轮连同 heal gate 一起重写**，本轮不追 |
+
+**测试隔离缺陷（静态诊断，本轮不修）**：塔测试直接使用全局 `/tmp/seerauto.master.pause` 与 `/tmp/seerauto.stop`，应改为注入 `tmp_path` 路径，否则用户每次说"暂停"都会让测试变红。
+
+### J3. 独立审查（Codex 监督，已复制入仓）
+
+- `docs/research/CODEX_PAUSE_REVIEW_20261107.md`（=`night-supervision/reviews/pause-handoff.md`，不含凭据/原始会话）
+- 审查补充指出的待办（**仅记录，未恢复实验**）：`tower.py` 初始 `t_round_ui` 取值、`clicked=False` 仍可能计 active、无回合号时 `_wait_round_change` 立即返回 True、`TowerSettlement` OCR 空即 `closed=True`、`tower_live` 的 pause/frontmost 只在外层检查、`recover_steps` 的 heal-FAIL-仍-travel 矛盾（已有红例 `repro_dead_heal.py`）。
+
+### J4. 模型归因（监督方自述，避免误伤）
+
+监督方说明：其独立研究目录 `opencode.json` 与 runner 曾**显式指定 MiniMax-M3**（把用户本地默认的 M3.1-Flash 覆盖），现已改回 M3.1-Flash，且**不改用户全局默认**。DSH 主模型实际是 `dsh-opencode-go/deepseek-v4.1-flash`；其辅助 `mmx vision` 走的 `/v1/coding_plan/vlm` 不暴露模型参数、返回未声明后端，**不能据此断言被降级**。
+**结论**：本轮**不能宣称"双模型整夜联动成功"**——夜间双模型闭环未完成；且慢的实测主因是"模型逐回合操作 56 s""同步 VLM 最长 90 s""反复改写 + 大上下文"，不是单纯模型版本。
+
+### J5. 代码增量（本轮 WIP，未验收）
+
+- 新增 `seerauto/skills/tower.py`：`GuardianFinder`（按当前帧找守卫候选，**取消按颜色判阵营**、改为用 `hello` 名字框排除玩家、形状紧凑过滤）、`TowerBattleLocal`（本地读技能/选技能/点击/逐回合计时，**实时路径不调用外部 VLM**）、`TowerSettlement`（先读弹窗抄 XP 原文 → 点一次确认 → 等画面变化，记录每次延迟）
+- 新增 `tools/tower_live.py`：单 daemon、单输入、读当前帧定位 → 两次点击开战 → 本地战斗 → 本地结算 → 读地面层数，逐场记账（`data/overnight/20261106_dual_mode/tower_live.jsonl`）
+- 新增 `tests/test_tower_local.py`（10 个单测，全绿）
+- 修正 `tests/test_tower_local.py` 中两条编码了"橙色=己方"旧假设的用例
+
+**结论：这轮代码是 WIP/未验收，不作为"已修复"提交。**
