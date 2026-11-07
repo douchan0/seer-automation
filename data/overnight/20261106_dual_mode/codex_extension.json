@@ -63,6 +63,29 @@
       "status": "ACK",
       "at": "2026-11-07T08:22:07+08:00",
       "result": "test geometry corrected the right way: the 02 fixture pixel is derived from grinder.calibration.floor_roi_px (never hardcoded) and the exact assertions are restored: normal floor => ('floor',2), profile overlay + the same in-ROI 02 => ('overlay',None). No production threshold was weakened."
+    },
+    {
+      "ack_id": "CODEX-P1-20261107-015",
+      "status": "ACK",
+      "at": "2026-11-07T08:38:47+08:00",
+      "user_observations_recorded_verbatim": [
+        "第二层不懂自己选技能，等10秒倒计时结束自动选择",
+        "战斗结束不知道点提示框，等很久才点",
+        "下一层可能绝对坐标导致第三层未开战"
+      ]
+    },
+    {
+      "ack_id": "CODEX-P1-20261107-016",
+      "status": "ACK",
+      "at": "2026-11-07T08:39:35+08:00",
+      "accepted_timeline": {
+        "battle_ui_appeared": "08:28:36.637",
+        "first_skill_click_command": "08:29:32.962",
+        "delay_s": 51.738,
+        "victory_confirm_appeared": "08:29:48.118",
+        "first_confirm_command": "08:30:39.856"
+      },
+      "conclusion": "Both A (active skill choice) and B (timely settlement) are FAIL by measurement. The floor-2 win cannot be used as evidence of agent-driven skill selection."
     }
   ],
   "three_hypotheses_for_floor2": {
@@ -121,7 +144,7 @@
         "status": "NOT DONE (time)"
       }
     ],
-    "count": "2 of 3 required cycles verified",
+    "count": "2 of 3 cycles verified, BUT cycle B is now downgraded: the win itself is real (floor 02->03 painted), while 'active skill decision' remains UNTESTED and settlement latency FAILED the user's observation",
     "faults": [
       "profile overlay opened by clicking the player's own sprite (root cause of floor-2 stalls) - fixed in classification, close step still not wired into the grinder",
       "profile panel POSITION MOVES between frames (0759 right / 0824 left) - fixed coordinates are invalid by design",
@@ -133,6 +156,51 @@
       "update the 3 recover tests to the new heal-gate semantics, then re-apply the heal gate and the engage double-click",
       "template coverage is NOT the blocker for floor 2 anymore - re-test floors 3..N for the real remaining limit"
     ],
-    "test_state": "884 passed / 2 skipped (full suite)"
+    "test_state": "884 passed / 2 skipped (full suite)",
+    "three_items": {
+      "A": "UNTESTED",
+      "B": "FAIL (measured ~64s)",
+      "C": "FAIL (no guardian in the fresh frame)"
+    }
+  },
+  "retracted_inference": "RETRACTED: 'floor 2 was won, therefore the full automation is fixed'. The floor-2 win happened while the game's ~10s turn countdown expired and the game auto-picked a move; my clicks did land on 火焰车 buttons, but I cannot prove a click happened BEFORE the countdown each round, so it must not be counted as active decision-making.",
+  "three_minimal_acceptance": {
+    "A_active_skill_decision": {
+      "status": "FAIL (measured: battle UI 08:28:36.6 -> first click command 08:29:33.0 = 56.3 s, i.e. the game countdown had already expired)",
+      "why": "no battle was reached after this point; and the floor-2 rounds cannot be retro-proven to have been clicked before the 10s deadline",
+      "evidence_against_claiming_it": "user observed the countdown expiring and the game auto-selecting; my driving loop was model/OCR round trips (~seconds each), which is exactly the failure mode",
+      "fix_required": "local state machine: read the skill list + PP, pick the identified skill, click it before the countdown, and log battle_start/decision/click/round_change timestamps; if the click cannot be shown to precede the deadline, record UNVERIFIED instead of a win"
+    },
+    "B_settlement_latency": {
+      "status": "FAIL (measured: victory 08:29:48.1 -> first confirm command 08:30:39.9 = 51.7 s)",
+      "measured": "victory frame captured 08:29:48; settlement fully closed ~08:30:52 => ~64 s from the win to the last confirm",
+      "user_observation_confirmed": "yes - the delay is my model/OCR round trip, not the game",
+      "additional_defect": "I clicked 确认 four times in a row and skipped the XP panel text, so no verbatim XP was captured for floor 2. tower_grind's _settle_result already implements read-then-click (read the popup, capture XP, click ONE confirm, verify the change) - the manual run bypassed it",
+      "status_note": "the mechanism exists in the tool; the deficiency is that hand-driving bypassed it"
+    },
+    "C_floor3_targeting": {
+      "status": "FAIL",
+      "evidence": "fresh full frame live/ext_floor3_clear_0834.png (08:34) shows painted floor 03 with NO guardian sprite visible; no battle was started",
+      "user_point_confirmed": "yes - (1225,747) was derived from floor 2's frame; using it on floor 3 is a fixed-coordinate assumption, exactly what must not be done",
+      "fix_required": "locate the guardian from the CURRENT full frame (sprite/colour detection) and refuse to click when no guardian is visible; PASS only on the battle UI appearing"
+    }
+  },
+  "minimal_fix_plan_next_round": {
+    "rule": "the model must not decide ordinary battle clicks. One decision (which skill) at battle start, then a local loop.",
+    "A": [
+      "reuse seerauto.skills.act.RunBattle",
+      "use MovePicker.read_skills/pick_skill to select the identified skill + PP from the CURRENT frame",
+      "click it BEFORE the countdown deadline and log t_battle_ui / t_decision / t_click / t_round_change"
+    ],
+    "B": [
+      "reuse tower_grind._settle_result (read popup -> capture verbatim XP -> click ONE confirm -> verify the change) and log t_appear / t_click per popup",
+      "never 4 rapid confirms; the XP line must be captured before the confirm that hides it"
+    ],
+    "C": [
+      "locate the guardian on the CURRENT full frame (sprite/colour), skip the player's own sprite, refuse to click when no guardian is visible",
+      "PASS only when the battle UI appears; fixed candidate sweeps are not recognition"
+    ],
+    "wake_policy": "local event-driven; wake the model only on state change or exception",
+    "deadline_note": "08:49:31 leaves no room to implement this now; recorded as the exact next-round task instead of faking a PASS"
   }
 }
