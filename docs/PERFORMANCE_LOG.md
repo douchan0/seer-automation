@@ -316,3 +316,7 @@ bottleneck; the game's animation is, and we now follow it instead of racing it.
   1 s/turn may still be recoverable there.
 * No loss was ever observed (8 wins, 0 losses), so nothing here describes a
   losing battle.
+
+## 2026-11-07 分支整合（实验继续暂停）
+
+以1106 dual-mode为基准合并1105控制分支及独立选服修复，随后合入main。冲突决策与离线验证见 `docs/BRANCH_MERGE_20261107.md`。未进行性能测量或真机验收，A/B/C仍未验收。等待用户明确开始。
