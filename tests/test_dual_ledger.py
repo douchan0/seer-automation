@@ -284,11 +284,17 @@ def test_cli_status_is_safe_and_read_only_with_no_state(tmp_path, capsys):
 
 def test_cli_init_then_status_round_trip(tmp_path, capsys):
     args = ["--data-dir", str(tmp_path)]
-    assert ctl.main(args + ["init", "--deadline-at",
-                            "2026-11-07T07:00:00+08:00"]) == 0
+    # Was a hardcoded "2026-11-07T07:00" deadline: fine while it was in the future,
+    # but the suite started failing with remaining_s = -4131 once that moment passed.
+    # Compute a future deadline so the test does not rot.
+    from datetime import datetime, timedelta
+    deadline = (datetime.now().astimezone() + timedelta(hours=2)).replace(
+        microsecond=0).isoformat()
+    assert ctl.main(args + ["init", "--deadline-at", deadline]) == 0
     init = json.loads(capsys.readouterr().out)
     assert init["mode"] == "EFFICIENT" and init["policy"] == "ADAPTIVE"
-    assert init["deadline"] == "2026-11-07T07:00:00+08:00"
+    from datetime import datetime as _dt
+    assert _dt.fromisoformat(init["deadline"]) == _dt.fromisoformat(deadline)
     assert init["remaining_s"] > 0
 
     assert ctl.main(args + ["status"]) == 0
@@ -296,7 +302,7 @@ def test_cli_init_then_status_round_trip(tmp_path, capsys):
     assert status["initialized"] is True
     assert status["mode"] == "EFFICIENT"
     assert status["facts"]["GOAL_ALIVE"] == "TRUE"
-    assert status["deadline"] == "2026-11-07T07:00:00+08:00"
+    assert _dt.fromisoformat(status["deadline"]) == _dt.fromisoformat(deadline)
     assert status["last_event"]["kind"] == "session.init"
     assert status["ledgers"]["events"] > 0
     # init is idempotent unless forced

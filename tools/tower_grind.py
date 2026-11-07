@@ -169,6 +169,13 @@ class Calibration:
     #: (live 2026-11-07: the guardian changes place every floor; a single fixed
     #: point fails). Tried in order after `guardian_px`, inside the same posture.
     guardian_candidates_px: tuple[tuple[float, float], ...] = ()
+    #: markers that mean "some NON-battle overlay is up" (personal profile panel,
+    #: pet bag, shop...).  Checked BEFORE the battle markers: the profile panel shows
+    #: 「精灵信息」/「精灵王之战」, so a substring match on 「精灵」 alone was
+    #: classifying the profile overlay as a battle (live 2026-11-07 08:05).
+    overlay_markers: tuple[str, ...] = ()
+    #: how many distinct battle markers must be present to believe it is a battle
+    battle_markers_required: int = 2
 
     @property
     def pet_panel(self) -> Mapping[str, Any] | None:
@@ -514,6 +521,11 @@ def load_calibration(path: str | Path | None = None, *,
         if _num(inside.get("timeout_s", 6.0)) else 6.0,
         battle_markers=_words(battle.get("battle_markers"),
                               "tower.battle.battle_markers", problems),
+        overlay_markers=_words(battle.get("overlay_markers"),
+                               "tower.battle.overlay_markers", problems,
+                               required=False),
+        battle_markers_required=int(battle.get("battle_markers_required", 2))
+        if isinstance(battle.get("battle_markers_required", 2), int) else 2,
         enter_wait_s=float(battle.get("enter_wait_s", 12.0))
         if _num(battle.get("enter_wait_s", 12.0)) else 12.0,
         battle_max_seconds=float(battle.get("max_seconds", 300.0))
@@ -809,8 +821,26 @@ class TowerGrind:
         return any(marker in text for marker in self.calibration.dialog_markers)
 
     def _battle_present(self, items: list[dict]) -> bool:
+        """Is this frame a BATTLE screen?
+
+        A single word is not proof.  The personal profile panel renders
+        「精灵信息」/「精灵王之战」/「精灵大乱斗」, so the old rule (any of
+        [回合, 战报, 技能, 精灵]) classified the profile overlay as a battle, which
+        made ENGAGE return early and RunBattle hunt over the overlay (live
+        2026-11-07 08:05, proven by the frame live/ext_floor2_0759.png).
+
+        Rules now: (a) any calibrated overlay marker means NOT a battle; (b) at
+        least `battle_markers_required` DISTINCT battle markers must be present.
+        """
+
         text = " ".join(self._text(items))
-        return any(marker in text for marker in self.calibration.battle_markers)
+        if any(marker and marker in text
+               for marker in self.calibration.overlay_markers):
+            return False
+        seen = {marker for marker in self.calibration.battle_markers
+                if marker and marker in text}
+        required = max(1, int(self.calibration.battle_markers_required))
+        return len(seen) >= required
 
     def _read_floor_once(self, items: list[dict]) -> int | None:
         roi = self.calibration.floor_roi_px
@@ -954,9 +984,31 @@ class TowerGrind:
                 return False, f"signature: template mode failed: {exc}"
         return False, f"signature: unknown mode {mode!r}"
 
+    def _overlay_present(self, items: list[dict]) -> bool:
+        """A recognised NON-battle overlay (personal profile, pet bag, shop...).
+
+        Live 2026-11-07 08:05: clicking the player's own sprite opened the 个人信息
+        panel, which renders 「精灵信息」/「精灵王之战」 and sits ON TOP of the tower
+        floor - the painted `02` stayed readable behind it, so the frame was
+        classified as "inside the tower" and ENGAGE kept clicking over the overlay.
+        Overlays therefore take priority over the background evidence.
+        """
+
+        text = " ".join(self._text(items))
+        return any(marker and marker in text
+                   for marker in self.calibration.overlay_markers)
+
+    def _overlay_up(self, ctx: Any) -> bool:
+        value, _texts = self._sample(
+            ctx, lambda items: True if self._overlay_present(items) else None,
+            timeout_s=2.0, label="overlay")
+        return value is True
+
     def _classify(self, items: list[dict]) -> tuple[str, int | None] | None:
         if self._dialog_present(items):
             return ("dialog", None)
+        if self._overlay_present(items):
+            return ("overlay", None)
         floor = self._read_floor_once(items)
         if floor is not None:
             return ("floor", floor)
@@ -1231,7 +1283,12 @@ class TowerGrind:
             for point in entrance_points:
                 if self._stopped() or self._paused():
                     break
+                # Live 2026-11-07 07:52: one click only walks the character to the
+                # machine; the dialog opens on the SECOND click at the same point
+                # (same walk-then-interact pattern as the tower guardian).
                 try:
+                    self._click(ctx, point, "tower_entrance", entrance_cycle)
+                    self.sleep(1.2)
                     self._click(ctx, point, "tower_entrance", entrance_cycle)
                 except Exception:  # noqa: BLE001 - the click guard may refuse
                     continue
@@ -1513,6 +1570,13 @@ class TowerGrind:
                     current.reason = (f"battle started after {current.engage_clicks} "
                                       f"guardian click(s), round {round_no + 1}")
                     return True
+                if self._overlay_up(ctx):
+                    current.outcome = Outcome.BLOCKED
+                    current.reason = (
+                        "a non-battle overlay opened during ENGAGE (the sweep hit the "
+                        "player sprite or another hotspot); stopping the sweep instead "
+                        "of clicking over the overlay - close it and re-run")
+                    return False
             current.reason = (f"posture round {round_no + 1}/{rounds}: "
                               f"{current.engage_clicks} guardian clicks, no battle")
             if current.engage_clicks >= max_guardian_clicks:

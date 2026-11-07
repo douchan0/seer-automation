@@ -1025,3 +1025,84 @@ def test_cli_recover_only_refuses_before_any_live_import(tmp_path, capsys):
     calibrated = _write_calibration(tmp_path)
     assert cli.main(["--recover-only", "--calibration", str(calibrated)]) == 3
     assert "allow-input" in json.loads(capsys.readouterr().out)["error"]
+
+
+# --- 2026-11-07 08:05 live defect: the personal profile overlay was classified as
+# --- a BATTLE because 「精灵信息」/「精灵王之战」 contain the battle marker 「精灵」.
+# These two text sets are verbatim OCR of real frames:
+#   profile: live/ext_floor2_0759.png      (floor 02 behind a 个人信息 overlay)
+#   battle : live/puni_panel1_0635.png     (real battle screen, 杰洛恩 LV32)
+PROFILE_OVERLAY_TEXT = (
+    "昵称：hello", "米米号：188365991", "登船日期：", "2026年10月19日",
+    "精灵信息", "拥有数量：7", "最高等级：74", "SPT战绩", "称号",
+    "巅峰之战", "精灵王之战", "精灵大乱斗", "星际擂台", "0分", "0胜", "0层",
+)
+REAL_BATTLE_TEXT = (
+    "当前战报", "我方【烈焰猩猩】（2）登场了！", "对方【杰洛恩】（2）登场了！",
+    "当前回合：1", "LV:32", "杰洛恩", "战斗", "道具", "精灵", "逃跑",
+)
+
+
+def _floor_roi_center(grinder):
+    """A pixel inside the grinder's own calibrated floor ROI (never hardcoded)."""
+    roi = grinder.calibration.floor_roi_px
+    assert roi is not None
+    return ((roi[0] + roi[2]) / 2.0, (roi[1] + roi[3]) / 2.0)
+
+
+def _grinder_for_classification(tmp_path):
+    return _grinder(_cal(tmp_path), ledger_path=tmp_path / "cls.jsonl")
+
+
+def test_profile_overlay_is_not_classified_as_a_battle(tmp_path):
+    grinder = _grinder_for_classification(tmp_path)
+    items = [item(text, 100 + i * 5, 200) for i, text in enumerate(PROFILE_OVERLAY_TEXT)]
+    # This is the exact live regression: 精灵信息/精灵王之战 contain 「精灵」.
+    assert "精灵" in " ".join(PROFILE_OVERLAY_TEXT)
+    assert grinder._battle_present(items) is False
+
+
+def test_real_battle_frame_is_still_classified_as_a_battle(tmp_path):
+    grinder = _grinder_for_classification(tmp_path)
+    items = [item(text, 100 + i * 5, 200) for i, text in enumerate(REAL_BATTLE_TEXT)]
+    assert grinder._battle_present(items) is True
+
+
+def test_a_single_battle_word_is_not_enough(tmp_path):
+    grinder = _grinder_for_classification(tmp_path)
+    assert grinder._battle_present([item("精灵", 500, 700)]) is False
+    assert grinder._battle_present([item("技能", 500, 700)]) is False
+    # two distinct battle markers are enough
+    assert grinder._battle_present(
+        [item("当前回合：1", 500, 700), item("战报", 600, 800)]) is True
+
+
+def test_profile_overlay_wins_over_the_floor_painted_behind_it(tmp_path):
+    """Live 2026-11-07 08:05: the 个人信息 overlay sits on top of tower floor 02.
+
+    The painted `02` is still readable behind it, so classification used to return
+    ("floor", 2) and ENGAGE clicked over the overlay.  An overlay must win.
+    """
+    grinder = _grinder_for_classification(tmp_path)
+    items = [item(text, 100 + i * 5, 200)
+             for i, text in enumerate(PROFILE_OVERLAY_TEXT)]
+    # the floor number is painted BEHIND the panel, inside the calibrated floor ROI
+    cx, cy = _floor_roi_center(grinder)
+    items.append(item("02", cx, cy))
+    assert grinder._overlay_present(items) is True
+    assert grinder._classify(items) == ("overlay", None)
+
+
+def test_normal_tower_floor_is_still_floor(tmp_path):
+    grinder = _grinder_for_classification(tmp_path)
+    cx, cy = _floor_roi_center(grinder)
+    assert grinder._overlay_present([item("02", cx, cy)]) is False
+    # exact assertion restored: a normal painted floor must still classify as floor
+    assert grinder._classify([item("02", cx, cy)]) == ("floor", 2)
+
+
+def test_normal_battle_is_still_battle(tmp_path):
+    grinder = _grinder_for_classification(tmp_path)
+    items = [item(text, 100 + i * 5, 200) for i, text in enumerate(REAL_BATTLE_TEXT)]
+    assert grinder._overlay_present(items) is False
+    assert grinder._classify(items) == ("battle", None)
