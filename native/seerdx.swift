@@ -222,11 +222,35 @@ func findGameWindow(in windows: [[String: Any]] = listWindows())
     return best
 }
 
+func windowBounds(_ window: [String: Any]) -> CGRect? {
+    guard let bounds = window[kCGWindowBounds as String] as? [String: Any] else { return nil }
+    return CGRect(dictionaryRepresentation: bounds as CFDictionary)
+}
+
 func isFrontmostGameWindow(_ id: Int, _ pid: Int, in windows: [[String: Any]]) -> Bool {
-    let top = windows.first { ($0[kCGWindowLayer as String] as? Int) == 0 }
+    guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid_t(pid) else {
+        return false
+    }
+    let top = windows.first { window in
+        guard (window[kCGWindowLayer as String] as? Int) == 0 else { return false }
+        if (window[kCGWindowOwnerPID as String] as? Int) == pid,
+           let bounds = windowBounds(window), bounds.width <= 52, bounds.height <= 20 {
+            return false // Electron's small auxiliary window does not cover the canvas.
+        }
+        return true
+    }
     return (top?[kCGWindowNumber as String] as? Int) == id
         && (top?[kCGWindowOwnerPID as String] as? Int) == pid
-        && NSWorkspace.shared.frontmostApplication?.processIdentifier == pid_t(pid)
+}
+
+func topWindow(at point: CGPoint, in windows: [[String: Any]]) -> Int? {
+    let top = windows.first { window in
+        let alpha = window[kCGWindowAlpha as String] as? Double ?? 1
+        // The Dock's layer-20 compositing surface covers the entire screen.
+        return (window[kCGWindowLayer as String] as? Int) == 0
+            && alpha > 0 && (windowBounds(window)?.contains(point) ?? false)
+    }
+    return top?[kCGWindowNumber as String] as? Int
 }
 
 func gameApp() -> NSRunningApplication? {
@@ -508,7 +532,7 @@ final class Daemon {
     }
 
     func caps() -> [String] {
-        var ops = ["ping", "caps", "win", "pin", "activate", "quit",
+        var ops = ["ping", "caps", "permissions", "win", "pin", "activate", "quit",
                    "shot", "ocr", "click", "click.guarded", "move", "key", "type",
                    // background lane: events posted straight to the game process,
                    // so the cursor never moves and the window need not be frontmost
@@ -630,6 +654,9 @@ final class Daemon {
         switch op {
         case "ping": return ["ok": true]
         case "caps": return ["ops": caps()]
+        case "permissions":
+            return ["screen_capture": CGPreflightScreenCaptureAccess(),
+                    "post_event": CGPreflightPostEventAccess()]
         case "win":
             let windows = listWindows()
             guard let f = findGameWindow(in: windows) else { return ["error": "no window"] }
@@ -675,6 +702,9 @@ final class Daemon {
             }
             return ["items": items]
         case "click.guarded":
+            guard CGPreflightPostEventAccess() else {
+                return ["error": "macOS Accessibility denies posting input events"]
+            }
             let windows = listWindows()
             guard let f = findGameWindow(in: windows),
                   f.id == obj["id"] as? Int, f.pid == obj["pid"] as? Int,
@@ -688,7 +718,11 @@ final class Daemon {
                   !FileManager.default.fileExists(atPath: "/tmp/seerauto.stop") else {
                 return ["error": "guarded click refused"]
             }
-            click(f.x + x, f.y + y, 1)
+            let point = CGPoint(x: f.x + x, y: f.y + y)
+            guard topWindow(at: point, in: windows) == f.id else {
+                return ["error": "guarded click point is covered"]
+            }
+            click(point.x, point.y, 1)
             return ["ok": true]
         case "click":
             click(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0, obj["n"] as? Int ?? 1)
@@ -733,6 +767,16 @@ final class Daemon {
 // --------------------------------------------------------------------------
 // main: stdin on a background thread, pumping run loop on the main thread
 // --------------------------------------------------------------------------
+// Explicit operator actions. Ordinary capture and input never request permissions.
+if CommandLine.arguments.contains("--request-capture-access") {
+    emit(["screen_capture": CGRequestScreenCaptureAccess()])
+    exit(0)
+}
+if CommandLine.arguments.contains("--request-input-access") {
+    emit(["post_event": CGRequestPostEventAccess()])
+    exit(0)
+}
+
 if let i = CommandLine.arguments.firstIndex(of: "--target"), i + 1 < CommandLine.arguments.count {
     TARGET_HINTS = [CommandLine.arguments[i + 1].lowercased()]
     log("target override: \(TARGET_HINTS)")

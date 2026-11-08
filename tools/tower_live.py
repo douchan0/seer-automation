@@ -226,7 +226,8 @@ class DaemonSession:
                     self.geo.size_pt.w, self.geo.size_pt.h])
         if reply.get("ok") is not True:
             self.guard.history.append({"ts": now_iso(), "kind": "input_refused",
-                                       "check": "native", "dispatch": reason})
+                                       "check": "native", "dispatch": reason,
+                                       "reason": str(reply.get("error", "no acknowledgement"))})
             return False
         self._ocr_cache.clear()
         return True
@@ -399,8 +400,15 @@ def main() -> int:
             return 8
         geo = G.WindowGeometry(G.Point(win["x"], win["y"]), G.Size(win["w"], win["h"]),
                                G.RETINA_SCALE)
+        permissions = client.send("permissions")
+        if permissions.get("screen_capture") is not True:
+            say("REFUSED: macOS Screen Recording permission is required for live capture")
+            return 8
         guard = None
         if not args.dry_run:
+            if permissions.get("post_event") is not True:
+                say("REFUSED: macOS Accessibility permission is required for live input")
+                return 8
             if win.get("frontmost") is not True or "click.guarded" not in client.caps():
                 say("REFUSED: exact game window must already be frontmost and daemon support guarded input")
                 return 8

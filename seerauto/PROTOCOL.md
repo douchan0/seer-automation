@@ -118,10 +118,18 @@ points from `actions.py`, so it never has to know about `game_px`.
 
 ## Not in scope for the daemon
 
-`win` also returns the owning PID and whether the exact window is frontmost.
-`click.guarded` independently verifies both identities, foreground status,
-bounds within 2 pt, coordinate bounds, and the global pause/stop files. The
-runner checks its task budget and verifies the resulting UI change.
+`win` also returns the owning PID and whether the exact game window is
+frontmost. The game's 52×20 auxiliary surface can rank ahead of the canvas
+without covering the click point. `click.guarded` verifies that the target
+point hits the canvas in the layer-0 window list, then applies the identity,
+geometry, foreground, and global pause/stop guards.
+
+The read-only `permissions` operation returns `screen_capture` and
+`post_event`. The live runner reports missing macOS permissions before opening
+a stream or dispatching input. Operators can explicitly request the matching
+macOS prompt with `seerdx --request-capture-access` or
+`seerdx --request-input-access`. The daemon never opens permission prompts
+during routine capture or clicking.
 
 The daemon must not decide states, sleep, or click on its own. All policy lives
 in `seerauto/state.py`, `seerauto/executor.py` and `seerauto/tasks/`.
