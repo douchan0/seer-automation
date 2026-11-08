@@ -56,6 +56,8 @@ class BattleSession:
         self.finish = finish
         self.clicks: list[tuple[float, float, str]] = []
         self.ended = False
+        #: PP per slot; a move click must decrement it (the runner's PP evidence)
+        self.pp = {1: 10, 2: 12}
 
     def ocr(self, min_conf: float = 0.15):  # noqa: ARG002 - API shape
         if self.ended:
@@ -63,13 +65,15 @@ class BattleSession:
                     item("确认", 1191, 996)]
         return [
             item(f"当前回合：{self.round}", 1500, 300),
-            item("使用次数：10/25", 1200, 1246),
-            item("使用次数：12/25", 1456, 1246),
+            item(f"使用次数：{self.pp[1]}/25", 1200, 1246),
+            item(f"使用次数：{self.pp[2]}/25", 1456, 1246),
         ]
 
     def click_px(self, x: float, y: float, reason: str = "") -> bool:
         self.clicks.append((x, y, reason))
         if reason == "tower_move":
+            slot = 1 if x <= 1300 else 2
+            self.pp[slot] = max(0, self.pp[slot] - 1)
             self.round += 1
             if self.round > self.rounds:
                 self.ended = True
@@ -92,7 +96,11 @@ def test_first_skill_click_happens_locally_inside_the_countdown():
     assert outcome.won is True
     assert outcome.turns == 2
     assert outcome.late_turns == 0
-    assert outcome.active_success_turns == 2
+    # PP-evidence contract (04): the killing turn has no readable PP afterwards, so it
+    # is an unverified (still real) effect rather than an upgraded active success.
+    assert outcome.pp_verified_turns == 1
+    assert outcome.active_success_turns == 1
+    assert outcome.active_unverified == 1
 
     move_clicks = [c for c in session.clicks if c[2] == "tower_move"]
     assert len(move_clicks) == 2
@@ -106,7 +114,7 @@ def test_first_skill_click_happens_locally_inside_the_countdown():
         assert "t_click" in timing and "t_round_ui" in timing
 
 
-def test_a_slow_turn_is_recorded_as_late_not_as_active_success():
+def test_a_slow_turn_exhausts_the_budget_before_dispatch():
     """If the click lands at/after the countdown it must NOT count as active play."""
 
     clock = FakeClock()
@@ -115,9 +123,9 @@ def test_a_slow_turn_is_recorded_as_late_not_as_active_success():
     # make reading the move slots take longer than the countdown
     original = RunBattle.read_skills.__func__
 
-    def slow_read_skills(cls, _session):
+    def slow_read_skills(cls, _session, **kwargs):
         clock.t += 11.0
-        return original(cls, _session)
+        return original(cls, _session, **kwargs)
 
     RunBattle.read_skills = classmethod(slow_read_skills)
     try:
@@ -125,10 +133,10 @@ def test_a_slow_turn_is_recorded_as_late_not_as_active_success():
     finally:
         RunBattle.read_skills = classmethod(original)
 
-    assert outcome.won is True
-    assert outcome.late_turns == 1
+    assert outcome.unknown is True
     assert outcome.active_success_turns == 0
-    assert outcome.timings[0]["late_vs_countdown"] is True
+    assert outcome.attempts == 0
+    assert "countdown budget" in outcome.reason
 
 
 def test_real_time_turn_path_never_calls_the_external_power_table_learner(monkeypatch):
@@ -198,7 +206,8 @@ class SettlementSession:
 def test_settlement_captures_the_xp_line_before_clicking_it_away():
     session = SettlementSession()
     clock = FakeClock()
-    result = TowerSettlement(clock=clock.now, sleep=clock.sleep).settle(session)
+    result = TowerSettlement(clock=clock.now, sleep=clock.sleep,
+                             positive_evidence=lambda: True).settle(session)
 
     assert result.xp_texts == ["XIN精灵获得经验：1710"]
     assert result.confirms == 3
@@ -226,7 +235,8 @@ def test_settlement_does_not_click_when_only_an_overlay_is_up():
 
     session = OverlaySession()
     clock = FakeClock()
-    result = TowerSettlement(clock=clock.now, sleep=clock.sleep).settle(session)
+    result = TowerSettlement(clock=clock.now, sleep=clock.sleep,
+                             positive_evidence=lambda: True).settle(session)
     assert session.clicks == []
     assert result.confirms == 0
 

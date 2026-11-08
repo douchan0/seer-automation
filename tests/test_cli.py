@@ -61,6 +61,22 @@ def test_replay_missing_directory_exits_2(capsys):
     assert "fixtures" in capsys.readouterr().err
 
 
+def test_replay_detects_victory_over_still_visible_battle_controls(tmp_path):
+    fixtures = Path("data/replay/live_2026-11-02")
+    if not fixtures.is_dir():
+        pytest.skip("live replay set not present")
+    output = tmp_path / "replay.json"
+    assert main(["replay", str(fixtures), "--json", str(output)]) == 0
+    records = {r["file"]: r for r in json.loads(output.read_text())["records"]}
+    labels = json.loads((fixtures / "labels.json").read_text())["frames"]
+    for label in labels:
+        record = records[label["file"]]
+        assert record["state"] == label["expect_state"], record
+    victory = records["victory_moguguai.png"]
+    assert victory["templates"]["battle_action_grid"] >= 0.7
+    assert "skill" not in victory["proposed_action"]
+
+
 def test_bench_microbenchmark(capsys):
     frame = ARTIFACTS / "scene_0.png"
     if not frame.exists():

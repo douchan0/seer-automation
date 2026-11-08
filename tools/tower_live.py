@@ -1,29 +1,4 @@
-#!/usr/bin/env python3
-"""Local, model-free tower acceptance runner (task 2026-11-07: fixes A/B/C).
-
-This is the live harness for the three user-reported defects:
-
-A. **active skill choice** - the battle is fought by ``TowerBattleLocal``: it reads
-   the move slots and clicks a chosen move locally, inside the 10 s countdown.  The
-   per-round timings (``t_round_ui/t_decision/t_click``) are recorded so a win can
-   be audited instead of trusted.  No external model is called on this path.
-B. **timely settlement** - ``TowerSettlement`` reads the current popup, captures the
-   verbatim ``XIN精灵获得经验：N`` line, then clicks exactly ONE confirm and waits
-   for the screen to change; the visible->click latency is recorded per popup.
-C. **current-frame targeting** - ``GuardianFinder`` locates the guardian in the frame
-   taken *now*, excluding the platform, our own orange pet and the player sprite
-   (whose name label is OCR-visible).  When it finds nothing it refuses to click -
-   no fixed-coordinate sweeping.
-
-One daemon client for the whole run (single capture instance), cooperative pause and
-stop files, per-battle budget, append-only ledger.
-
-    PYTHONPATH=.pydeps python3 tools/tower_live.py --battles 3 --allow-input
-    PYTHONPATH=.pydeps python3 tools/tower_live.py --dry-run
-
-Pause: touch /tmp/seerauto.master.pause    Stop: touch /tmp/seerauto.stop
-"""
-
+"""Bounded foreground validation for the model-free tower runner."""
 from __future__ import annotations
 
 import argparse
@@ -31,8 +6,10 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Callable, Mapping, Sequence
 
 import cv2
 
@@ -41,23 +18,32 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from seerauto import capture as C  # noqa: E402
 from seerauto import geometry as G  # noqa: E402
 from seerauto.skills.tower import (  # noqa: E402
+    BATTLE_MARKERS,
+    OVERLAY_MARKERS,
+    POPUP_ROI,
+    VICTORY_MARKERS,
+    XP_RE,
     GuardianFinder,
     TowerBattleLocal,
     TowerSettlement,
-    XP_RE,
+    clear_tower_platform,
 )
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(ROOT, "native", "bin", "seerdx")
-DATA = os.path.join(ROOT, "data", "overnight", "20261106_dual_mode")
+DATA = os.path.join(ROOT, "data", "overnight", "20261107_codex_led")
 LEDGER = os.path.join(DATA, "tower_live.jsonl")
-FRAMES = os.path.join(DATA, "live")
-SHOT = "/tmp/tower_live_frame.png"
 PAUSE = "/tmp/seerauto.master.pause"
+LOCAL_PAUSE = "/tmp/seerauto.pause"
 STOP = "/tmp/seerauto.stop"
-FLOOR_ROI = (1127, 1191, 1325, 1314)          # calibrated 2026-11-07 (two-digit safe)
-FLOOR_RE = re.compile(r"^0*(?P<floor>\d{1,2})$")
-OVERLAY_MARKERS = ("米米号", "登船日期", "SPT战绩", "精灵信息", "精灵王之战")
+FLOOR_ROI = (1127, 1191, 1325, 1314)          # calibrated 2026-11-07
+#: three digits: the audit found 100+ rejected by the old two-digit pattern
+FLOOR_RE = re.compile(r"^(?P<floor>[0-9]{1,3})$")
+
+
+class InputRefused(RuntimeError):
+    """A dispatch was refused by the single-input boundary."""
 
 
 def now_iso() -> str:
@@ -77,270 +63,394 @@ def say(msg: str) -> None:
     print(f"{time.strftime('%H:%M:%S')} {msg}", flush=True)
 
 
+# --------------------------------------------------------------------------- #
+# single input boundary
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class ActionGuard:
+    """Every dispatch re-checks the world; refusals are recorded, never bypassed."""
+
+    window_id: int | None
+    geometry: G.WindowGeometry
+    pid: int | None = None
+    pause_paths: tuple[str, ...] = (PAUSE, LOCAL_PAUSE)
+    stop_paths: tuple[str, ...] = (STOP,)
+    max_clicks: int = 400
+    max_seconds: float = 900.0
+    geometry_tolerance_pt: float = 2.0
+    clock: Callable[[], float] = time.monotonic
+    window_probe: Callable[[], dict[str, Any]] | None = None
+    clicks: int = 0
+    started: float = field(default_factory=time.monotonic)
+    history: list[dict[str, Any]] = field(default_factory=list)
+
+    # -- individual checks ------------------------------------------------- #
+    def _flag(self) -> str | None:
+        for path in self.stop_paths:
+            if os.path.exists(path):
+                return f"stop flag {path}"
+        for path in self.pause_paths:
+            if os.path.exists(path):
+                return f"pause flag {path}"
+        return None
+
+    def _budget(self) -> str | None:
+        if self.clicks >= self.max_clicks:
+            return f"click budget exhausted ({self.clicks}/{self.max_clicks})"
+        elapsed = self.clock() - self.started
+        if elapsed >= self.max_seconds:
+            return f"time budget exhausted ({elapsed:.1f}s > {self.max_seconds:.1f}s)"
+        return None
+
+    def _identity(self) -> str | None:
+        if self.window_probe is None:
+            return "no window probe configured"
+        try:
+            win = self.window_probe()
+        except Exception as exc:  # noqa: BLE001
+            return f"window probe failed: {exc}"
+        if not win:
+            return "no game window"
+        wid = win.get("id")
+        if wid is None or self.window_id is None or wid != self.window_id:
+            return "window identity changed or could not be verified"
+        if self.pid is None or win.get("pid") != self.pid:
+            return "window PID changed or could not be verified"
+        if win.get("frontmost") is not True:
+            return "the captured game window is not frontmost"
+        try:
+            dx = abs(float(win["x"]) - self.geometry.origin_pt.x)
+            dy = abs(float(win["y"]) - self.geometry.origin_pt.y)
+            dw = abs(float(win["w"]) - self.geometry.size_pt.w)
+            dh = abs(float(win["h"]) - self.geometry.size_pt.h)
+        except (KeyError, TypeError, ValueError) as exc:
+            return f"window probe incomplete: {exc}"
+        tol = self.geometry_tolerance_pt
+        if max(dx, dy, dw, dh) > tol:
+            return (f"window geometry moved (dx={dx:.1f} dy={dy:.1f} "
+                    f"dw={dw:.1f} dh={dh:.1f} > {tol} pt)")
+        return None
+
+    def allow(self, reason: str) -> None:
+        """Raise ``InputRefused`` unless every check passes."""
+
+        # Recheck cooperative controls after the round-trip window probe.
+        for name, check in (("flag", self._flag), ("budget", self._budget),
+                            ("window", self._identity), ("flag", self._flag),
+                            ("budget", self._budget)):
+            why = check()
+            if why:
+                self.history.append({"ts": now_iso(), "kind": "input_refused",
+                                     "check": name, "reason": why,
+                                     "dispatch": reason, "clicks": self.clicks})
+                raise InputRefused(f"{name}: {why}")
+        self.clicks += 1
+        self.history.append({"ts": now_iso(), "kind": "input_allowed",
+                             "dispatch": reason, "clicks": self.clicks})
+
+
 class DaemonSession:
-    """Minimal LiveSession-shaped adapter over the native capture daemon."""
+    """Use a single warm stream and OCR bounded, changed regions."""
 
     def __init__(self, client: C.DaemonClient, geo: G.WindowGeometry, *,
-                 cache_s: float = 0.15) -> None:
+                 guard: ActionGuard | None = None) -> None:
         self.client = client
         self.geo = geo
-        self.cache_s = cache_s
-        self._cache: tuple[float, list[dict[str, Any]]] | None = None
-        self.pixel_size = (geo.pixel_size.w, geo.pixel_size.h)
-
-    # -- capture --------------------------------------------------------- #
-    def shot(self, path: str = SHOT) -> str:
-        self.client.send("shot", path=path)
-        return path
+        self.guard = guard
+        self.backend: C.DaemonCapture | None = None
+        self._ocr_cache: dict[tuple, tuple[bytes, list[dict[str, Any]]]] = {}
 
     def latest(self):
-        path = self.shot(SHOT)
-        frame = cv2.imread(path, cv2.IMREAD_COLOR)
-        if frame is None:
-            raise RuntimeError(f"cannot read the captured frame {path}")
+        if self.backend is None:
+            self.backend = C.DaemonCapture(self.client, self.geo)
+            if not self.backend.warm:
+                raise C.CaptureUnavailable("tower requires a warm game-window stream")
+        frame = self.backend.latest().array
+        if frame.shape[:2] != (1600, 2400):
+            raise C.CaptureUnavailable("tower calibration requires a 2400×1600 frame")
         return frame
 
-    def ocr(self, min_conf: float = 0.3) -> list[dict[str, Any]]:
-        t = time.monotonic()
-        if self._cache is not None and t - self._cache[0] <= self.cache_s:
-            return self._cache[1]
-        path = self.shot(SHOT)
-        items = self.client.send("ocr", path=path, min=min_conf).get("items", [])
-        w, h = self.pixel_size
-        rows = []
-        for it in items:
-            cx = (it["x"] + it["w"] / 2) * w
-            cy = (1 - (it["y"] + it["h"] / 2)) * h
-            rows.append({"text": it["text"], "conf": it["conf"], "px": (cx, cy)})
-        self._cache = (time.monotonic(), rows)
+    def close(self) -> None:
+        if self.backend is not None:
+            self.backend.close()
+        else:
+            self.client.close()
+
+    def ocr(self, min_conf: float = 0.3, *, frame=None, roi=None) -> list[dict[str, Any]]:
+        if frame is None:
+            frame = self.latest()
+        x0, y0, x1, y1 = roi or (0, 0, frame.shape[1], frame.shape[0])
+        region = frame[y0:y1, x0:x1]
+        # Every poll re-observes pixels. Identical text regions need no Vision call.
+        signature = region[::3, ::3].tobytes()
+        key = (roi, min_conf)
+        cached = self._ocr_cache.get(key)
+        if cached is not None and signature == cached[0]:
+            return cached[1]
+        with tempfile.NamedTemporaryFile(suffix=".png") as output:
+            if not cv2.imwrite(output.name, region):
+                raise C.CaptureUnavailable("cannot export tower OCR region")
+            reply = self.client.send("ocr", path=output.name, min=min_conf)
+        if reply.get("error") or not isinstance(reply.get("items"), list):
+            raise C.DaemonError(f"tower OCR failed: {reply!r}")
+        rows = [{"text": item["text"], "conf": item["conf"],
+                 "px": (x0 + (item["x"] + item["w"] / 2) * (x1 - x0),
+                        y0 + (1 - item["y"] - item["h"] / 2) * (y1 - y0))}
+                for item in reply["items"]]
+        self._ocr_cache[key] = (signature, rows)
         return rows
 
-    # -- input ----------------------------------------------------------- #
+    def battle_items(self, min_conf: float = 0.2, *, frame=None) -> list[dict[str, Any]]:
+        if frame is None:
+            frame = self.latest()
+        rows = []
+        for roi in ((930, 270, 2090, 580), POPUP_ROI, (1050, 1150, 1600, 1450)):
+            rows.extend(self.ocr(min_conf, frame=frame, roi=roi))
+        return rows
+
+    def settlement_items(self, min_conf: float = 0.2) -> list[dict[str, Any]]:
+        return self.ocr(min_conf, roi=POPUP_ROI)
+
     def click_px(self, x: float, y: float, reason: str = "") -> bool:
-        gp = self.geo.global_pt_from_game_px(float(x), float(y))
-        current = geometry_of(self.client)
-        moved = (abs(current.origin_pt.x - self.geo.origin_pt.x) > 2
-                 or abs(current.origin_pt.y - self.geo.origin_pt.y) > 2
-                 or abs(current.size_pt.w - self.geo.size_pt.w) > 2
-                 or abs(current.size_pt.h - self.geo.size_pt.h) > 2)
-        if moved:
-            raise RuntimeError("window moved between capture and click; refusing")
-        self.client.send("click", x=gp.x, y=gp.y, n=1)
-        self._cache = None
+        if self.guard is None:
+            raise InputRefused("no input guard configured")
+        w, h = self.geo.pixel_size.w, self.geo.pixel_size.h
+        if not (0 <= x < w and 0 <= y < h):
+            raise InputRefused("click outside calibrated game pixels")
+        self.guard.allow(reason)
+        reply = self.client.send(
+            "click.guarded", x=x / self.geo.scale, y=y / self.geo.scale,
+            id=self.guard.window_id, pid=self.guard.pid,
+            bounds=[self.geo.origin_pt.x, self.geo.origin_pt.y,
+                    self.geo.size_pt.w, self.geo.size_pt.h])
+        if reply.get("ok") is not True:
+            self.guard.history.append({"ts": now_iso(), "kind": "input_refused",
+                                       "check": "native", "dispatch": reason,
+                                       "reason": str(reply.get("error", "no acknowledgement"))})
+            return False
+        self._ocr_cache.clear()
         return True
 
 
-def geometry_of(client: C.DaemonClient) -> G.WindowGeometry:
-    w = client.win()
-    return G.WindowGeometry(
-        origin_pt=G.Point(float(w["x"]), float(w["y"])),
-        size_pt=G.Size(float(w["w"]), float(w["h"])),
-        scale=G.RETINA_SCALE,
-    )
+def parse_floor_text(text: str) -> int | None:
+    match = FLOOR_RE.fullmatch(text.strip().lstrip("（(").rstrip("）)"))
+    return int(match["floor"]) if match is not None else None
 
 
-def ensure_frontmost(client: C.DaemonClient, tries: int = 12) -> bool:
-    client.send("activate")
-    time.sleep(0.4)
-    for _ in range(tries):
-        try:
-            w = client.win()
-        except Exception:  # noqa: BLE001
-            time.sleep(0.2)
-            continue
-        if w.get("w"):
-            return True
-        time.sleep(0.2)
-    return False
-
-
-def read_floor(session: DaemonSession) -> int | None:
+def floor_plate(items: Sequence[Mapping[str, Any]]) -> tuple[int, tuple[float, float]] | None:
     x0, y0, x1, y1 = FLOOR_ROI
-    path = session.shot(SHOT)
-    items = session.client.send("ocr", path=path, min=0.15).get("items", [])
-    w, h = session.pixel_size
-    best = None
-    for it in items:
-        cx = (it["x"] + it["w"] / 2) * w
-        cy = (1 - (it["y"] + it["h"] / 2)) * h
-        if x0 <= cx <= x1 and y0 <= cy <= y1:
-            m = FLOOR_RE.match(str(it["text"]).strip())
-            if m:
-                best = int(m.group("floor"))
-    return best
+    hits = [(parse_floor_text(str(it["text"])), tuple(it["px"])) for it in items
+            if x0 <= it["px"][0] <= x1 and y0 <= it["px"][1] <= y1]
+    hits = [(value, point) for value, point in hits if value is not None and value > 0]
+    return hits[0] if len(hits) == 1 else None
 
 
-def stopped() -> str | None:
-    if os.path.exists(STOP):
-        return "stop flag"
-    if os.path.exists(PAUSE):
-        return "pause flag"
+def read_floor(session: DaemonSession, *, require_clear: bool = False) -> int | None:
+    frame = session.latest() if require_clear else None
+    if frame is not None and not clear_tower_platform(frame):
+        return None
+    plate = floor_plate(session.ocr(0.15, frame=frame, roi=FLOOR_ROI))
+    return plate[0] if plate else None
+
+
+def read_floor_stable(session: DaemonSession, *, tries: int = 3,
+                      require_clear: bool = False) -> int | None:
+    previous = None
+    for _ in range(max(2, tries)):
+        current = read_floor(session, require_clear=require_clear)
+        if current is not None and current == previous:
+            return current
+        previous = current
+        time.sleep(0.15)
     return None
 
 
-def one_battle(session: DaemonSession, finder: GuardianFinder,
-               battle: TowerBattleLocal, settle: TowerSettlement,
-               index: int) -> dict[str, Any]:
-    row: dict[str, Any] = {"kind": "battle", "index": index, "t_start": now_iso()}
-    t0 = time.monotonic()
+def control_stop() -> str | None:
+    return next((path for path in (STOP, PAUSE, LOCAL_PAUSE) if os.path.exists(path)), None)
 
-    items = session.ocr(min_conf=0.2)
-    text = " ".join(str(i["text"]) for i in items)
-    if sum(1 for m in OVERLAY_MARKERS if m in text) >= 2:
-        row.update(outcome="BLOCKED", reason="a non-battle overlay is up; "
-                   "close it and re-run (no blind clicking)")
-        row["elapsed_s"] = round(time.monotonic() - t0, 2)
-        return row
 
-    floor_before = read_floor(session)
-    row["floor_before"] = floor_before
-
+def locate_guardian(session: DaemonSession, finder: GuardianFinder, expected_floor: int):
     frame = session.latest()
-    found = finder.find(frame, items)
-    if found is None:
-        row.update(outcome="BLOCKED",
-                   reason="no guardian sprite found in the current frame; "
-                          "refusing to sweep fixed coordinates")
-        row["elapsed_s"] = round(time.monotonic() - t0, 2)
-        return row
-    row["guardian"] = {"px": [round(found["px"][0], 1), round(found["px"][1], 1)],
-                       "area": found["area"], "mean_rgb": found["mean_rgb"]}
+    if not clear_tower_platform(frame):
+        return None, None
+    items = session.ocr(0.2, frame=frame, roi=(180, 340, 2200, 1330))
+    text = " ".join(it["text"] for it in items)
+    if sum(marker in text for marker in OVERLAY_MARKERS) >= 2:
+        return None, None
+    plate = floor_plate(session.ocr(0.15, frame=frame, roi=FLOOR_ROI))
+    if plate is None or plate[0] != expected_floor:
+        return None, None
+    return finder.locate(frame, items, *plate), finder.player_position(items)
 
-    # engage: click the body twice (first walks, second interacts) - live-verified
-    gx, gy = found["px"]
+
+def wait_after_engage(session: DaemonSession, finder: GuardianFinder,
+                      floor: int, target, *, approach: bool, timeout_s: float = 3.0):
+    """Return an observed battle or a stable player adjacent to the same guardian."""
+    deadline = time.monotonic() + timeout_s
+    previous_player = None
+    while time.monotonic() < deadline:
+        if session.guard and (session.guard._flag() or session.guard._budget()):
+            break
+        items = session.battle_items()
+        text = " ".join(it["text"] for it in items)
+        if sum(marker in text for marker in BATTLE_MARKERS) >= 2:
+            return "battle", None
+        if any(marker in text for marker in VICTORY_MARKERS):
+            break
+        if approach:
+            current, player = locate_guardian(session, finder, floor)
+            if current is None:
+                break
+            gx, gy = current["px"]
+            if (abs(gx - target[0]) <= 40 and abs(gy - target[1]) <= 40
+                    and player is not None and abs(gx - player[0]) <= 145
+                    and -25 <= player[1] - gy <= 225
+                    and previous_player is not None
+                    and abs(player[0] - previous_player[0]) <= 12
+                    and abs(player[1] - previous_player[1]) <= 12):
+                return "approached", (gx, gy)
+            previous_player = player
+        time.sleep(0.15)
+    return "unverified", None
+
+
+def one_battle(session: DaemonSession, finder: GuardianFinder,
+               battle: TowerBattleLocal, settle: TowerSettlement, index: int) -> dict[str, Any]:
+    row: dict[str, Any] = {"kind": "battle", "index": index, "t_start": now_iso(),
+                           "outcome": "BLOCKED"}
+    start = time.monotonic()
     try:
-        session.click_px(gx, gy, reason="engage_1")
-        time.sleep(1.2)
-        session.click_px(gx, gy, reason="engage_2")
-    except Exception as exc:  # noqa: BLE001
-        row.update(outcome="FAILED", reason=f"engage click failed: {exc}")
-        row["elapsed_s"] = round(time.monotonic() - t0, 2)
-        return row
-    row["t_engage"] = round(time.monotonic() - t0, 2)
+        floor = read_floor_stable(session)
+        row["floor_before"] = floor
+        if floor is None:
+            return dict(row, reason="no stable painted floor before engagement")
+        found, _ = locate_guardian(session, finder, floor)
+        if found is None:
+            return dict(row, reason="no calibrated guardian on the current unobstructed frame")
+        row["guardian"] = found
+        observed_since = time.monotonic()
+        if not session.click_px(*found["px"], reason="engage_1"):
+            return dict(row, reason="approach click refused", stop_run=True)
+        first, target = wait_after_engage(session, finder, floor, found["px"], approach=True)
+        row["engage"] = {"after_first": first}
+        state = first
+        if first == "approached":
+            observed_since = time.monotonic()
+            if not session.click_px(*target, reason="engage_2"):
+                return dict(row, reason="interaction click refused", stop_run=True)
+            state, _ = wait_after_engage(session, finder, floor, target,
+                                         approach=False, timeout_s=6.0)
+            row["engage"]["after_second"] = state
+        if state != "battle":
+            return dict(row, reason="no verified approach or battle after interaction", stop_run=True)
 
-    outcome = battle.run(session)
-    row["battle"] = outcome.to_dict()
-    row["t_battle_end"] = round(time.monotonic() - t0, 2)
-    if outcome.unknown and not outcome.won and not outcome.defeat:
-        row.update(outcome="BLOCKED", reason=outcome.reason)
-        row["elapsed_s"] = round(time.monotonic() - t0, 2)
-        return row
-    if outcome.defeat:
-        row.update(outcome="FAILED", reason="defeat in the tower")
-        row["elapsed_s"] = round(time.monotonic() - t0, 2)
-        return row
+        outcome = battle.run(session, observed_since=observed_since)
+        row["battle"] = outcome.to_dict()
+        if not outcome.won:
+            return dict(row, outcome="FAILED" if outcome.defeat else "BLOCKED",
+                        reason=outcome.reason, stop_run=True)
 
-    settle_result = settle.settle(session)
-    row["settlement"] = settle_result.to_dict()
-    row["t_settled"] = round(time.monotonic() - t0, 2)
-
-    floor_after = read_floor(session)
-    row["floor_after"] = floor_after
-    xp_values = []
-    for line in settle_result.xp_texts:
-        m = XP_RE.search(line)
-        if m:
-            xp_values.append(int(m.group(1)))
-    row["xp_values"] = xp_values
-
-    advanced = (floor_before is not None and floor_after is not None
-                and floor_after > floor_before)
-    if advanced or xp_values:
-        row["outcome"] = "PROGRESS"
-        row["reason"] = ("floor advanced" if advanced else "") + \
-                        ("; xp verbatim" if xp_values else "")
-    else:
-        row["outcome"] = "UNVERIFIED_ACTIVITY"
-        row["reason"] = ("battle won but neither the floor digit nor a verbatim XP "
-                         f"line proves it (floor {floor_before}->{floor_after})")
-    row["elapsed_s"] = round(time.monotonic() - t0, 2)
-    return row
+        # The successor floor can already show behind the reward chain. Only ask for
+        # it after the settlement reader has observed the panel area clear.
+        evidence = settle.positive_evidence
+        settle.positive_evidence = lambda: read_floor_stable(
+            session, require_clear=True) == floor + 1
+        try:
+            result = settle.settle(session)
+        finally:
+            settle.positive_evidence = evidence
+        row["settlement"] = result.to_dict()
+        row["xp_values"] = [int(m[1]) for line in result.xp_texts if (m := XP_RE.search(line))]
+        after = read_floor_stable(session)
+        row["floor_after"] = after
+        row["floor_advanced"] = after == floor + 1
+        if not result.closed:
+            return dict(row, reason=f"settlement unverified: {result.reason}", stop_run=True)
+        if after != floor + 1 or outcome.active_success_turns == 0:
+            return dict(row, outcome="UNVERIFIED_ACTIVITY", stop_run=True,
+                        reason="stable floor +1 and verified active PP change are both required")
+        return dict(row, outcome="PROGRESS", reason=f"stable floor {floor} -> {after}")
+    except (InputRefused, C.CaptureUnavailable, C.DaemonError) as exc:
+        return dict(row, reason=str(exc), stop_run=True)
+    finally:
+        say(f"battle {index} observation ended after {time.monotonic() - start:.1f}s")
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--battles", type=int, default=3)
-    ap.add_argument("--allow-input", action="store_true")
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--battles", type=int, default=1, choices=range(1, 4))
+    ap.add_argument("--allow-input", action="store_true",
+                    help="operator has released input and already made the game frontmost")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--target", default=None)
-    ap.add_argument("--max-seconds", type=float, default=240.0,
-                    help="hard cap for the whole run")
+    ap.add_argument("--max-seconds", type=float, default=90.0)
+    ap.add_argument("--max-clicks", type=int, default=30)
     args = ap.parse_args()
-
-    client = C.DaemonClient(BIN, args=["--target", args.target] if args.target else [],
-                            timeout_s=30.0)
+    if not args.dry_run and (not args.allow_input or control_stop()):
+        say("REFUSED: foreground authorization and cleared pause/stop flags are required")
+        return 7
+    if not (0 < args.max_seconds <= 300 and 0 < args.max_clicks <= 120):
+        ap.error("invalid validation budget")
+    client = C.DaemonClient(BIN, timeout_s=5.0)
     session = None
     try:
-        geo = geometry_of(client)
-        say(f"window {geo.origin_pt} {geo.size_pt} px={geo.pixel_size}")
-        if args.dry_run:
-            frame = None
-            path = "/tmp/tower_live_dry.png"
-            client.send("shot", path=path)
-            frame = cv2.imread(path, cv2.IMREAD_COLOR)
-            items = []
-            w, h = geo.pixel_size.w, geo.pixel_size.h
-            for it in client.send("ocr", path=path, min=0.2).get("items", []):
-                cx = (it["x"] + it["w"] / 2) * w
-                cy = (1 - (it["y"] + it["h"] / 2)) * h
-                items.append({"text": it["text"], "conf": it["conf"], "px": (cx, cy)})
-            found = GuardianFinder().find(frame, items) if frame is not None else None
-            print(json.dumps({
-                "dry_run": True, "starts_nothing": True,
-                "floor": None,
-                "guardian": None if found is None else {
-                    "px": [round(found["px"][0], 1), round(found["px"][1], 1)],
-                    "area": found["area"], "mean_rgb": found["mean_rgb"]},
-                "ocr_lines": [i["text"] for i in items][:12],
-                "plan": ["locate the guardian in THIS frame",
-                         "click body twice (walk + interact)",
-                         "TowerBattleLocal: read moves, click the chosen one before "
-                         "the 10s countdown, record timings",
-                         "TowerSettlement: capture verbatim XP, click ONE confirm at "
-                         "a time, record latency",
-                         "read the painted floor again and record PROGRESS or "
-                         "UNVERIFIED_ACTIVITY"],
-            }, ensure_ascii=False, indent=2))
-            return 0
-        if not args.allow_input:
-            say("REFUSED: pass --allow-input to actually click")
-            return 6
-        if stopped():
-            say(f"REFUSED: {stopped()}")
-            return 7
-        if not ensure_frontmost(client):
-            say("REFUSED: the game window is not frontmost")
+        win = client.win()
+        if not win.get("id") or not win.get("pid") or (win.get("w"), win.get("h")) != (1200, 800):
+            say(f"REFUSED: calibrated game window identity/geometry unavailable ({win})")
             return 8
-        geo = geometry_of(client)
-        session = DaemonSession(client, geo)
+        geo = G.WindowGeometry(G.Point(win["x"], win["y"]), G.Size(win["w"], win["h"]),
+                               G.RETINA_SCALE)
+        permissions = client.send("permissions")
+        if permissions.get("screen_capture") is not True:
+            say("REFUSED: macOS Screen Recording permission is required for live capture")
+            return 8
+        guard = None
+        if not args.dry_run:
+            if permissions.get("post_event") is not True:
+                say("REFUSED: macOS Accessibility permission is required for live input")
+                return 8
+            if win.get("frontmost") is not True or "click.guarded" not in client.caps():
+                say("REFUSED: exact game window must already be frontmost and daemon support guarded input")
+                return 8
+            guard = ActionGuard(window_id=win["id"], pid=win["pid"], geometry=geo,
+                                window_probe=client.win, max_clicks=args.max_clicks,
+                                max_seconds=args.max_seconds)
+        session = DaemonSession(client, geo, guard=guard)
         finder = GuardianFinder()
-        battle = TowerBattleLocal()
-        settle = TowerSettlement()
-        started = time.monotonic()
-        done = 0
-        failed = 0
+        if args.dry_run:
+            floor = read_floor_stable(session)
+            found = locate_guardian(session, finder, floor)[0] if floor is not None else None
+            print(json.dumps({"dry_run": True, "floor": floor, "guardian": found},
+                             ensure_ascii=False))
+            return 0 if found else 3
+
+        battle, settle = TowerBattleLocal(), TowerSettlement()
+        failures = 0
+        progressed = 0
         for index in range(1, args.battles + 1):
-            if stopped():
-                say(f"stopping: {stopped()}")
-                break
-            if time.monotonic() - started > args.max_seconds:
-                say("stopping: --max-seconds budget")
+            if control_stop() or guard.clock() - guard.started >= guard.max_seconds:
                 break
             row = one_battle(session, finder, battle, settle, index)
             log(row)
-            done += 1
-            if row["outcome"] not in ("PROGRESS",):
-                failed += 1
-            say(f"battle {index}: {row['outcome']} "
-                f"({row.get('reason', '')[:90]})")
-            if failed >= 2:
-                say("stopping: two non-PROGRESS battles")
+            say(f"battle {index}: {row['outcome']} ({row['reason']})")
+            if row["outcome"] == "PROGRESS":
+                progressed += 1
+                failures = 0
+            else:
+                failures += 1
+            if failures >= 2 or row.get("stop_run"):
                 break
-        log({"kind": "session.end", "battles": done, "non_progress": failed,
-             "elapsed_s": round(time.monotonic() - started, 1)})
-        return 0 if failed == 0 else 3
+        log({"kind": "session.end", "progressed": progressed, "requested": args.battles,
+             "dispatches": guard.clicks, "guard_history": guard.history})
+        return 0 if progressed == args.battles else 3
+    except (C.DaemonError, C.CaptureUnavailable) as exc:
+        say(f"BLOCKED: {exc}")
+        return 8
     finally:
-        client.close()
+        if session is not None:
+            session.close()
+        else:
+            client.close()
 
 
 if __name__ == "__main__":

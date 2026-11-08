@@ -20,9 +20,9 @@
     },
     {
       "file": "world_after_battles.png",
-      "expect_state": "IDLE",
-      "expect_rule": null,
-      "what": "克洛斯星林间 after 3 battles, no dialog",
+      "expect_state": "DIALOG",
+      "expect_rule": "dialog_white_panel",
+      "what": "克洛斯星林间 with an XP popup over the scene (XIN精灵获得经验：106, 确认)",
       "at": "2026-11-02T00:13+08:00"
     }
   ]

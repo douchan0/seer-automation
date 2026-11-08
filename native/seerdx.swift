@@ -194,19 +194,21 @@ func listWindows() -> [[String: Any]] {
     return (CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]]) ?? []
 }
 
-func findGameWindow() -> (id: Int, x: Double, y: Double, w: Double, h: Double)? {
+func findGameWindow(in windows: [[String: Any]] = listWindows())
+    -> (id: Int, pid: Int, x: Double, y: Double, w: Double, h: Double)? {
     // Never take "the first window whose owner matches": the game app also owns
     // small helper windows (observed: a 52x20 window titled "Window" that came to
     // the front and made `pin` resize the wrong thing). Pick the LARGEST match
     // instead, which is the actual game canvas.
-    var best: (id: Int, x: Double, y: Double, w: Double, h: Double)? = nil
+    var best: (id: Int, pid: Int, x: Double, y: Double, w: Double, h: Double)? = nil
     var bestArea = 0.0
-    for w in listWindows() {
+    for w in windows {
         let owner = (w[kCGWindowOwnerName as String] as? String ?? "").lowercased()
         let layer = w[kCGWindowLayer as String] as? Int ?? 0
         guard layer == 0 else { continue }
         guard TARGET_HINTS.contains(where: { owner.contains($0) }) else { continue }
-        let num = w[kCGWindowNumber as String] as? Int ?? -1
+        guard let num = w[kCGWindowNumber as String] as? Int, num > 0,
+              let pid = w[kCGWindowOwnerPID as String] as? Int, pid > 0 else { continue }
         guard let bd = w[kCGWindowBounds as String] as? [String: Any],
               let x = bd["X"] as? Double, let y = bd["Y"] as? Double,
               let ww = bd["Width"] as? Double, let hh = bd["Height"] as? Double else { continue }
@@ -214,10 +216,41 @@ func findGameWindow() -> (id: Int, x: Double, y: Double, w: Double, h: Double)? 
         let area = ww * hh
         if area > bestArea {
             bestArea = area
-            best = (num, x, y, ww, hh)
+            best = (num, pid, x, y, ww, hh)
         }
     }
     return best
+}
+
+func windowBounds(_ window: [String: Any]) -> CGRect? {
+    guard let bounds = window[kCGWindowBounds as String] as? [String: Any] else { return nil }
+    return CGRect(dictionaryRepresentation: bounds as CFDictionary)
+}
+
+func isFrontmostGameWindow(_ id: Int, _ pid: Int, in windows: [[String: Any]]) -> Bool {
+    guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid_t(pid) else {
+        return false
+    }
+    let top = windows.first { window in
+        guard (window[kCGWindowLayer as String] as? Int) == 0 else { return false }
+        if (window[kCGWindowOwnerPID as String] as? Int) == pid,
+           let bounds = windowBounds(window), bounds.width <= 52, bounds.height <= 20 {
+            return false // Electron's small auxiliary window does not cover the canvas.
+        }
+        return true
+    }
+    return (top?[kCGWindowNumber as String] as? Int) == id
+        && (top?[kCGWindowOwnerPID as String] as? Int) == pid
+}
+
+func topWindow(at point: CGPoint, in windows: [[String: Any]]) -> Int? {
+    let top = windows.first { window in
+        let alpha = window[kCGWindowAlpha as String] as? Double ?? 1
+        // The Dock's layer-20 compositing surface covers the entire screen.
+        return (window[kCGWindowLayer as String] as? Int) == 0
+            && alpha > 0 && (windowBounds(window)?.contains(point) ?? false)
+    }
+    return top?[kCGWindowNumber as String] as? Int
 }
 
 func gameApp() -> NSRunningApplication? {
@@ -457,23 +490,23 @@ func typeText(_ s: String) {
 // --------------------------------------------------------------------------
 // OCR (Vision) — same normalised boxes as seerctl
 // --------------------------------------------------------------------------
-func ocrFile(_ path: String, _ minConf: Float) -> [[String: Any]] {
+func ocrFile(_ path: String, _ minConf: Float) -> [[String: Any]]? {
     guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
-          let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return [] }
+          let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
     // force a real decode: the handle alone is lazy and would make this "free"
     let wpx = img.width, hpx = img.height
     var decoded = [UInt8](repeating: 0, count: wpx * hpx * 4)
     guard let ctx = CGContext(data: &decoded, width: wpx, height: hpx,
                               bitsPerComponent: 8, bytesPerRow: wpx * 4,
                               space: CGColorSpaceCreateDeviceRGB(),
-                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return [] }
+                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
     ctx.draw(img, in: CGRect(x: 0, y: 0, width: wpx, height: hpx))
 
     let req = VNRecognizeTextRequest()
     req.recognitionLevel = .accurate
     req.usesLanguageCorrection = false
     req.recognitionLanguages = ["zh-Hans", "en-US"]
-    do { try VNImageRequestHandler(cgImage: img, options: [:]).perform([req]) } catch { return [] }
+    do { try VNImageRequestHandler(cgImage: img, options: [:]).perform([req]) } catch { return nil }
     var out: [[String: Any]] = []
     for obs in (req.results ?? []) {
         guard let c = obs.topCandidates(1).first, c.confidence >= minConf else { continue }
@@ -499,8 +532,8 @@ final class Daemon {
     }
 
     func caps() -> [String] {
-        var ops = ["ping", "caps", "win", "pin", "activate", "quit",
-                   "shot", "ocr", "click", "move", "key", "type",
+        var ops = ["ping", "caps", "permissions", "win", "pin", "activate", "quit",
+                   "shot", "ocr", "click", "click.guarded", "move", "key", "type",
                    // background lane: events posted straight to the game process,
                    // so the cursor never moves and the window need not be frontmost
                    "clickpid", "movepid", "keypid", "drag", "dragpid", "cursorpos"]
@@ -621,9 +654,14 @@ final class Daemon {
         switch op {
         case "ping": return ["ok": true]
         case "caps": return ["ops": caps()]
+        case "permissions":
+            return ["screen_capture": CGPreflightScreenCaptureAccess(),
+                    "post_event": CGPreflightPostEventAccess()]
         case "win":
-            guard let f = findGameWindow() else { return ["error": "no window"] }
-            return ["id": f.id, "x": f.x, "y": f.y, "w": f.w, "h": f.h]
+            let windows = listWindows()
+            guard let f = findGameWindow(in: windows) else { return ["error": "no window"] }
+            return ["id": f.id, "pid": f.pid, "x": f.x, "y": f.y, "w": f.w, "h": f.h,
+                    "frontmost": isFrontmostGameWindow(f.id, f.pid, in: windows)]
         case "pin":
             return pinWindow(obj["x"] as? Double ?? 300, obj["y"] as? Double ?? 120,
                              obj["w"] as? Double ?? 1149, obj["h"] as? Double ?? 714)
@@ -659,7 +697,33 @@ final class Daemon {
             return shot((obj["path"] as? String) ?? "/tmp/seerdx_shot.png", rect: rect)
         case "ocr":
             let path = (obj["path"] as? String) ?? "/tmp/seerdx_shot.png"
-            return ["items": ocrFile(path, Float(obj["min"] as? Double ?? 0.3))]
+            guard let items = ocrFile(path, Float(obj["min"] as? Double ?? 0.3)) else {
+                return ["error": "OCR could not read the image"]
+            }
+            return ["items": items]
+        case "click.guarded":
+            guard CGPreflightPostEventAccess() else {
+                return ["error": "macOS Accessibility denies posting input events"]
+            }
+            let windows = listWindows()
+            guard let f = findGameWindow(in: windows),
+                  f.id == obj["id"] as? Int, f.pid == obj["pid"] as? Int,
+                  isFrontmostGameWindow(f.id, f.pid, in: windows),
+                  let bounds = obj["bounds"] as? [Double], bounds.count == 4,
+                  zip([f.x, f.y, f.w, f.h], bounds).allSatisfy({ abs($0.0 - $0.1) <= 2 }),
+                  let x = obj["x"] as? Double, let y = obj["y"] as? Double,
+                  x >= 0, y >= 0, x < f.w, y < f.h,
+                  !FileManager.default.fileExists(atPath: "/tmp/seerauto.master.pause"),
+                  !FileManager.default.fileExists(atPath: "/tmp/seerauto.pause"),
+                  !FileManager.default.fileExists(atPath: "/tmp/seerauto.stop") else {
+                return ["error": "guarded click refused"]
+            }
+            let point = CGPoint(x: f.x + x, y: f.y + y)
+            guard topWindow(at: point, in: windows) == f.id else {
+                return ["error": "guarded click point is covered"]
+            }
+            click(point.x, point.y, 1)
+            return ["ok": true]
         case "click":
             click(obj["x"] as? Double ?? 0, obj["y"] as? Double ?? 0, obj["n"] as? Int ?? 1)
             return ["ok": true]
@@ -703,6 +767,16 @@ final class Daemon {
 // --------------------------------------------------------------------------
 // main: stdin on a background thread, pumping run loop on the main thread
 // --------------------------------------------------------------------------
+// Explicit operator actions. Ordinary capture and input never request permissions.
+if CommandLine.arguments.contains("--request-capture-access") {
+    emit(["screen_capture": CGRequestScreenCaptureAccess()])
+    exit(0)
+}
+if CommandLine.arguments.contains("--request-input-access") {
+    emit(["post_event": CGRequestPostEventAccess()])
+    exit(0)
+}
+
 if let i = CommandLine.arguments.firstIndex(of: "--target"), i + 1 < CommandLine.arguments.count {
     TARGET_HINTS = [CommandLine.arguments[i + 1].lowercased()]
     log("target override: \(TARGET_HINTS)")

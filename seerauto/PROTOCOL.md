@@ -62,6 +62,7 @@ emit a frame only every ~378 ms (measured), while an animating window emits at
 | `shot` | `path`, `rect` optional | `{"path": str, "w": int, "h": int}` (one-shot, no warm session) |
 | `ocr` | `path`, `min` | `{"items": [{"text", "conf", "x", "y", "w", "h"}]}` Vision-normalised boxes |
 | `click` | `x, y` (global points), `n` | `{"ok": true}` |
+| `click.guarded` | Window-local `x, y` (points), captured `id, pid`, expected `bounds: [x, y, w, h]` (points) | `{"ok": true}` after one HID click, or `{"error": "guarded click refused"}` without input |
 | `move` | `x, y` (global points) | `{"ok": true}` |
 | `key` | `code` (macOS virtual key) | `{"ok": true}` |
 | `type` | `text` | `{"ok": true}` |
@@ -116,6 +117,19 @@ points from `actions.py`, so it never has to know about `game_px`.
    memory instead (microseconds) - still one round trip per tick.
 
 ## Not in scope for the daemon
+
+`win` also returns the owning PID and whether the exact game window is
+frontmost. The game's 52×20 auxiliary surface can rank ahead of the canvas
+without covering the click point. `click.guarded` verifies that the target
+point hits the canvas in the layer-0 window list, then applies the identity,
+geometry, foreground, and global pause/stop guards.
+
+The read-only `permissions` operation returns `screen_capture` and
+`post_event`. The live runner reports missing macOS permissions before opening
+a stream or dispatching input. Operators can explicitly request the matching
+macOS prompt with `seerdx --request-capture-access` or
+`seerdx --request-input-access`. The daemon never opens permission prompts
+during routine capture or clicking.
 
 The daemon must not decide states, sleep, or click on its own. All policy lives
 in `seerauto/state.py`, `seerauto/executor.py` and `seerauto/tasks/`.
