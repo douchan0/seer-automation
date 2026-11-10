@@ -74,3 +74,15 @@ data/overnight/20261106_dual_mode/live/*.png
 
 # OpenCode sandbox state remains local.
 .ocxdg/
+
+# Night 2026-11-09 evidence frames: 220 PNG, kept on disk only.
+artifacts/night_20261109/
+
+# Night 2026-11-09 raw handover/journal: account state + absolute local paths stay local
+# (the versioned report quotes what it needs)
+data/night_20261109/
+
+.codex-led-20261107/
+.codex-led-public-20261107/
+.codex-sdk-audit/
+.sdk-fix/
